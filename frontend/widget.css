@@ -1,0 +1,478 @@
+#proxe-widget-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9998;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+}
+
+#proxe-searchbar-wrapper {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  transition: all 0.3s ease;
+}
+
+.proxe-searchbar {
+  width: 480px;
+  background: white;
+  border-radius: 32px;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.3s ease;
+  position: relative;
+  cursor: pointer;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15), 
+              0 8px 48px rgba(0, 0, 0, 0.1);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.proxe-searchbar::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 32px;
+  padding: 2px;
+  background: linear-gradient(
+    45deg,
+    #4285F4,
+    #34A853,
+    #FBBC04,
+    #EA4335,
+    #4285F4
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: gradientBorder 8s linear infinite;
+  z-index: 1;
+}
+
+@keyframes gradientBorder {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.proxe-searchbar:hover {
+  box-shadow: 0 8px 32px rgba(66, 133, 244, 0.25), 
+              0 12px 64px rgba(219, 68, 55, 0.15);
+}
+
+.proxe-search-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.proxe-search-icon svg {
+  width: 100%;
+  height: 100%;
+  color: #000;
+  stroke-width: 2.5;
+}
+
+.proxe-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 15px;
+  color: #333;
+  background: transparent;
+  font-family: inherit;
+  letter-spacing: 0.3px;
+}
+
+.proxe-search-input::placeholder {
+  color: #aaa;
+}
+
+/* Expanded Chatbox */
+.proxe-chatbox-expanded {
+  position: fixed;
+  bottom: 40px;
+  right: 40px;
+  width: 440px;
+  max-height: 700px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  z-index: 9999;
+  animation: expandUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+}
+
+@keyframes expandUp {
+  from {
+    height: 56px;
+    max-height: 56px;
+    opacity: 0.8;
+  }
+  to {
+    height: auto;
+    max-height: 700px;
+    opacity: 1;
+  }
+}
+
+.proxe-chat-header {
+  padding: 16px 24px;
+  background: #1a1a1a;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.proxe-brand-name {
+  font-weight: 600;
+  font-size: 16px;
+  color: white;
+  letter-spacing: 0.5px;
+}
+
+.proxe-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.proxe-header-btn {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.proxe-header-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.proxe-header-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.proxe-close-btn:hover {
+  background: rgba(255, 0, 0, 0.2);
+}
+
+.proxe-messages-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #f5f5f5;
+}
+
+.proxe-message {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  animation: messageIn 0.3s ease;
+}
+
+@keyframes messageIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.proxe-message.user {
+  justify-content: flex-end;
+}
+
+.proxe-message.user .proxe-message-bubble {
+  order: -1;
+}
+
+.proxe-avatar {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 50%;
+  background: #000;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.proxe-avatar svg {
+  width: 18px;
+  height: 18px;
+}
+
+.proxe-message-bubble {
+  max-width: 75%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.6;
+  letter-spacing: 0.2px;
+}
+
+.proxe-message.user .proxe-message-bubble {
+  background: #000;
+  color: white;
+}
+
+.proxe-message.ai .proxe-message-bubble {
+  background: white;
+  color: #333;
+  border: 1px solid #e8e8e8;
+}
+
+.proxe-input-area {
+  padding: 16px 24px;
+  border-top: 1px solid #e8e8e8;
+  display: flex;
+  gap: 12px;
+  background: white;
+  flex-shrink: 0;
+}
+
+.proxe-chat-input {
+  flex: 1;
+  border: 1px solid #e0e0e0;
+  background: #f5f5f5;
+  outline: none;
+  font-size: 14px;
+  font-family: inherit;
+  color: #333;
+  letter-spacing: 0.2px;
+  padding: 12px 16px;
+  border-radius: 24px;
+  transition: all 0.2s;
+}
+
+.proxe-chat-input:focus {
+  background: white;
+  border-color: #000;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+}
+
+.proxe-chat-input::placeholder {
+  color: #999;
+}
+
+.proxe-send-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: #000;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.proxe-send-btn:hover {
+  background: #1a1a1a;
+  transform: scale(1.05);
+}
+
+.proxe-send-btn:active {
+  transform: scale(0.95);
+}
+
+.proxe-send-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.proxe-footer {
+  padding: 12px 24px;
+  background: #fafafa;
+  border-top: 1px solid #e8e8e8;
+  text-align: center;
+}
+
+.proxe-footer-link {
+  font-size: 12px;
+  color: #666;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.proxe-footer-link:hover {
+  color: #000;
+}
+
+@media (max-width: 768px) {
+  .proxe-searchbar {
+    width: calc(100vw - 48px);
+  }
+
+  .proxe-chatbox-expanded {
+    width: calc(100vw - 32px);
+    right: 16px;
+    max-height: 80vh;
+  }
+}
+
+.proxe-messages-area::-webkit-scrollbar {
+  width: 6px;
+}
+
+.proxe-messages-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.proxe-messages-area::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 3px;
+}
+
+.proxe-messages-area::-webkit-scrollbar-thumb:hover {
+  background: #bbb;
+}
+
+/* Markdown Formatting */
+.proxe-message-bubble p {
+  margin: 12px 0;
+  line-height: 1.6;
+}
+
+.proxe-message-bubble ul,
+.proxe-message-bubble ol {
+  margin: 12px 0;
+  padding-left: 20px;
+}
+
+.proxe-message-bubble li {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.proxe-message-bubble ol ol,
+.proxe-message-bubble ul ul,
+.proxe-message-bubble ol ul,
+.proxe-message-bubble ul ol {
+  margin: 4px 0 4px 20px;
+  padding-left: 20px;
+}
+
+.proxe-message-bubble strong {
+  font-weight: 600;
+}
+
+.proxe-message-bubble em {
+  font-style: italic;
+}
+
+.proxe-message-bubble h1,
+.proxe-message-bubble h2,
+.proxe-message-bubble h3 {
+  margin: 12px 0 8px 0;
+  padding: 0;
+  font-weight: 600;
+  font-size: 1.1em;
+}
+
+.proxe-message-bubble code {
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.proxe-message-bubble a {
+  word-break: break-all;
+  overflow-wrap: break-word;
+  color: #0066cc;
+  text-decoration: underline;
+}
+
+.proxe-message-bubble pre {
+  background: #f0f0f0;
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.proxe-message-bubble blockquote {
+  border-left: 4px solid #ddd;
+  padding-left: 12px;
+  margin: 8px 0;
+  color: #666;
+}
+
+/* Typing Indicator Animation */
+.proxe-typing {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.proxe-typing span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #666;
+  animation: typingBounce 1.4s infinite;
+}
+
+.proxe-typing span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.proxe-typing span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+  0%, 60%, 100% {
+    opacity: 0.5;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-10px);
+  }
+}
