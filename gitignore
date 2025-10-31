@@ -5,3 +5,5 @@ google-creds.json
 dist/
 *.log
 .DS_Store
+backend/.env
+n8n/

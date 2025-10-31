@@ -129,7 +129,7 @@ console.log('PROXE Widget Initializing...');
           isOpen = true;
           createWidget();
           
-          fetch('http://127.0.0.1:3000/api/chat', {
+          fetch('api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: userMessage })
@@ -232,7 +232,7 @@ console.log('PROXE Widget Initializing...');
         messages.push({ type: 'ai', text: '<div class="proxe-typing"><span></span><span></span><span></span></div>' });
         renderMessages();
 
-        fetch('http://127.0.0.1:3000/api/chat', {
+        fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: userMessage })
