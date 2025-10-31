@@ -5,10 +5,16 @@ console.log('PROXE Widget Initializing...');
   let messages = [];
   const brandName = 'Wind Chasers';
 
+  // Auto-detect API URL based on current page location
+  const API_BASE_URL = window.location.origin;
+  const API_CHAT_URL = API_BASE_URL + '/api/chat';
+  
+  console.log('API URL:', API_CHAT_URL);
+
   // SVG Icons
   const icons = {
     search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>',
-    phone: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>',
+    send: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>',
     close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
     user: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M12 14c-6 0-8 3-8 3v7h16v-7s-2-3-8-3z"/></svg>',
     settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m4.24-4.24l4.24-4.24"></path></svg>',
@@ -32,15 +38,29 @@ console.log('PROXE Widget Initializing...');
       const welcomeMsg = document.createElement('div');
       welcomeMsg.className = 'proxe-message ai';
       
-      const avatar = document.createElement('div');
-      avatar.className = 'proxe-avatar';
-      avatar.innerHTML = icons.user;
-      
       const bubble = document.createElement('div');
       bubble.className = 'proxe-message-bubble';
-      bubble.innerHTML = '<strong>Welcome! 👋</strong><br>How can we help you today?';
       
-      welcomeMsg.appendChild(avatar);
+      const header = document.createElement('div');
+      header.className = 'proxe-message-header';
+      
+      const avatar = document.createElement('div');
+      avatar.className = 'proxe-bubble-avatar';
+      avatar.innerHTML = icons.user;
+      
+      const name = document.createElement('div');
+      name.className = 'proxe-message-name';
+      name.textContent = brandName;
+      
+      header.appendChild(avatar);
+      header.appendChild(name);
+      
+      const textDiv = document.createElement('div');
+      textDiv.className = 'proxe-message-text';
+      textDiv.innerHTML = '<strong>Welcome! 👋</strong><br>How can we help you today?';
+      
+      bubble.appendChild(header);
+      bubble.appendChild(textDiv);
       welcomeMsg.appendChild(bubble);
       msgArea.appendChild(welcomeMsg);
     } else {
@@ -48,22 +68,34 @@ console.log('PROXE Widget Initializing...');
         const msgDiv = document.createElement('div');
         msgDiv.className = 'proxe-message ' + msg.type;
         
-        if (msg.type === 'ai') {
-          const avatar = document.createElement('div');
-          avatar.className = 'proxe-avatar';
-          avatar.innerHTML = icons.user;
-          msgDiv.appendChild(avatar);
-        }
-        
         const bubble = document.createElement('div');
         bubble.className = 'proxe-message-bubble';
-        bubble.innerHTML = msg.text;
+        
+        const header = document.createElement('div');
+        header.className = 'proxe-message-header';
+        
+        const avatar = document.createElement('div');
+        avatar.className = 'proxe-bubble-avatar';
+        avatar.innerHTML = icons.user;
+        
+        const name = document.createElement('div');
+        name.className = 'proxe-message-name';
+        name.textContent = msg.type === 'ai' ? brandName : 'You';
+        
+        header.appendChild(avatar);
+        header.appendChild(name);
+        
+        const textDiv = document.createElement('div');
+        textDiv.className = 'proxe-message-text';
+        textDiv.innerHTML = msg.text;
+        
+        bubble.appendChild(header);
+        bubble.appendChild(textDiv);
         msgDiv.appendChild(bubble);
         msgArea.appendChild(msgDiv);
       });
     }
 
-    // Scroll to bottom
     setTimeout(function() {
       msgArea.scrollTop = msgArea.scrollHeight;
     }, 50);
@@ -72,24 +104,105 @@ console.log('PROXE Widget Initializing...');
   function streamText(element, htmlText, speed = 8) {
     let index = 0;
     
-    // Parse HTML into chunks to display progressively
     const temp = document.createElement('div');
     temp.innerHTML = htmlText;
     const plainText = temp.textContent || temp.innerText;
 
     function typeNextChar() {
       if (index < plainText.length) {
-        // Show partial text with HTML formatting applied
         element.innerHTML = htmlText.substring(0, Math.min(index * 5, htmlText.length));
         index++;
         setTimeout(typeNextChar, speed);
       } else {
-        // When done, show the full HTML
         element.innerHTML = htmlText;
       }
     }
 
     typeNextChar();
+  }
+
+  // Function to format text response into HTML
+  function formatTextToHTML(text) {
+    // Split into paragraphs
+    let paragraphs = text.split('\n\n').map(p => p.trim()).filter(p => p.length > 0);
+    
+    let formatted = paragraphs.map(para => {
+      // Handle bullet points starting with **
+      if (para.includes('\n**') || para.startsWith('**')) {
+        let items = para.split('\n').filter(line => line.trim());
+        let listItems = items.map(item => {
+          // Remove ** markers and clean up
+          let cleaned = item.replace(/^\*\*/, '').replace(/\*\*$/, '').trim();
+          // Bold the title if it ends with **
+          if (item.includes('**')) {
+            let parts = cleaned.split('**');
+            if (parts.length > 1) {
+              cleaned = '<strong>' + parts[0].trim() + '</strong> ' + parts.slice(1).join(' ').trim();
+            }
+          }
+          return '<li>' + cleaned + '</li>';
+        }).join('');
+        return '<ul>' + listItems + '</ul>';
+      }
+      
+      // Regular paragraph
+      let formatted = para.replace(/\n/g, '<br>');
+      
+      // Bold text
+      formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      
+      // Italic text  
+      formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+      
+      return '<p>' + formatted + '</p>';
+    }).join('');
+    
+    return formatted;
+  }
+
+  // Centralized handler for quick button clicks
+  function handleQuickButtonClick(promptText) {
+    console.log('Quick button clicked:', promptText);
+    
+    // Add user message
+    messages.push({ type: 'user', text: promptText });
+    
+    // Add skeleton loader with header
+    messages.push({ 
+      type: 'ai', 
+      text: '<div class="proxe-skeleton-loader"><div class="proxe-skeleton-line"></div><div class="proxe-skeleton-line"></div><div class="proxe-skeleton-line"></div></div>',
+      isLoading: true
+    });
+    
+    // Open chat
+    isOpen = true;
+    createWidget();
+    
+    // Send to API
+    fetch(API_CHAT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: promptText })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      console.log('API Response:', data);
+      // Remove skeleton loader
+      messages.pop();
+      // Add AI response (already formatted as HTML from server)
+      messages.push({ type: 'ai', text: data.response });
+      renderMessages();
+      
+      // Stream the response
+      const lastBubble = document.querySelectorAll('.proxe-message-bubble')[document.querySelectorAll('.proxe-message-bubble').length - 1];
+      streamText(lastBubble, data.response, 8);
+    })
+    .catch(function(err) {
+      console.error('API Error:', err);
+      messages.pop();
+      messages.push({ type: 'ai', text: 'Sorry, error connecting to server.' });
+      renderMessages();
+    });
   }
 
   function createWidget() {
@@ -104,12 +217,20 @@ console.log('PROXE Widget Initializing...');
     container.innerHTML = '';
 
     if (!isOpen) {
-      // Searchbar wrapper - collapsed view
       const searchbarWrapper = document.createElement('div');
       searchbarWrapper.id = 'proxe-searchbar-wrapper';
+      searchbarWrapper.className = 'proxe-searchbar-mobile';
 
       const searchbar = document.createElement('div');
       searchbar.className = 'proxe-searchbar';
+      
+      // Click searchbar to open chat if messages exist
+      searchbar.addEventListener('click', function() {
+        if (messages.length > 0) {
+          isOpen = true;
+          createWidget();
+        }
+      });
 
       const searchIcon = document.createElement('div');
       searchIcon.className = 'proxe-search-icon';
@@ -120,31 +241,128 @@ console.log('PROXE Widget Initializing...');
       input.className = 'proxe-search-input';
       input.placeholder = 'Ask me anything...';
       input.id = 'proxe-searchbar-input';
+      input.autocomplete = 'off';
+
+      // Quick buttons wrapper
+      const quickButtonsWrapper = document.createElement('div');
+      quickButtonsWrapper.className = 'proxe-quick-buttons';
+      quickButtonsWrapper.style.display = 'none';
       
+      // Desktop drag-to-scroll
+      let isDown = false;
+      let startX;
+      let scrollLeft;
+      
+      quickButtonsWrapper.addEventListener('mousedown', function(e) {
+        isDown = true;
+        startX = e.pageX - quickButtonsWrapper.offsetLeft;
+        scrollLeft = quickButtonsWrapper.scrollLeft;
+        e.preventDefault(); // Prevent input from losing focus
+      });
+      
+      quickButtonsWrapper.addEventListener('mouseleave', function() {
+        isDown = false;
+      });
+      
+      quickButtonsWrapper.addEventListener('mouseup', function() {
+        isDown = false;
+      });
+      
+      quickButtonsWrapper.addEventListener('mousemove', function(e) {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - quickButtonsWrapper.offsetLeft;
+        const walk = (x - startX) * 2;
+        quickButtonsWrapper.scrollLeft = scrollLeft - walk;
+      });
+
+      // Create buttons with onclick handlers
+      const btn1 = document.createElement('button');
+      btn1.className = 'proxe-quick-btn';
+      btn1.textContent = 'What is Wind Chasers?';
+      btn1.type = 'button';
+      btn1.onclick = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleQuickButtonClick('What is Wind Chasers?');
+      };
+
+      const btn2 = document.createElement('button');
+      btn2.className = 'proxe-quick-btn';
+      btn2.textContent = 'What courses are offered?';
+      btn2.type = 'button';
+      btn2.onclick = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleQuickButtonClick('What courses are offered?');
+      };
+
+      const btn3 = document.createElement('button');
+      btn3.className = 'proxe-quick-btn';
+      btn3.textContent = 'How to start my pilot journey?';
+      btn3.type = 'button';
+      btn3.onclick = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleQuickButtonClick('How to start my pilot journey?');
+      };
+
+      quickButtonsWrapper.appendChild(btn1);
+      quickButtonsWrapper.appendChild(btn2);
+      quickButtonsWrapper.appendChild(btn3);
+
+      // Show buttons on search focus
+      input.addEventListener('focus', function() {
+        if (messages.length > 0) {
+          isOpen = true;
+          createWidget();
+          return;
+        }
+        quickButtonsWrapper.style.display = 'flex';
+        searchbarWrapper.classList.add('proxe-expanded-mobile');
+      });
+
+      // Hide buttons on blur if empty
+      input.addEventListener('blur', function() {
+        setTimeout(function() {
+          if (!input.value.trim() && !isDown) {
+            quickButtonsWrapper.style.display = 'none';
+            searchbarWrapper.classList.remove('proxe-expanded-mobile');
+          }
+        }, 200); // Delay to allow button click to register
+      });
+
       input.addEventListener('keypress', function(e) {
         if (e.key === 'Enter' && input.value.trim()) {
           messages.push({ type: 'user', text: input.value });
           const userMessage = input.value;
           input.value = '';
           isOpen = true;
+          
+          messages.push({ 
+            type: 'ai', 
+            text: '<div class="proxe-skeleton-loader"><div class="proxe-skeleton-line"></div><div class="proxe-skeleton-line"></div><div class="proxe-skeleton-line"></div></div>',
+            isLoading: true
+          });
           createWidget();
           
-          fetch('api/chat', {
+          fetch(API_CHAT_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: userMessage })
           })
           .then(function(res) { return res.json(); })
           .then(function(data) {
-            messages.push({ type: 'ai', text: data.response, isStreaming: true });
+            messages.pop();
+            messages.push({ type: 'ai', text: data.response });
             renderMessages();
             
-            // Stream the text
-            const lastBubble = document.querySelectorAll('.proxe-message-bubble')[document.querySelectorAll('.proxe-message-bubble').length - 1];
-            streamText(lastBubble, data.response, 8);
+            const lastBubble = document.querySelectorAll('.proxe-message-text');
+            streamText(lastBubble[lastBubble.length - 1], data.response, 8);
           })
           .catch(function(err) {
             console.error('Error:', err);
+            messages.pop();
             messages.push({ type: 'ai', text: 'Sorry, error connecting to server.' });
             renderMessages();
           });
@@ -154,25 +372,30 @@ console.log('PROXE Widget Initializing...');
       searchbar.appendChild(searchIcon);
       searchbar.appendChild(input);
 
-      searchbar.addEventListener('click', function() {
-        input.focus();
-      });
-
+      searchbarWrapper.appendChild(quickButtonsWrapper);
       searchbarWrapper.appendChild(searchbar);
       container.appendChild(searchbarWrapper);
+
     } else {
-      // Expanded chat view
       const chatbox = document.createElement('div');
       chatbox.id = 'proxe-chatbox';
       chatbox.className = 'proxe-chatbox-expanded';
 
-      // Header
       const header = document.createElement('div');
       header.className = 'proxe-chat-header';
 
       const brandNameEl = document.createElement('div');
       brandNameEl.className = 'proxe-brand-name';
-      brandNameEl.textContent = brandName;
+      
+      const headerAvatar = document.createElement('div');
+      headerAvatar.className = 'proxe-header-avatar';
+      headerAvatar.innerHTML = icons.user;
+      
+      const brandText = document.createElement('span');
+      brandText.textContent = brandName;
+      
+      brandNameEl.appendChild(headerAvatar);
+      brandNameEl.appendChild(brandText);
 
       const headerActions = document.createElement('div');
       headerActions.className = 'proxe-header-actions';
@@ -203,12 +426,10 @@ console.log('PROXE Widget Initializing...');
       header.appendChild(headerActions);
       chatbox.appendChild(header);
 
-      // Messages area
       const messagesArea = document.createElement('div');
       messagesArea.className = 'proxe-messages-area';
       chatbox.appendChild(messagesArea);
 
-      // Input area
       const inputArea = document.createElement('div');
       inputArea.className = 'proxe-input-area';
 
@@ -219,7 +440,7 @@ console.log('PROXE Widget Initializing...');
 
       const sendBtn = document.createElement('button');
       sendBtn.className = 'proxe-send-btn';
-      sendBtn.innerHTML = icons.phone;
+      sendBtn.innerHTML = icons.send;
 
       const handleSend = function() {
         if (!chatInput.value.trim()) return;
@@ -228,25 +449,26 @@ console.log('PROXE Widget Initializing...');
         chatInput.value = '';
         renderMessages();
 
-        // Add typing indicator
-        messages.push({ type: 'ai', text: '<div class="proxe-typing"><span></span><span></span><span></span></div>' });
+        messages.push({ 
+          type: 'ai', 
+          text: '<div class="proxe-skeleton-loader"><div class="proxe-skeleton-line"></div><div class="proxe-skeleton-line"></div><div class="proxe-skeleton-line"></div></div>',
+          isLoading: true
+        });
         renderMessages();
 
-        fetch('/api/chat', {
+        fetch(API_CHAT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: userMessage })
         })
         .then(function(res) { return res.json(); })
         .then(function(data) {
-          // Remove typing indicator
           messages.pop();
           messages.push({ type: 'ai', text: data.response });
           renderMessages();
           
-          // Stream the text
-          const lastBubble = document.querySelectorAll('.proxe-message-bubble')[document.querySelectorAll('.proxe-message-bubble').length - 1];
-          streamText(lastBubble, data.response, 8);
+          const lastBubble = document.querySelectorAll('.proxe-message-text');
+          streamText(lastBubble[lastBubble.length - 1], data.response, 8);
         })
         .catch(function(err) {
           console.error('Error:', err);
@@ -265,21 +487,20 @@ console.log('PROXE Widget Initializing...');
       inputArea.appendChild(sendBtn);
       chatbox.appendChild(inputArea);
 
-      // Footer
       const footer = document.createElement('div');
       footer.className = 'proxe-footer';
       
       const footerLink = document.createElement('a');
-      footerLink.href = '#';
+      footerLink.href = 'https://goproxe.com';
+      footerLink.target = '_blank';
       footerLink.className = 'proxe-footer-link';
-      footerLink.innerHTML = '💬 Add AI chat to your site';
+      footerLink.innerHTML = 'Chat powered by PROXe';
       
       footer.appendChild(footerLink);
       chatbox.appendChild(footer);
 
       container.appendChild(chatbox);
       
-      // Render initial messages
       renderMessages();
 
       setTimeout(function() {
@@ -288,7 +509,6 @@ console.log('PROXE Widget Initializing...');
     }
   }
 
-  // Initialize
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
       loadCSS();
