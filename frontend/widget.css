@@ -14,10 +14,89 @@
   transform: translateX(-50%);
   z-index: 9999;
   transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Quick Buttons - Above Searchbar */
+.proxe-quick-buttons {
+  display: none;
+  flex-direction: row;
+  gap: 8px;
+  padding: 8px 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  width: 500px;
+  max-width: 90vw;
+  justify-content: flex-start;
+  background: transparent;
+  border-radius: 12px;
+  animation: slideDown 0.3s ease;
+  margin-bottom: 8px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  touch-action: pan-x;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.proxe-quick-buttons:active {
+  cursor: grabbing;
+}
+
+.proxe-quick-buttons::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.proxe-quick-btn {
+  padding: 8px 14px;
+  background: white;
+  border: 1px solid #ddd;
+  color: #000;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+  transition: all 0.2s;
+  font-family: inherit;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-width: fit-content;
+  pointer-events: auto;
+  z-index: 10000;
+}
+
+.proxe-quick-btn:hover {
+  background: #f0f0f0;
+  border-color: #000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.proxe-quick-btn:active {
+  transform: scale(0.95);
 }
 
 .proxe-searchbar {
   width: 480px;
+  max-width: 90vw;
   background: white;
   border-radius: 32px;
   padding: 14px 24px;
@@ -148,6 +227,27 @@
   font-size: 16px;
   color: white;
   letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.proxe-header-avatar {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 50%;
+  background: white;
+  color: #1a1a1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.proxe-header-avatar svg {
+  width: 18px;
+  height: 18px;
 }
 
 .proxe-header-actions {
@@ -196,7 +296,7 @@
 
 .proxe-message {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 12px;
   animation: messageIn 0.3s ease;
 }
@@ -216,31 +316,8 @@
   justify-content: flex-end;
 }
 
-.proxe-message.user .proxe-message-bubble {
-  order: -1;
-}
-
-.proxe-avatar {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  border-radius: 50%;
-  background: #000;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-}
-
-.proxe-avatar svg {
-  width: 18px;
-  height: 18px;
-}
-
 .proxe-message-bubble {
-  max-width: 75%;
-  padding: 12px 16px;
+  padding: 14px 16px;
   border-radius: 12px;
   font-size: 14px;
   word-wrap: break-word;
@@ -248,17 +325,108 @@
   overflow-wrap: break-word;
   line-height: 1.6;
   letter-spacing: 0.2px;
+  width: 100%;
+}
+
+.proxe-message-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.proxe-bubble-avatar {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 50%;
+  background: #000;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.proxe-bubble-avatar svg {
+  width: 16px;
+  height: 16px;
+}
+
+.proxe-message-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+.proxe-message-text {
+  padding-left: 0;
+  color: #333;
 }
 
 .proxe-message.user .proxe-message-bubble {
   background: #000;
+  color: white;
+  border: 2px solid #000;
+  max-width: 50%;
+  margin-left: auto;
+}
+
+.proxe-message.user .proxe-bubble-avatar {
+  background: white;
+  color: #000;
+}
+
+.proxe-message.user .proxe-message-name {
+  color: white;
+}
+
+.proxe-message.user .proxe-message-text {
   color: white;
 }
 
 .proxe-message.ai .proxe-message-bubble {
   background: white;
   color: #333;
-  border: 1px solid #e8e8e8;
+  border: 2px solid #e0e0e0;
+}
+
+/* Skeleton Loading Animation */
+.proxe-skeleton-loader {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.proxe-skeleton-line {
+  height: 16px;
+  background: linear-gradient(90deg, #e8e8e8 25%, #d8d8d8 50%, #e8e8e8 75%);
+  background-size: 200% 100%;
+  border-radius: 8px;
+  animation: skeletonLoading 1.5s infinite;
+}
+
+.proxe-skeleton-line:nth-child(1) {
+  width: 100%;
+}
+
+.proxe-skeleton-line:nth-child(2) {
+  width: 100%;
+}
+
+.proxe-skeleton-line:nth-child(3) {
+  width: 60%;
+}
+
+@keyframes skeletonLoading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .proxe-input-area {
@@ -340,18 +508,6 @@
 
 .proxe-footer-link:hover {
   color: #000;
-}
-
-@media (max-width: 768px) {
-  .proxe-searchbar {
-    width: calc(100vw - 48px);
-  }
-
-  .proxe-chatbox-expanded {
-    width: calc(100vw - 32px);
-    right: 16px;
-    max-height: 80vh;
-  }
 }
 
 .proxe-messages-area::-webkit-scrollbar {
@@ -474,5 +630,70 @@
   30% {
     opacity: 1;
     transform: translateY(-10px);
+  }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  #proxe-searchbar-wrapper {
+    bottom: 20px;
+  }
+
+  .proxe-searchbar {
+    width: 60vw;
+    max-width: 60vw;
+    transition: all 0.3s ease;
+  }
+
+  #proxe-searchbar-wrapper.proxe-expanded-mobile .proxe-searchbar {
+    width: 90vw;
+    max-width: 90vw;
+  }
+
+  #proxe-searchbar-wrapper.proxe-expanded-mobile .proxe-quick-buttons {
+    width: 90vw;
+    max-width: 90vw;
+  }
+
+  .proxe-chatbox-expanded {
+    width: calc(100vw - 32px);
+    right: 16px;
+    max-height: 80vh;
+  }
+}
+
+@media (max-width: 480px) {
+  #proxe-searchbar-wrapper {
+    bottom: 20px;
+  }
+
+  .proxe-searchbar {
+    width: 60vw;
+    max-width: 60vw;
+    transition: all 0.3s ease;
+  }
+
+  #proxe-searchbar-wrapper.proxe-expanded-mobile .proxe-searchbar {
+    width: 90vw;
+    max-width: 90vw;
+  }
+
+  #proxe-searchbar-wrapper.proxe-expanded-mobile .proxe-quick-buttons {
+    width: 90vw;
+    max-width: 90vw;
+  }
+
+  .proxe-chatbox-expanded {
+    width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    bottom: 0;
+    right: 0;
+    border-radius: 0;
+  }
+
+  .proxe-quick-btn {
+    font-size: 14px;
+    padding: 6px 12px;
   }
 }
