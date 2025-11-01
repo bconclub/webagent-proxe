@@ -629,14 +629,14 @@ console.log('PROXE Widget Initializing...');
   function handleQuickButtonClick(promptText) {
     console.log('Quick button clicked:', promptText);
     
-    // Add user message
-    messages.push({ type: 'user', text: promptText });
-    
     // Ask for name if first message
     if (!nameAsked && !userName) {
       askForName();
       return;
     }
+    
+    // Add user message
+    messages.push({ type: 'user', text: promptText });
     
     // Capture name if we just asked
     if (captureName(promptText)) {
@@ -813,7 +813,6 @@ console.log('PROXE Widget Initializing...');
 
       input.addEventListener('keypress', function(e) {
         if (e.key === 'Enter' && input.value.trim()) {
-          messages.push({ type: 'user', text: input.value });
           const userMessage = input.value;
           input.value = '';
           isOpen = true;
@@ -823,6 +822,9 @@ console.log('PROXE Widget Initializing...');
             askForName();
             return;
           }
+          
+          // Add user message
+          messages.push({ type: 'user', text: userMessage });
           
           // Capture name if we just asked
           if (captureName(userMessage)) {
