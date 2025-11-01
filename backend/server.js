@@ -24,7 +24,20 @@ app.use(cors({
 
 app.use(express.json());
 
-// Serve static files from frontend directory
+// IMPORTANT: Define routes BEFORE static middleware to ensure correct routing
+// Serve windchasers-proxe.html page - must be before static middleware
+app.get('/windchasers-proxe', (req, res) => {
+  console.log('📍 Serving Wind Chasers page');
+  const windchasersPath = path.join(__dirname, '../frontend/windchasers-proxe.html');
+  console.log('   File path:', windchasersPath);
+  // Disable caching for HTML files
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(windchasersPath);
+});
+
+// Serve static files from frontend directory (CSS, JS, images, etc.)
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 // Initialize Supabase clients for different brands
@@ -729,14 +742,21 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'PROXe Chatbot API' });
 });
 
-// Serve windchasers-proxe.html page
-app.get('/windchasers-proxe', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/windchasers-proxe.html'));
-});
-
 // Serve index.html for all other routes (SPA support)
+// Note: /windchasers-proxe route is defined above before static middleware
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/index.html'));
+  // Skip if already handled or if it's an API route
+  if (req.path.startsWith('/api') || req.path.startsWith('/windchasers-proxe')) {
+    return;
+  }
+  console.log('📍 Serving PROXe page:', req.path);
+  const indexPath = path.join(__dirname, '../frontend/index.html');
+  console.log('   File path:', indexPath);
+  // Disable caching for HTML files
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(indexPath);
 });
 
 // Start server
