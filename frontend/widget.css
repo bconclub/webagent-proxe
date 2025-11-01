@@ -210,8 +210,8 @@
 }
 
 .proxe-searchbar-send-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   fill: currentColor;
 }
 
@@ -660,6 +660,44 @@
   border-color: rgba(37, 211, 102, 0.5);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(37, 211, 102, 0.2);
+}
+
+/* Program Selection Buttons */
+.proxe-program-selection-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  width: 100%;
+  padding: 0 4px;
+}
+
+.proxe-program-btn {
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 1);
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  color: #000;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  transition: all 0.2s;
+  font-family: inherit;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  display: block;
+}
+
+.proxe-program-btn:hover {
+  background: rgba(250, 250, 250, 1);
+  border-color: rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.proxe-program-btn:active {
+  transform: translateY(0px) scale(0.98);
 }
 
 .proxe-contact-btn:active {

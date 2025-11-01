@@ -66,16 +66,78 @@ async function searchKnowledgeBase(query, table = 'documents', limit = 3) {
   }
 }
 
-async function generateFollowUpSuggestion(userMessage, assistantMessage) {
+async function generateFollowUpSuggestion(userMessage, assistantMessage, messageCount = 0) {
   try {
+    const lowerResponse = assistantMessage.toLowerCase();
+    const lowerQuestion = userMessage.toLowerCase();
+    
+    // After first response, always suggest "Choose Your Program"
+    if (messageCount === 1) {
+      return 'Choose Your Program 📚'; // Special marker for program selection
+    }
+    
+    // Check if user selected a program (their message matches a program name)
+    const programNames = [
+      'dgca ground classes',
+      'ppl',
+      'private pilot license',
+      'cpl',
+      'commercial pilot license',
+      'atpl',
+      'airline transport pilot license',
+      'ir',
+      'instrument rating',
+      'me',
+      'multi-engine rating',
+      'cfi',
+      'certified flight instructor',
+      'cabin crew training',
+      'cabin crew',
+      'international flight schools',
+      'international pilot training',
+      'type rating programs',
+      'type rating',
+      'helicopter training',
+      'helicopter'
+    ];
+    
+    const isProgramSelection = programNames.some(program => 
+      lowerQuestion.includes(program)
+    );
+    
+    // If user selected a program, suggest scheduling a call
+    if (isProgramSelection && messageCount > 1) {
+      return 'Schedule Admissions Call 📞';
+    }
+    
+    // Skip if the follow-up would be repetitive
+    if (lowerQuestion.includes('program') && lowerResponse.includes('program') && !isProgramSelection) {
+      return null;
+    }
+    if (lowerQuestion.includes('training') && lowerResponse.includes('training') && !isProgramSelection) {
+      return null;
+    }
+    if (lowerQuestion.includes('eligibility') && lowerResponse.includes('eligibility')) {
+      return null;
+    }
+    
     const followUpResponse = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 60,
-      system: `You create one short follow-up call-to-action label for a website chat widget button. Keep it encouraging, specific to the conversation, and 3-7 words. Use title case and you may add one emoji at the start if it feels natural. If no relevant follow-up is appropriate, respond with the single word SKIP. Output only the label text without quotation marks.`,
+      system: `You create one short follow-up call-to-action label for a website chat widget button. 
+
+IMPORTANT RULES:
+- Keep it encouraging, specific to the conversation, and 3-7 words
+- Use title case and you may add one emoji at the start if it feels natural
+- NEVER repeat what the user just asked or what was just explained
+- If the response already covered programs/courses/training, do NOT suggest asking about programs/courses/training again
+- If the user asked about programs and we explained them, suggest they tell us which program interests them
+- If no relevant follow-up is appropriate or it would be repetitive, respond with the single word SKIP
+- Output only the label text without quotation marks.`,
       messages: [
         {
           role: 'user',
-          content: `Here is the user's latest question:\n${userMessage}\n\nHere is the assistant's reply:\n${assistantMessage}\n\nProvide a single follow-up button label that would help continue the conversation.`,
+          content: `Here is the user's latest question:\n${userMessage}\n\nHere is the assistant's reply:\n${assistantMessage}\n\nProvide a single follow-up button label that would help continue the conversation. Make sure it's NOT repetitive of what was just discussed.`,
         },
       ],
     });
@@ -103,7 +165,7 @@ async function generateFollowUpSuggestion(userMessage, assistantMessage) {
 // Chat endpoint
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, messageCount = 0 } = req.body;
 
     if (!message || message.trim() === '') {
       return res.status(400).json({ error: 'Message is required' });
@@ -137,13 +199,14 @@ app.post('/api/chat', async (req, res) => {
     Wind Chasers is recognized for experienced instructors, state-of-the-art facilities, and personalized, structured training for aspiring pilots in India
 
 🚫 ABSOLUTE PROHIBITIONS - NEVER DO THESE:
-1. NEVER tell users to "visit the website" or "go to windchasers.in" - THE USER IS ALREADY ON THE WEBSITE RIGHT NOW
-2. NEVER say "contact the academy at their website" - just say "Would you like to schedule a call with our team?"
-3. NEVER say "I don't have that in my database" or any technical limitations language
-4. NEVER refer to the website as a third-party resource - YOU ARE ON THE WEBSITE
-5. NEVER mention "Modern aircraft fleet"  in your responses
-6. NEVER mention "job placement assistance" or "placement support" in your responses
-7. Windchasers is not a flight school and do not have a fleet of aircraft. so dont mention that they have a fleet of aircraft.
+1. NEVER use greetings like "Hi there!", "Hello!", "Hey!" or any casual greetings - jump straight into the response
+2. NEVER tell users to "visit the website" or "go to windchasers.in" - THE USER IS ALREADY ON THE WEBSITE RIGHT NOW
+3. NEVER say "contact the academy at their website" - just say "Would you like to schedule a call with our team?"
+4. NEVER say "I don't have that in my database" or any technical limitations language
+5. NEVER refer to the website as a third-party resource - YOU ARE ON THE WEBSITE
+6. NEVER mention "Modern aircraft fleet"  in your responses
+7. NEVER mention "job placement assistance" or "placement support" in your responses
+8. Windchasers is not a flight school and do not have a fleet of aircraft. so dont mention that they have a fleet of aircraft.
 
 ✅ INSTEAD, WHEN YOU DON'T KNOW SOMETHING:
 Say: "I'm afraid I don't have those specific details right now. Would you like me to connect you with our admissions team for a detailed discussion? 📞"
@@ -199,18 +262,21 @@ REMEMBER: You are chatting FROM the Wind Chasers website. Never tell users to go
 
     const rawResponse = response.content[0].type === 'text' ? response.content[0].text : 'Unable to generate response';
     
-    // Remove any website referrals that slipped through
+    // Remove any greetings and website referrals that slipped through
     let cleanedResponse = rawResponse
+      .replace(/^(Hi there!|Hello!|Hey!|Hi!)\s*/gi, '') // Remove greetings at the start
+      .replace(/^(Hi|Hello|Hey),?\s*/gi, '') // Remove simple greetings at the start
       .replace(/I'd recommend visiting (our|the) website at.*?for/gi, "I'd recommend reaching out to our team directly for")
       .replace(/visit(ing)? (our|the) website at.*?(\.|<)/gi, 'contact our team directly$3')
       .replace(/https?:\/\/windchasers\.in\/?/gi, '')
       .replace(/at https?:\/\/[^\s<]+/gi, '')
       .replace(/\(https?:\/\/[^)]+\)/gi, '')
       .replace(/check (our|the) website/gi, 'reach out to our team')
-      .replace(/on (our|the) website/gi, 'with our team');
+      .replace(/on (our|the) website/gi, 'with our team')
+      .trim(); // Remove leading/trailing whitespace after greeting removal
     
     // Keep response as plain markdown for streaming
-    const followUpSuggestion = await generateFollowUpSuggestion(message, rawResponse);
+    const followUpSuggestion = await generateFollowUpSuggestion(message, rawResponse, messageCount);
 
     console.log('Response generated successfully');
 

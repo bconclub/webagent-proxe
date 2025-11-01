@@ -7,6 +7,7 @@ console.log('PROXE Widget Initializing...');
   let phonePromptShown = false;
   let formShown = false;
   let manualOpen = false; // Track if user manually opened chat
+  let userMessageCount = 0; // Track total user messages sent
   const brandName = 'Wind Chasers';
 
   // Auto-detect API URL based on current page location
@@ -81,6 +82,10 @@ console.log('PROXE Widget Initializing...');
         if (msg.variant === 'admissions-form') {
           msgDiv.classList.add('proxe-admissions-form');
         }
+        
+        if (msg.variant === 'program-selection') {
+          msgDiv.classList.add('proxe-program-selection');
+        }
 
         const bubble = document.createElement('div');
         bubble.className = 'proxe-message-bubble';
@@ -91,6 +96,10 @@ console.log('PROXE Widget Initializing...');
         
         if (msg.variant === 'admissions-form') {
           bubble.classList.add('proxe-admissions-form-bubble');
+        }
+        
+        if (msg.variant === 'program-selection') {
+          bubble.classList.add('proxe-program-selection-bubble');
         }
 
         const header = document.createElement('div');
@@ -165,6 +174,56 @@ console.log('PROXE Widget Initializing...');
 
           msgDiv.appendChild(contactWrapper);
         }
+        
+        if (messageType === 'ai' && msg.variant === 'program-selection' && msg.programs) {
+          const programWrapper = document.createElement('div');
+          programWrapper.className = 'proxe-program-selection-buttons';
+
+          msg.programs.forEach(function(program) {
+            const programBtn = document.createElement('button');
+            programBtn.className = 'proxe-program-btn';
+            programBtn.type = 'button';
+            programBtn.textContent = program.label;
+            programBtn.onclick = function(e) {
+              e.preventDefault();
+              e.stopPropagation();
+              manualOpen = false;
+              
+              // Add user message
+              userMessageCount += 1;
+              messages.push({
+                type: 'user',
+                text: program.label,
+                hasStreamed: true
+              });
+              
+              // Add skeleton loader
+              messages.push({ 
+                type: 'ai', 
+                text: '<div class="proxe-skeleton-loader"><div class="proxe-skeleton-line"></div><div class="proxe-skeleton-line"></div><div class="proxe-skeleton-line"></div></div>',
+                isLoading: true
+              });
+              
+              renderMessages();
+              
+              // Send to API
+              fetch(API_CHAT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: program.label, messageCount: userMessageCount })
+              })
+              .then(function(res) { return res.json(); })
+              .then(function(data) {
+                console.log('API Response:', data);
+                handleApiResponse(data);
+              })
+              .catch(handleApiError);
+            };
+            programWrapper.appendChild(programBtn);
+          });
+
+          msgDiv.appendChild(programWrapper);
+        }
 
         if (messageType === 'ai' && msg.followUp && msg.followUpVisible) {
           const followupWrapper = document.createElement('div');
@@ -177,7 +236,16 @@ console.log('PROXE Widget Initializing...');
           followupBtn.onclick = function(e) {
             e.preventDefault();
             e.stopPropagation();
-            handleQuickButtonClick(msg.followUp);
+            // Check if this is a program selection request
+            const followUpLower = msg.followUp ? msg.followUp.toLowerCase() : '';
+            if (followUpLower.includes('choose your program') || followUpLower.includes('which program')) {
+              showProgramSelection();
+            } else if (followUpLower.includes('schedule admissions call')) {
+              // Handle schedule admissions call directly
+              handleQuickButtonClick(msg.followUp);
+            } else {
+              handleQuickButtonClick(msg.followUp);
+            }
           };
 
           followupWrapper.appendChild(followupBtn);
@@ -350,6 +418,31 @@ console.log('PROXE Widget Initializing...');
     };
     return btn;
   }
+  
+  function showProgramSelection() {
+    const programs = [
+      { value: 'DGCA Ground Classes', label: 'DGCA Ground Classes' },
+      { value: 'PPL', label: 'Private Pilot License (PPL)' },
+      { value: 'CPL', label: 'Commercial Pilot License (CPL)' },
+      { value: 'ATPL', label: 'Airline Transport Pilot License (ATPL)' },
+      { value: 'IR', label: 'Instrument Rating (IR)' },
+      { value: 'ME', label: 'Multi-Engine Rating' },
+      { value: 'CFI', label: 'Certified Flight Instructor (CFI)' },
+      { value: 'Cabin Crew Training', label: 'Cabin Crew Training' },
+      { value: 'International Flight Schools', label: 'International Flight Schools' },
+      { value: 'Type Rating Programs', label: 'Type Rating Programs' },
+      { value: 'Helicopter Training', label: 'Helicopter Training' }
+    ];
+    
+    messages.push({
+      type: 'ai',
+      text: '<p><strong>Which program interests you? 📚</strong></p>',
+      variant: 'program-selection',
+      hasStreamed: true,
+      programs: programs
+    });
+    renderMessages();
+  }
 
   function createAdmissionsForm() {
     const formWrapper = document.createElement('div');
@@ -372,16 +465,11 @@ console.log('PROXE Widget Initializing...');
       { value: 'IR', label: 'Instrument Rating (IR)' },
       { value: 'ME', label: 'Multi-Engine Rating' },
       { value: 'CFI', label: 'Certified Flight Instructor (CFI)' },
-      { value: 'International', label: 'International Pilot Training' },
+      { value: 'CabinCrew', label: 'Cabin Crew Training' },
+      { value: 'International', label: 'International Flight Schools' },
+      { value: 'TypeRating', label: 'Type Rating Programs' },
       { value: 'Helicopter', label: 'Helicopter Training' },
-      { value: 'Diploma', label: 'Diploma in Aviation' },
       { value: 'Other', label: 'Other' }
-    ]);
-    
-    const flyingField = createSelectField('Flying Training', 'formFlying', true, [
-      { value: '', label: 'Select Type' },
-      { value: 'domestic', label: 'Domestic' },
-      { value: 'international', label: 'International' }
     ]);
     
     const submitBtn = document.createElement('button');
@@ -394,7 +482,6 @@ console.log('PROXE Widget Initializing...');
     form.appendChild(emailField);
     form.appendChild(cityField);
     form.appendChild(courseField);
-    form.appendChild(flyingField);
     form.appendChild(submitBtn);
     
     form.addEventListener('submit', function(e) {
@@ -609,6 +696,7 @@ console.log('PROXE Widget Initializing...');
     manualOpen = false; // Don't open keyboard when clicking quick/follow-up buttons
     
     // Add user message
+    userMessageCount += 1;
     messages.push({ type: 'user', text: promptText });
     
     // Check if this is a schedule call request
@@ -634,7 +722,7 @@ console.log('PROXE Widget Initializing...');
     fetch(API_CHAT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: promptText })
+      body: JSON.stringify({ message: promptText, messageCount: userMessageCount })
     })
     .then(function(res) { return res.json(); })
     .then(function(data) {
@@ -783,6 +871,7 @@ console.log('PROXE Widget Initializing...');
         sendBtn.style.display = 'none'; // Hide send button after sending
         
         // Add user message
+        userMessageCount += 1;
         messages.push({ type: 'user', text: userMessage });
         
         // Check if this is a schedule call request
@@ -802,7 +891,7 @@ console.log('PROXE Widget Initializing...');
         fetch(API_CHAT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: userMessage })
+          body: JSON.stringify({ message: userMessage, messageCount: userMessageCount })
         })
         .then(function(res) { return res.json(); })
         .then(function(data) {
@@ -941,8 +1030,9 @@ console.log('PROXE Widget Initializing...');
 
       const handleSend = function() {
         if (!chatInput.value.trim()) return;
-        messages.push({ type: 'user', text: chatInput.value });
         const userMessage = chatInput.value;
+        userMessageCount += 1;
+        messages.push({ type: 'user', text: userMessage });
         chatInput.value = '';
         renderMessages();
 
@@ -962,7 +1052,7 @@ console.log('PROXE Widget Initializing...');
         fetch(API_CHAT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: userMessage })
+          body: JSON.stringify({ message: userMessage, messageCount: userMessageCount })
         })
         .then(function(res) { return res.json(); })
         .then(function(data) {
