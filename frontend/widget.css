@@ -986,9 +986,25 @@
     height: 24px;
   }
   
+  .proxe-chatbox-expanded {
+    display: flex;
+    flex-direction: column;
+  }
+  
   .proxe-chatbox-expanded .proxe-messages-area {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    flex: 1;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  
+  .proxe-input-area {
+    position: sticky;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.25) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
   }
 
   .proxe-quick-btn {

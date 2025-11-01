@@ -6,6 +6,7 @@ console.log('PROXE Widget Initializing...');
   let completedAiMessages = 0;
   let phonePromptShown = false;
   let formShown = false;
+  let manualOpen = false; // Track if user manually opened chat
   const brandName = 'Wind Chasers';
 
   // Auto-detect API URL based on current page location
@@ -605,6 +606,8 @@ console.log('PROXE Widget Initializing...');
   function handleQuickButtonClick(promptText) {
     console.log('Quick button clicked:', promptText);
     
+    manualOpen = false; // Don't open keyboard when clicking quick/follow-up buttons
+    
     // Add user message
     messages.push({ type: 'user', text: promptText });
     
@@ -663,6 +666,7 @@ console.log('PROXE Widget Initializing...');
       // Click searchbar to open chat if messages exist
       searchbar.addEventListener('click', function() {
         if (messages.length > 0) {
+          manualOpen = true;
           isOpen = true;
           createWidget();
         }
@@ -790,6 +794,7 @@ console.log('PROXE Widget Initializing...');
         if (e.key === 'Enter' && input.value.trim()) {
           const userMessage = input.value;
           input.value = '';
+          manualOpen = true;
           isOpen = true;
           
           // Add user message
@@ -954,18 +959,22 @@ console.log('PROXE Widget Initializing...');
       
       renderMessages();
 
-      setTimeout(function() {
-        chatInput.focus();
-        // On mobile, scroll messages to bottom after focus to ensure input is visible
-        if (window.innerWidth < 768) {
-          const msgArea = chatbox.querySelector('.proxe-messages-area');
-          if (msgArea) {
-            setTimeout(function() {
-              msgArea.scrollTop = msgArea.scrollHeight;
-            }, 300); // Delay to account for keyboard animation
+      // Only auto-focus if user manually opened chat (not via button click)
+      if (manualOpen) {
+        setTimeout(function() {
+          chatInput.focus();
+          // On mobile, scroll messages to bottom after focus to ensure input is visible
+          if (window.innerWidth < 768) {
+            const msgArea = chatbox.querySelector('.proxe-messages-area');
+            if (msgArea) {
+              setTimeout(function() {
+                msgArea.scrollTop = msgArea.scrollHeight;
+              }, 300); // Delay to account for keyboard animation
+            }
           }
-        }
-      }, 100);
+        }, 100);
+      }
+      manualOpen = false; // Reset for next time
     }
   }
 
