@@ -951,11 +951,16 @@
 
   .proxe-chatbox-expanded {
     width: 100vw;
-    height: 100vh;
     max-height: 100vh;
+    height: 100vh;
     bottom: 0;
     right: 0;
     border-radius: 0;
+  }
+  
+  .proxe-chatbox-expanded .proxe-messages-area {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .proxe-quick-btn {

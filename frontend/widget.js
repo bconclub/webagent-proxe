@@ -940,6 +940,15 @@ console.log('PROXE Widget Initializing...');
 
       setTimeout(function() {
         chatInput.focus();
+        // On mobile, scroll messages to bottom after focus to ensure input is visible
+        if (window.innerWidth < 768) {
+          const msgArea = chatbox.querySelector('.proxe-messages-area');
+          if (msgArea) {
+            setTimeout(function() {
+              msgArea.scrollTop = msgArea.scrollHeight;
+            }, 300); // Delay to account for keyboard animation
+          }
+        }
       }, 100);
     }
   }
