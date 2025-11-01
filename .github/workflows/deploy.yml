@@ -24,3 +24,4 @@ jobs:
             npm install
             systemctl reload nginx
             pm2 restart webagent-backend
+            pm2 logs webagent-backend --lines 20
