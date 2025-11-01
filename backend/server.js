@@ -115,9 +115,15 @@ if (proxeSupabase) {
 }
 
 // Initialize Claude API
-const anthropic = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY,
-});
+const claudeApiKey = process.env.CLAUDE_API_KEY;
+if (!claudeApiKey) {
+  console.warn('⚠️  WARNING: CLAUDE_API_KEY not found in environment variables');
+  console.warn('   The chatbot will not be able to generate responses without this key');
+}
+
+const anthropic = claudeApiKey ? new Anthropic({
+  apiKey: claudeApiKey,
+}) : null;
 
 // Configure marked for clean HTML output
 marked.setOptions({
@@ -609,6 +615,10 @@ app.post('/api/chat', async (req, res) => {
     }
 
     // Get response from Claude
+    if (!anthropic) {
+      throw new Error('CLAUDE_API_KEY is not configured. Please set CLAUDE_API_KEY in your environment variables.');
+    }
+    
     console.log('Generating response from Claude...');
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -679,10 +689,37 @@ app.post('/api/chat', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Chat endpoint error:', error);
+    console.error('\n❌ Chat endpoint error:', error);
+    console.error('Error stack:', error.stack);
+    
+    // Provide more specific error messages
+    let errorMessage = 'Error processing your message';
+    let errorDetails = error.message;
+    
+    // Check for specific error types
+    if (error.message && error.message.includes('CLAUDE_API_KEY')) {
+      errorMessage = 'Configuration error: Claude API key is missing or invalid';
+      console.error('⚠️  Missing CLAUDE_API_KEY in environment variables');
+    } else if (error.message && error.message.includes('429')) {
+      errorMessage = 'Rate limit exceeded. Please try again in a moment.';
+      errorDetails = 'Too many requests to Claude API';
+    } else if (error.message && error.message.includes('401')) {
+      errorMessage = 'Authentication error with AI service';
+      errorDetails = 'Invalid API credentials';
+    } else if (error.message && error.message.includes('fetch failed')) {
+      errorMessage = 'Unable to connect to knowledge base or AI service';
+      errorDetails = 'Network or service connection error';
+    } else if (error.message && error.message.includes('timeout')) {
+      errorMessage = 'Request timed out. Please try again.';
+      errorDetails = 'Service timeout';
+    }
+    
+    console.error(`   Error message: ${errorMessage}`);
+    console.error(`   Error details: ${errorDetails}`);
+    
     res.status(500).json({ 
-      error: 'Error processing your message',
-      details: error.message 
+      error: errorMessage,
+      details: errorDetails 
     });
   }
 });

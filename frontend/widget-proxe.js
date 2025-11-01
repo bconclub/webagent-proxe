@@ -293,10 +293,24 @@ console.log('PROXE Widget Initializing...');
       });
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        // Try to get error details from response
+        let errorDetails = 'Network response was not ok';
+        try {
+          const errorData = await response.json();
+          errorDetails = errorData.error || errorData.details || errorDetails;
+          console.error('API Error:', errorData);
+        } catch (e) {
+          console.error('API Error Response:', response.status, response.statusText);
+        }
+        throw new Error(errorDetails);
       }
 
       const data = await response.json();
+      
+      // Check if response contains an error
+      if (data.error) {
+        throw new Error(data.error + (data.details ? ': ' + data.details : ''));
+      }
       
       // Remove loading message
       const loadingIndex = messages.findIndex(m => m.isStreaming && !m.hasStreamed);
@@ -312,6 +326,8 @@ console.log('PROXE Widget Initializing...');
           followUps: data.followUps || []
         });
         completedAiMessages++;
+      } else {
+        throw new Error('No response received from server');
       }
 
       // Update conversation state if provided
@@ -325,6 +341,7 @@ console.log('PROXE Widget Initializing...');
       renderMessages();
     } catch (error) {
       console.error('Error sending message:', error);
+      console.error('Error details:', error.message);
       
       // Remove loading message
       const loadingIndex = messages.findIndex(m => m.isStreaming && !m.hasStreamed);
@@ -332,9 +349,22 @@ console.log('PROXE Widget Initializing...');
         messages.splice(loadingIndex, 1);
       }
 
+      // Show more helpful error message
+      let errorMessage = '<p>Sorry, I encountered an error. Please try again.</p>';
+      
+      // Check for specific error types
+      if (error.message && error.message.includes('fetch')) {
+        errorMessage = '<p>Unable to connect to the server. Please check your connection and try again.</p>';
+      } else if (error.message && error.message.includes('CLAUDE_API_KEY')) {
+        errorMessage = '<p>Service configuration error. Please contact support.</p>';
+      } else if (error.message && error.message.length > 0) {
+        // Show the actual error message for debugging (only in console)
+        console.error('Full error:', error);
+      }
+
       messages.push({
         type: 'ai',
-        text: '<p>Sorry, I encountered an error. Please try again.</p>',
+        text: errorMessage,
         hasStreamed: true
       });
       renderMessages();
