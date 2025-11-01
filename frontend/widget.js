@@ -711,6 +711,22 @@ console.log('PROXE Widget Initializing...');
         const walk = (x - startX) * 2;
         quickButtonsWrapper.scrollLeft = scrollLeft - walk;
       });
+      
+      // Mobile touch-to-scroll
+      let touchStartX = 0;
+      let touchScrollLeft = 0;
+      
+      quickButtonsWrapper.addEventListener('touchstart', function(e) {
+        touchStartX = e.touches[0].pageX - quickButtonsWrapper.offsetLeft;
+        touchScrollLeft = quickButtonsWrapper.scrollLeft;
+      }, { passive: true });
+      
+      quickButtonsWrapper.addEventListener('touchmove', function(e) {
+        if (e.touches.length === 0) return;
+        const x = e.touches[0].pageX - quickButtonsWrapper.offsetLeft;
+        const walk = (x - touchStartX) * 1.5;
+        quickButtonsWrapper.scrollLeft = touchScrollLeft - walk;
+      }, { passive: true });
 
       // Create buttons with onclick handlers
       const btn1 = document.createElement('button');
