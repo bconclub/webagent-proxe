@@ -169,8 +169,19 @@ console.log('PROXE Widget Initializing...');
           whatsappBtn.className = 'proxe-contact-btn proxe-whatsapp-btn';
           whatsappBtn.innerHTML = '💬 WhatsApp Us';
 
+          const calendlyBtn = document.createElement('button');
+          calendlyBtn.type = 'button';
+          calendlyBtn.className = 'proxe-contact-btn proxe-calendly-btn';
+          calendlyBtn.innerHTML = '📅 Schedule Discovery Call';
+          calendlyBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            showCalendlyWidget(msgDiv);
+          };
+
           contactWrapper.appendChild(callBtn);
           contactWrapper.appendChild(whatsappBtn);
+          contactWrapper.appendChild(calendlyBtn);
 
           msgDiv.appendChild(contactWrapper);
         }
@@ -240,6 +251,15 @@ console.log('PROXE Widget Initializing...');
             const followUpLower = msg.followUp ? msg.followUp.toLowerCase() : '';
             if (followUpLower.includes('choose your program') || followUpLower.includes('which program')) {
               showProgramSelection();
+            } else if (followUpLower.includes('i am ready to enroll') || followUpLower.includes('ready to enroll')) {
+              // Handle enrollment - show Calendly widget
+              isOpen = true;
+              createWidget();
+              // Find the message div containing this button
+              const messageDiv = e.target.closest('.proxe-message');
+              if (messageDiv) {
+                showCalendlyWidget(messageDiv);
+              }
             } else if (followUpLower.includes('schedule admissions call')) {
               // Handle schedule admissions call directly
               handleQuickButtonClick(msg.followUp);
@@ -411,7 +431,11 @@ console.log('PROXE Widget Initializing...');
       if (action === 'schedule') {
         handleQuickButtonClick('Schedule Admissions Call');
       } else if (action === 'course') {
-        handleQuickButtonClick('Get program details');
+        // Directly show program selection instead of sending message
+      
+        isOpen = true;
+        createWidget();
+        showProgramSelection();
       } else if (action === 'eligibility') {
         handleQuickButtonClick('Check eligibility');
       }
@@ -679,6 +703,69 @@ console.log('PROXE Widget Initializing...');
     renderMessages();
   }
 
+  function showCalendlyWidget(msgDiv) {
+    // Check if Calendly widget already exists in this message
+    const existingWidget = msgDiv.querySelector('.proxe-calendly-widget');
+    if (existingWidget) {
+      existingWidget.style.display = existingWidget.style.display === 'none' ? 'block' : 'none';
+      return;
+    }
+
+    // Create Calendly widget container
+    const calendlyContainer = document.createElement('div');
+    calendlyContainer.className = 'proxe-calendly-widget';
+    
+    const calendlyDiv = document.createElement('div');
+    calendlyDiv.className = 'calendly-inline-widget';
+    calendlyDiv.setAttribute('data-url', 'https://calendly.com/bconclub/discovery-call?hide_event_type_details=1&hide_gdpr_banner=1');
+    calendlyDiv.style.minWidth = '320px';
+    calendlyDiv.style.height = '700px';
+    
+    calendlyContainer.appendChild(calendlyDiv);
+    msgDiv.appendChild(calendlyContainer);
+
+    // Load Calendly script if not already loaded
+    let calendlyScript = document.querySelector('script[src*="calendly.com"]');
+    if (!calendlyScript) {
+      calendlyScript = document.createElement('script');
+      calendlyScript.type = 'text/javascript';
+      calendlyScript.src = 'https://assets.calendly.com/assets/external/widget.js';
+      calendlyScript.async = true;
+      document.head.appendChild(calendlyScript);
+    }
+    
+    // Wait for script to load and then initialize
+    function initializeCalendly() {
+      if (window.Calendly && window.Calendly.initInlineWidget) {
+        try {
+          window.Calendly.initInlineWidget({
+            url: 'https://calendly.com/bconclub/discovery-call?hide_event_type_details=1&hide_gdpr_banner=1',
+            parentElement: calendlyDiv
+          });
+        } catch (error) {
+          console.error('Calendly initialization error:', error);
+        }
+      } else {
+        // Try again after a short delay
+        setTimeout(initializeCalendly, 200);
+      }
+    }
+    
+    // Initialize immediately if already loaded, otherwise wait for load event
+    if (window.Calendly) {
+      setTimeout(initializeCalendly, 100);
+    } else {
+      calendlyScript.addEventListener('load', initializeCalendly);
+      // Fallback: try initializing after 1 second even if load event doesn't fire
+      setTimeout(initializeCalendly, 1000);
+    }
+
+    // Scroll to show the widget
+    setTimeout(function() {
+      calendlyContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+  }
+
   function handleApiError(err) {
     console.error('API Error:', err);
     const lastMsg = messages[messages.length - 1];
@@ -739,6 +826,24 @@ console.log('PROXE Widget Initializing...');
       container = document.createElement('div');
       container.id = 'proxe-widget-container';
       document.body.appendChild(container);
+    }
+
+    // Create or update backdrop overlay
+    let backdrop = document.getElementById('proxe-backdrop-overlay');
+    if (!backdrop) {
+      backdrop = document.createElement('div');
+      backdrop.id = 'proxe-backdrop-overlay';
+      backdrop.className = 'proxe-backdrop-overlay';
+      document.body.appendChild(backdrop);
+    }
+    
+    if (isOpen) {
+      backdrop.classList.add('active');
+      // Prevent body scroll when chat is open
+      document.body.style.overflow = 'hidden';
+    } else {
+      backdrop.classList.remove('active');
+      document.body.style.overflow = '';
     }
 
     container.innerHTML = '';
@@ -1001,6 +1106,11 @@ console.log('PROXE Widget Initializing...');
         isOpen = false;
         const container = document.getElementById('proxe-widget-container');
         if (container) container.remove();
+        const backdrop = document.getElementById('proxe-backdrop-overlay');
+        if (backdrop) {
+          backdrop.classList.remove('active');
+        }
+        document.body.style.overflow = '';
         createWidget();
       });
 
@@ -1125,6 +1235,11 @@ console.log('PROXE Widget Initializing...');
       isOpen = false;
       const container = document.getElementById('proxe-widget-container');
       if (container) container.remove();
+      const backdrop = document.getElementById('proxe-backdrop-overlay');
+      if (backdrop) {
+        backdrop.classList.remove('active');
+      }
+      document.body.style.overflow = '';
       createWidget();
     }
   };

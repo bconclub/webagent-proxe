@@ -105,8 +105,23 @@ async function generateFollowUpSuggestion(userMessage, assistantMessage, message
       lowerQuestion.includes(program)
     );
     
-    // If user selected a program, suggest scheduling a call
-    if (isProgramSelection && messageCount > 1) {
+    // Check if program details were shared (response contains program-specific information)
+    const programDetailIndicators = [
+      'cost', 'fee', 'price', 'duration', 'eligibility', 'requirement', 
+      'certificate', 'license', 'training', 'course', 'program details',
+      'age', 'medical', 'duration', 'months', 'weeks', 'hours'
+    ];
+    const hasProgramDetails = programDetailIndicators.some(indicator => 
+      lowerResponse.includes(indicator)
+    );
+    
+    // If user asked about a program and we shared details, show "I am ready to enroll"
+    if (isProgramSelection && hasProgramDetails && messageCount > 1) {
+      return 'I am ready to enroll 🎓';
+    }
+    
+    // If user selected a program but no details yet, suggest scheduling a call
+    if (isProgramSelection && !hasProgramDetails && messageCount > 1) {
       return 'Schedule Admissions Call 📞';
     }
     
@@ -298,6 +313,11 @@ REMEMBER: You are chatting FROM the Wind Chasers website. Never tell users to go
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'Wind Chasers Website PROXe API' });
+});
+
+// Serve windchasers-proxe.html page
+app.get('/windchasers-proxe', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/windchasers-proxe.html'));
 });
 
 // Serve index.html for all other routes (SPA support)
