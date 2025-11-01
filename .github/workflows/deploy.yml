@@ -22,6 +22,8 @@ jobs:
             git reset --hard origin/main
             cd backend
             npm install
+            cd ..
+            pm2 delete webagent-backend || true
+            pm2 start ecosystem.config.js
             systemctl reload nginx
-            pm2 restart webagent-backend
             pm2 logs webagent-backend --lines 20
