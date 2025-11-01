@@ -3,6 +3,11 @@ console.log('PROXE Widget Initializing...');
 (function() {
   let isOpen = false;
   let messages = [];
+  let completedAiMessages = 0;
+  let phonePromptShown = false;
+  let formShown = false;
+  let userName = null;
+  let nameAsked = false;
   const brandName = 'Wind Chasers';
 
   // Auto-detect API URL based on current page location
@@ -37,61 +42,149 @@ console.log('PROXE Widget Initializing...');
     if (messages.length === 0) {
       const welcomeMsg = document.createElement('div');
       welcomeMsg.className = 'proxe-message ai';
-      
+
       const bubble = document.createElement('div');
       bubble.className = 'proxe-message-bubble';
-      
+
       const header = document.createElement('div');
       header.className = 'proxe-message-header';
-      
+
       const avatar = document.createElement('div');
       avatar.className = 'proxe-bubble-avatar';
       avatar.innerHTML = icons.user;
-      
+
       const name = document.createElement('div');
       name.className = 'proxe-message-name';
       name.textContent = brandName;
-      
+
       header.appendChild(avatar);
       header.appendChild(name);
-      
+
       const textDiv = document.createElement('div');
       textDiv.className = 'proxe-message-text';
       textDiv.innerHTML = '<strong>Welcome! 👋</strong><br>How can we help you today?';
-      
+
       bubble.appendChild(header);
       bubble.appendChild(textDiv);
       welcomeMsg.appendChild(bubble);
       msgArea.appendChild(welcomeMsg);
     } else {
-      messages.forEach(function(msg) {
+      messages.forEach(function(msg, index) {
         const msgDiv = document.createElement('div');
-        msgDiv.className = 'proxe-message ' + msg.type;
+        const messageType = msg.type || 'ai';
+        msgDiv.className = 'proxe-message ' + messageType;
+        msgDiv.dataset.index = index;
+
+        if (msg.variant === 'phone-request') {
+          msgDiv.classList.add('proxe-phone-request');
+        }
         
+        if (msg.variant === 'admissions-form') {
+          msgDiv.classList.add('proxe-admissions-form');
+        }
+
         const bubble = document.createElement('div');
         bubble.className = 'proxe-message-bubble';
+
+        if (msg.variant === 'phone-request') {
+          bubble.classList.add('proxe-phone-request-bubble');
+        }
         
+        if (msg.variant === 'admissions-form') {
+          bubble.classList.add('proxe-admissions-form-bubble');
+        }
+
         const header = document.createElement('div');
         header.className = 'proxe-message-header';
-        
+
         const avatar = document.createElement('div');
         avatar.className = 'proxe-bubble-avatar';
         avatar.innerHTML = icons.user;
-        
+
         const name = document.createElement('div');
         name.className = 'proxe-message-name';
-        name.textContent = msg.type === 'ai' ? brandName : 'You';
-        
+        name.textContent = messageType === 'ai' ? brandName : 'You';
+
         header.appendChild(avatar);
         header.appendChild(name);
-        
+
         const textDiv = document.createElement('div');
         textDiv.className = 'proxe-message-text';
-        textDiv.innerHTML = msg.text;
-        
+
+        if (msg.isLoading) {
+          textDiv.innerHTML = msg.text;
+        } else if (messageType === 'ai' && !msg.hasStreamed) {
+          textDiv.innerHTML = '';
+        } else {
+          // Format markdown to HTML only when not streaming
+          const formattedHtml = messageType === 'ai' ? formatTextToHTML(msg.text) : msg.text;
+          textDiv.innerHTML = formattedHtml;
+        }
+
         bubble.appendChild(header);
         bubble.appendChild(textDiv);
         msgDiv.appendChild(bubble);
+
+        if (messageType === 'ai' && msg.variant === 'admissions-form') {
+          if (!formShown) {
+            msgDiv.appendChild(createAdmissionsForm());
+          }
+        }
+        
+        if (messageType === 'ai' && msg.quickQuestions && !formShown) {
+          const quickQuestionsWrapper = document.createElement('div');
+          quickQuestionsWrapper.className = 'proxe-quick-questions-inline';
+
+          const q1 = createQuickQuestionBtn('Schedule Admissions Call 📞', 'schedule');
+          const q2 = createQuickQuestionBtn('Get Program Details 📚', 'course');
+          const q3 = createQuickQuestionBtn('Check Eligibility ⭐', 'eligibility');
+
+          quickQuestionsWrapper.appendChild(q1);
+          quickQuestionsWrapper.appendChild(q2);
+          quickQuestionsWrapper.appendChild(q3);
+
+          msgDiv.appendChild(quickQuestionsWrapper);
+        }
+        
+        if (messageType === 'ai' && msg.showContactButtons) {
+          const contactWrapper = document.createElement('div');
+          contactWrapper.className = 'proxe-contact-buttons';
+
+          const callBtn = document.createElement('a');
+          callBtn.href = 'tel:+919591004043';
+          callBtn.className = 'proxe-contact-btn proxe-call-btn';
+          callBtn.innerHTML = '📞 Call: +91 95910 04043';
+
+          const whatsappBtn = document.createElement('a');
+          whatsappBtn.href = 'https://wa.me/919591004043';
+          whatsappBtn.target = '_blank';
+          whatsappBtn.className = 'proxe-contact-btn proxe-whatsapp-btn';
+          whatsappBtn.innerHTML = '💬 WhatsApp Us';
+
+          contactWrapper.appendChild(callBtn);
+          contactWrapper.appendChild(whatsappBtn);
+
+          msgDiv.appendChild(contactWrapper);
+        }
+
+        if (messageType === 'ai' && msg.followUp && msg.followUpVisible) {
+          const followupWrapper = document.createElement('div');
+          followupWrapper.className = 'proxe-followup-buttons';
+
+          const followupBtn = document.createElement('button');
+          followupBtn.className = 'proxe-followup-btn primary';
+          followupBtn.type = 'button';
+          followupBtn.textContent = msg.followUp;
+          followupBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            handleQuickButtonClick(msg.followUp);
+          };
+
+          followupWrapper.appendChild(followupBtn);
+          msgDiv.appendChild(followupWrapper);
+        }
+
         msgArea.appendChild(msgDiv);
       });
     }
@@ -101,20 +194,22 @@ console.log('PROXE Widget Initializing...');
     }, 50);
   }
 
-  function streamText(element, htmlText, speed = 8) {
+  function streamText(element, markdownText, speed = 8, onComplete) {
     let index = 0;
+    const charsPerUpdate = 3;
     
-    const temp = document.createElement('div');
-    temp.innerHTML = htmlText;
-    const plainText = temp.textContent || temp.innerText;
-
     function typeNextChar() {
-      if (index < plainText.length) {
-        element.innerHTML = htmlText.substring(0, Math.min(index * 5, htmlText.length));
-        index++;
+      if (index < markdownText.length) {
+        const charsToAdd = Math.min(charsPerUpdate, markdownText.length - index);
+        const partialText = markdownText.substring(0, index + charsToAdd);
+        const formattedHtml = formatTextToHTML(partialText);
+        element.innerHTML = formattedHtml;
+        index += charsToAdd;
         setTimeout(typeNextChar, speed);
       } else {
-        element.innerHTML = htmlText;
+        if (typeof onComplete === 'function') {
+          onComplete();
+        }
       }
     }
 
@@ -123,41 +218,411 @@ console.log('PROXE Widget Initializing...');
 
   // Function to format text response into HTML
   function formatTextToHTML(text) {
-    // Split into paragraphs
-    let paragraphs = text.split('\n\n').map(p => p.trim()).filter(p => p.length > 0);
+    // Split into lines for processing
+    const lines = text.split('\n');
+    let output = [];
+    let currentList = null;
+    let listType = null;
     
-    let formatted = paragraphs.map(para => {
-      // Handle bullet points starting with **
-      if (para.includes('\n**') || para.startsWith('**')) {
-        let items = para.split('\n').filter(line => line.trim());
-        let listItems = items.map(item => {
-          // Remove ** markers and clean up
-          let cleaned = item.replace(/^\*\*/, '').replace(/\*\*$/, '').trim();
-          // Bold the title if it ends with **
-          if (item.includes('**')) {
-            let parts = cleaned.split('**');
-            if (parts.length > 1) {
-              cleaned = '<strong>' + parts[0].trim() + '</strong> ' + parts.slice(1).join(' ').trim();
-            }
+    lines.forEach((line, index) => {
+      const trimmed = line.trim();
+      
+      // Empty line - close any open list
+      if (!trimmed) {
+        if (currentList) {
+          const tag = listType === 'ol' ? 'ol' : 'ul';
+          output.push(`<${tag}>${currentList.map(item => `<li>${formatInlineMarkdown(item)}</li>`).join('')}</${tag}>`);
+          currentList = null;
+          listType = null;
+        }
+        return;
+      }
+      
+      // Headings
+      if (trimmed.startsWith('### ')) {
+        if (currentList) {
+          const tag = listType === 'ol' ? 'ol' : 'ul';
+          output.push(`<${tag}>${currentList.map(item => `<li>${formatInlineMarkdown(item)}</li>`).join('')}</${tag}>`);
+          currentList = null;
+          listType = null;
+        }
+        output.push(`<h3>${formatInlineMarkdown(trimmed.substring(4))}</h3>`);
+        return;
+      }
+      
+      if (trimmed.startsWith('## ')) {
+        if (currentList) {
+          const tag = listType === 'ol' ? 'ol' : 'ul';
+          output.push(`<${tag}>${currentList.map(item => `<li>${formatInlineMarkdown(item)}</li>`).join('')}</${tag}>`);
+          currentList = null;
+          listType = null;
+        }
+        output.push(`<h2>${formatInlineMarkdown(trimmed.substring(3))}</h2>`);
+        return;
+      }
+      
+      if (trimmed.startsWith('# ')) {
+        if (currentList) {
+          const tag = listType === 'ol' ? 'ol' : 'ul';
+          output.push(`<${tag}>${currentList.map(item => `<li>${formatInlineMarkdown(item)}</li>`).join('')}</${tag}>`);
+          currentList = null;
+          listType = null;
+        }
+        output.push(`<h2>${formatInlineMarkdown(trimmed.substring(2))}</h2>`);
+        return;
+      }
+      
+      // Numbered list
+      const numberedMatch = trimmed.match(/^(\d+)\.\s+/);
+      if (numberedMatch) {
+        const listItem = trimmed.substring(numberedMatch[0].length);
+        if (!currentList || listType !== 'ol') {
+          if (currentList) {
+            const tag = listType === 'ol' ? 'ol' : 'ul';
+            output.push(`<${tag}>${currentList.map(item => `<li>${formatInlineMarkdown(item)}</li>`).join('')}</${tag}>`);
           }
-          return '<li>' + cleaned + '</li>';
-        }).join('');
-        return '<ul>' + listItems + '</ul>';
+          currentList = [];
+          listType = 'ol';
+        }
+        currentList.push(listItem);
+        return;
+      }
+      
+      // Bullet list
+      if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+        const listItem = trimmed.substring(2);
+        if (!currentList || listType !== 'ul') {
+          if (currentList) {
+            const tag = listType === 'ol' ? 'ol' : 'ul';
+            output.push(`<${tag}>${currentList.map(item => `<li>${formatInlineMarkdown(item)}</li>`).join('')}</${tag}>`);
+          }
+          currentList = [];
+          listType = 'ul';
+        }
+        currentList.push(listItem);
+        return;
       }
       
       // Regular paragraph
-      let formatted = para.replace(/\n/g, '<br>');
+      if (currentList) {
+        const tag = listType === 'ol' ? 'ol' : 'ul';
+        output.push(`<${tag}>${currentList.map(item => `<li>${formatInlineMarkdown(item)}</li>`).join('')}</${tag}>`);
+        currentList = null;
+        listType = null;
+      }
       
-      // Bold text
-      formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-      
-      // Italic text  
-      formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
-      
-      return '<p>' + formatted + '</p>';
-    }).join('');
+      output.push(`<p>${formatInlineMarkdown(trimmed)}</p>`);
+    });
     
-    return formatted;
+    // Close any remaining list
+    if (currentList) {
+      const tag = listType === 'ol' ? 'ol' : 'ul';
+      output.push(`<${tag}>${currentList.map(item => `<li>${formatInlineMarkdown(item)}</li>`).join('')}</${tag}>`);
+    }
+    
+    return output.join('');
+  }
+  
+  function formatInlineMarkdown(text) {
+    // Bold text
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // Italic text
+    text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    
+    return text;
+  }
+  
+  function createQuickQuestionBtn(text, action) {
+    const btn = document.createElement('button');
+    btn.className = 'proxe-inline-question-btn';
+    btn.type = 'button';
+    btn.textContent = text;
+    btn.onclick = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (action === 'schedule') {
+        handleQuickButtonClick('Schedule Admissions Call');
+      } else if (action === 'course') {
+        handleQuickButtonClick('Get program details');
+      } else if (action === 'eligibility') {
+        handleQuickButtonClick('Check eligibility');
+      }
+    };
+    return btn;
+  }
+
+  function createAdmissionsForm() {
+    const formWrapper = document.createElement('div');
+    formWrapper.className = 'proxe-admissions-form-wrapper';
+    
+    const form = document.createElement('form');
+    form.className = 'proxe-admissions-form-element';
+    
+    const nameField = createFormField('Name', 'text', 'formName', true);
+    const phoneField = createFormField('Phone', 'tel', 'formPhone', true);
+    const emailField = createFormField('Email', 'email', 'formEmail', true);
+    const cityField = createFormField('City', 'text', 'formCity', true);
+    
+    const courseField = createSelectField('Program', 'formCourse', true, [
+      { value: '', label: 'Select Program' },
+      { value: 'DGCA', label: 'DGCA Ground Classes' },
+      { value: 'PPL', label: 'Private Pilot License (PPL)' },
+      { value: 'CPL', label: 'Commercial Pilot License (CPL)' },
+      { value: 'ATPL', label: 'Airline Transport Pilot License (ATPL)' },
+      { value: 'IR', label: 'Instrument Rating (IR)' },
+      { value: 'ME', label: 'Multi-Engine Rating' },
+      { value: 'CFI', label: 'Certified Flight Instructor (CFI)' },
+      { value: 'International', label: 'International Pilot Training' },
+      { value: 'Helicopter', label: 'Helicopter Training' },
+      { value: 'Diploma', label: 'Diploma in Aviation' },
+      { value: 'Other', label: 'Other' }
+    ]);
+    
+    const flyingField = createSelectField('Flying Training', 'formFlying', true, [
+      { value: '', label: 'Select Type' },
+      { value: 'domestic', label: 'Domestic' },
+      { value: 'international', label: 'International' }
+    ]);
+    
+    const submitBtn = document.createElement('button');
+    submitBtn.type = 'submit';
+    submitBtn.className = 'proxe-form-submit-btn';
+    submitBtn.textContent = 'Submit 📞';
+    
+    form.appendChild(nameField);
+    form.appendChild(phoneField);
+    form.appendChild(emailField);
+    form.appendChild(cityField);
+    form.appendChild(courseField);
+    form.appendChild(flyingField);
+    form.appendChild(submitBtn);
+    
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      handleFormSubmit(form);
+    });
+    
+    formWrapper.appendChild(form);
+    return formWrapper;
+  }
+  
+  function createFormField(label, type, name, required) {
+    const fieldWrapper = document.createElement('div');
+    fieldWrapper.className = 'proxe-form-field';
+    
+    const labelEl = document.createElement('label');
+    labelEl.textContent = label + (required ? ' *' : '');
+    labelEl.htmlFor = name;
+    
+    const input = document.createElement('input');
+    input.type = type;
+    input.id = name;
+    input.name = name;
+    input.required = required;
+    input.className = 'proxe-form-input';
+    
+    fieldWrapper.appendChild(labelEl);
+    fieldWrapper.appendChild(input);
+    return fieldWrapper;
+  }
+  
+  function createSelectField(label, name, required, options) {
+    const fieldWrapper = document.createElement('div');
+    fieldWrapper.className = 'proxe-form-field';
+    
+    const labelEl = document.createElement('label');
+    labelEl.textContent = label + (required ? ' *' : '');
+    labelEl.htmlFor = name;
+    
+    const select = document.createElement('select');
+    select.id = name;
+    select.name = name;
+    select.required = required;
+    select.className = 'proxe-form-select';
+    
+    options.forEach(function(opt) {
+      const option = document.createElement('option');
+      option.value = opt.value;
+      option.textContent = opt.label;
+      select.appendChild(option);
+    });
+    
+    fieldWrapper.appendChild(labelEl);
+    fieldWrapper.appendChild(select);
+    return fieldWrapper;
+  }
+  
+  function handleFormSubmit(form) {
+    const formData = new FormData(form);
+    const data = {};
+    for (const [key, value] of formData.entries()) {
+      data[key] = value;
+    }
+    
+    formShown = true;
+    
+    // Send data to webhook
+    fetch('https://build.goproxe.com/webhook/wc-webagent-proxe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data)
+    })
+    .then(function(response) {
+      if (!response.ok) {
+        throw new Error('Webhook submission failed');
+      }
+      return response.json();
+    })
+    .then(function(result) {
+      console.log('Form submitted successfully:', result);
+    })
+    .catch(function(error) {
+      console.error('Error submitting form:', error);
+    });
+    
+    messages.push({
+      type: 'ai',
+      text: '<p><strong>Thank you! ✅</strong><br>We have received your information. Our admissions team will call you shortly to discuss your pilot training journey. 📞✈️</p>',
+      hasStreamed: true
+    });
+    
+    renderMessages();
+    
+    console.log('Form data:', data);
+  }
+
+  function maybeShowPhoneRequest() {
+    if (phonePromptShown) return;
+    if (completedAiMessages < 2) return;
+
+    phonePromptShown = true;
+    messages.push({
+      type: 'ai',
+      text: '<p><strong>Ready to take the next step? 🚀</strong><br>Our admissions team is here to help you start your pilot journey!</p>',
+      variant: 'phone-request',
+      hasStreamed: true,
+      quickQuestions: true
+    });
+    renderMessages();
+  }
+
+  function handleApiResponse(data) {
+    if (!data || !data.response) {
+      throw new Error('Invalid response payload');
+    }
+
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg && lastMsg.isLoading) {
+      messages.pop();
+    }
+
+    const aiMessage = {
+      type: 'ai',
+      text: data.response,
+      followUp: data.followUp || null,
+      followUpVisible: false,
+      hasStreamed: false
+    };
+
+    messages.push(aiMessage);
+    renderMessages();
+
+    const textElements = document.querySelectorAll('.proxe-message-text');
+    const currentElement = textElements[textElements.length - 1];
+
+    if (!currentElement) {
+      aiMessage.hasStreamed = true;
+      if (aiMessage.followUp) {
+        aiMessage.followUpVisible = true;
+        renderMessages();
+      }
+      return;
+    }
+
+    streamText(currentElement, data.response, 8, function() {
+      aiMessage.hasStreamed = true;
+      if (aiMessage.followUp) {
+        aiMessage.followUpVisible = true;
+      }
+      renderMessages();
+      completedAiMessages += 1;
+      maybeShowPhoneRequest();
+    });
+  }
+  
+  function checkForScheduleCall(userMessage) {
+    if (!userMessage || typeof userMessage !== 'string') return false;
+    const normalized = userMessage.toLowerCase().trim();
+    
+    // Check for various forms of scheduling/consultation requests
+    if (normalized.includes('schedule') && (normalized.includes('call') || normalized.includes('admission') || normalized.includes('consultation') || normalized.includes('free'))) {
+      return true;
+    }
+    if (normalized.includes('connect') && (normalized.includes('admission') || normalized.includes('admissions') || normalized.includes('me'))) {
+      return true;
+    }
+    if ((normalized.includes('free') && normalized.includes('consultation')) || (normalized.includes('consultation') && normalized.includes('free'))) {
+      return true;
+    }
+    
+    return false;
+  }
+  
+  function showAdmissionsForm() {
+    if (formShown) {
+      messages.push({
+        type: 'ai',
+        text: '<p><strong>We have your details! ✅</strong><br>Our admissions team will call you shortly.</p><p><strong>Want to connect right away?</strong></p>',
+        variant: 'phone-request',
+        hasStreamed: true,
+        showContactButtons: true
+      });
+      renderMessages();
+      return;
+    }
+    
+    messages.push({
+      type: 'ai',
+      text: '<h2>What We\'ll Discuss</h2><ul><li>Your aviation career goals</li><li>Program requirements and eligibility</li><li>Training timeline and duration</li><li>Financing options and payment plans</li><li>DGCA certification process</li><li>International training opportunities</li><li>Career prospects and placement support</li></ul><p><strong>Please fill in your details below to schedule your personalized admission call:</strong></p>',
+      variant: 'admissions-form',
+      hasStreamed: true
+    });
+    renderMessages();
+  }
+
+  function handleApiError(err) {
+    console.error('API Error:', err);
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg && lastMsg.isLoading) {
+      messages.pop();
+    }
+    messages.push({ type: 'ai', text: 'Sorry, error connecting to server.', hasStreamed: true });
+    renderMessages();
+  }
+  
+  function askForName() {
+    if (nameAsked || userName) return;
+    
+    nameAsked = true;
+    messages.push({
+      type: 'ai',
+      text: '<p>Hi! 👋 What\'s your name?</p>',
+      hasStreamed: true
+    });
+    renderMessages();
+  }
+  
+  function captureName(message) {
+    if (nameAsked && !userName) {
+      // Extract name from message (simple approach - take first word)
+      const words = message.trim().split(/\s+/);
+      userName = words[0].charAt(0).toUpperCase() + words[0].slice(1).toLowerCase();
+      return true;
+    }
+    return false;
   }
 
   // Centralized handler for quick button clicks
@@ -166,6 +631,31 @@ console.log('PROXE Widget Initializing...');
     
     // Add user message
     messages.push({ type: 'user', text: promptText });
+    
+    // Ask for name if first message
+    if (!nameAsked && !userName) {
+      askForName();
+      return;
+    }
+    
+    // Capture name if we just asked
+    if (captureName(promptText)) {
+      messages.push({
+        type: 'ai',
+        text: '<p>Nice to meet you, <strong>' + userName + '</strong>! 😊 How can I help you today?</p>',
+        hasStreamed: true
+      });
+      renderMessages();
+      return;
+    }
+    
+    // Check if this is a schedule call request
+    if (checkForScheduleCall(promptText)) {
+      isOpen = true;
+      createWidget();
+      showAdmissionsForm();
+      return;
+    }
     
     // Add skeleton loader with header
     messages.push({ 
@@ -182,27 +672,14 @@ console.log('PROXE Widget Initializing...');
     fetch(API_CHAT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: promptText })
+      body: JSON.stringify({ message: promptText, userName: userName })
     })
     .then(function(res) { return res.json(); })
     .then(function(data) {
       console.log('API Response:', data);
-      // Remove skeleton loader
-      messages.pop();
-      // Add AI response (already formatted as HTML from server)
-      messages.push({ type: 'ai', text: data.response });
-      renderMessages();
-      
-      // Stream the response
-      const lastBubble = document.querySelectorAll('.proxe-message-bubble')[document.querySelectorAll('.proxe-message-bubble').length - 1];
-      streamText(lastBubble, data.response, 8);
+      handleApiResponse(data);
     })
-    .catch(function(err) {
-      console.error('API Error:', err);
-      messages.pop();
-      messages.push({ type: 'ai', text: 'Sorry, error connecting to server.' });
-      renderMessages();
-    });
+    .catch(handleApiError);
   }
 
   function createWidget() {
@@ -289,12 +766,12 @@ console.log('PROXE Widget Initializing...');
 
       const btn2 = document.createElement('button');
       btn2.className = 'proxe-quick-btn';
-      btn2.textContent = 'What courses are offered?';
+      btn2.textContent = 'What programs are offered?';
       btn2.type = 'button';
       btn2.onclick = function(e) {
         e.preventDefault();
         e.stopPropagation();
-        handleQuickButtonClick('What courses are offered?');
+        handleQuickButtonClick('What programs are offered?');
       };
 
       const btn3 = document.createElement('button');
@@ -318,8 +795,10 @@ console.log('PROXE Widget Initializing...');
           createWidget();
           return;
         }
-        quickButtonsWrapper.style.display = 'flex';
-        searchbarWrapper.classList.add('proxe-expanded-mobile');
+        if (!formShown) {
+          quickButtonsWrapper.style.display = 'flex';
+          searchbarWrapper.classList.add('proxe-expanded-mobile');
+        }
       });
 
       // Hide buttons on blur if empty
@@ -339,6 +818,30 @@ console.log('PROXE Widget Initializing...');
           input.value = '';
           isOpen = true;
           
+          // Ask for name if first message
+          if (!nameAsked && !userName) {
+            askForName();
+            return;
+          }
+          
+          // Capture name if we just asked
+          if (captureName(userMessage)) {
+            messages.push({
+              type: 'ai',
+              text: '<p>Nice to meet you, <strong>' + userName + '</strong>! 😊 How can I help you today?</p>',
+              hasStreamed: true
+            });
+            createWidget();
+            return;
+          }
+          
+          // Check if this is a schedule call request
+          if (checkForScheduleCall(userMessage)) {
+            createWidget();
+            showAdmissionsForm();
+            return;
+          }
+          
           messages.push({ 
             type: 'ai', 
             text: '<div class="proxe-skeleton-loader"><div class="proxe-skeleton-line"></div><div class="proxe-skeleton-line"></div><div class="proxe-skeleton-line"></div></div>',
@@ -349,23 +852,14 @@ console.log('PROXE Widget Initializing...');
           fetch(API_CHAT_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: userMessage })
+            body: JSON.stringify({ message: userMessage, userName: userName })
           })
           .then(function(res) { return res.json(); })
           .then(function(data) {
-            messages.pop();
-            messages.push({ type: 'ai', text: data.response });
-            renderMessages();
-            
-            const lastBubble = document.querySelectorAll('.proxe-message-text');
-            streamText(lastBubble[lastBubble.length - 1], data.response, 8);
+            console.log('API Response:', data);
+            handleApiResponse(data);
           })
-          .catch(function(err) {
-            console.error('Error:', err);
-            messages.pop();
-            messages.push({ type: 'ai', text: 'Sorry, error connecting to server.' });
-            renderMessages();
-          });
+          .catch(handleApiError);
         }
       });
 
@@ -449,6 +943,12 @@ console.log('PROXE Widget Initializing...');
         chatInput.value = '';
         renderMessages();
 
+        // Check if this is a schedule call request
+        if (checkForScheduleCall(userMessage)) {
+          showAdmissionsForm();
+          return;
+        }
+
         messages.push({ 
           type: 'ai', 
           text: '<div class="proxe-skeleton-loader"><div class="proxe-skeleton-line"></div><div class="proxe-skeleton-line"></div><div class="proxe-skeleton-line"></div></div>',
@@ -463,19 +963,10 @@ console.log('PROXE Widget Initializing...');
         })
         .then(function(res) { return res.json(); })
         .then(function(data) {
-          messages.pop();
-          messages.push({ type: 'ai', text: data.response });
-          renderMessages();
-          
-          const lastBubble = document.querySelectorAll('.proxe-message-text');
-          streamText(lastBubble[lastBubble.length - 1], data.response, 8);
+          console.log('API Response:', data);
+          handleApiResponse(data);
         })
-        .catch(function(err) {
-          console.error('Error:', err);
-          messages.pop();
-          messages.push({ type: 'ai', text: 'Sorry, error connecting to server.' });
-          renderMessages();
-        });
+        .catch(handleApiError);
       };
 
       sendBtn.addEventListener('click', handleSend);

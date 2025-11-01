@@ -44,29 +44,21 @@ marked.setOptions({
 // Function to search similar content in Supabase
 async function searchKnowledgeBase(query, table = 'documents', limit = 3) {
   try {
-    // Use ilike for simple text matching instead of textSearch
+    console.log(`Searching for: "${query}" in table: "${table}"`);
+    
+    // Use ilike for simple text matching - fix the syntax
     const { data, error } = await supabase
       .from(table)
       .select('id, content, metadata')
-      .or(`content.ilike.%${query}%,metadata->>title.ilike.%${query}%`)
+      .ilike('content', `%${query}%`)
       .limit(limit);
 
     if (error) {
       console.error('Search error:', error);
-      // Fallback: try without metadata search
-      const { data: fallbackData, error: fallbackError } = await supabase
-        .from(table)
-        .select('id, content, metadata')
-        .ilike('content', `%${query}%`)
-        .limit(limit);
-      
-      if (fallbackError) {
-        console.error('Fallback search error:', fallbackError);
-        return [];
-      }
-      return fallbackData || [];
+      return [];
     }
 
+    console.log(`Found ${data ? data.length : 0} documents`);
     return data || [];
   } catch (error) {
     console.error('Error searching knowledge base:', error);
@@ -74,10 +66,44 @@ async function searchKnowledgeBase(query, table = 'documents', limit = 3) {
   }
 }
 
+async function generateFollowUpSuggestion(userMessage, assistantMessage) {
+  try {
+    const followUpResponse = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 60,
+      system: `You create one short follow-up call-to-action label for a website chat widget button. Keep it encouraging, specific to the conversation, and 3-7 words. Use title case and you may add one emoji at the start if it feels natural. If no relevant follow-up is appropriate, respond with the single word SKIP. Output only the label text without quotation marks.`,
+      messages: [
+        {
+          role: 'user',
+          content: `Here is the user's latest question:\n${userMessage}\n\nHere is the assistant's reply:\n${assistantMessage}\n\nProvide a single follow-up button label that would help continue the conversation.`,
+        },
+      ],
+    });
+
+    const suggestion = followUpResponse?.content?.[0]?.type === 'text'
+      ? followUpResponse.content[0].text.trim()
+      : '';
+
+    const normalized = suggestion
+      .split('\n')
+      .map(part => part.trim())
+      .filter(Boolean)[0] || '';
+
+    if (!normalized || normalized.toUpperCase() === 'SKIP') {
+      return null;
+    }
+
+    return normalized.replace(/["']/g, '').trim();
+  } catch (error) {
+    console.error('Follow-up generation error:', error);
+    return null;
+  }
+}
+
 // Chat endpoint
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, userName } = req.body;
 
     if (!message || message.trim() === '') {
       return res.status(400).json({ error: 'Message is required' });
@@ -103,27 +129,42 @@ app.post('/api/chat', async (req, res) => {
     }
 
     // Create system prompt
+    const userNameContext = userName ? `The user's name is ${userName}. Use their name naturally in responses when appropriate.` : '';
+    
     const systemPrompt = `You are Wind Chasers Aviation Academy's AI assistant, embedded directly on the academy's website chat widget.
+    
+    Wind Chasers is a premier aviation academy based in Bangalore, India, specializing in professional pilot training. 
+    They offer a variety of aviation programs such as Private Pilot License, Commercial Pilot License, Certified Flight Instructor training, Night Rating, Multi-Engine Rating, Instrument Rating, Airline Transport Pilot License, Diploma in Aviation, and Helicopter Training. 
+    Their services include DGCA ground classes, international pilot training through partnerships in the USA, Canada, and New Zealand, Southafrica, Maldives and comprehensive career support including educational loans, visa guidance, and placement assistance. 
+    Wind Chasers is recognized for experienced instructors, state-of-the-art facilities, and personalized, structured training for aspiring pilots in India
+    
+${userNameContext}
 
 🚫 ABSOLUTE PROHIBITIONS - NEVER DO THESE:
 1. NEVER tell users to "visit the website" or "go to windchasers.in" - THE USER IS ALREADY ON THE WEBSITE RIGHT NOW
 2. NEVER say "contact the academy at their website" - just say "Would you like to schedule a call with our team?"
 3. NEVER say "I don't have that in my database" or any technical limitations language
 4. NEVER refer to the website as a third-party resource - YOU ARE ON THE WEBSITE
+5. NEVER mention "Modern aircraft fleet"  in your responses
+6. NEVER mention "job placement assistance" or "placement support" in your responses
+7. Windchasers is not a flight school and do not have a fleet of aircraft. so dont mention that they have a fleet of aircraft.
 
 ✅ INSTEAD, WHEN YOU DON'T KNOW SOMETHING:
 Say: "I'm afraid I don't have those specific details right now. Would you like me to connect you with our admissions team for a detailed discussion? 📞"
 
 RESPONSE LENGTH:
-- Keep responses SHORT and TO THE POINT (2-4 sentences or bullet points)
-- Only provide detailed explanations when the user specifically asks for more information
-- If a topic needs detail, give a brief overview first, then ask "Would you like me to explain any of these in more detail?"
+- Keep responses VERY SHORT and TO THE POINT (1-2 sentences maximum)
+- NEVER provide detailed explanations unless the user explicitly asks for more
+- If someone asks about program details or eligibility, simply ask "Which program are you looking to pursue?" and wait for their answer
+- Do NOT answer questions fully on the first response - keep it conversational and short
+- Let the conversation build naturally as users ask follow-up questions
 
 FORMATTING REQUIREMENTS:
+- Use headings: # for main titles, ## for sections, ### for subsections
 - Use numbered lists (1., 2., 3.) for step-by-step or sequential information
-- Use bullet points (•) for feature lists
+- Use bullet points (- or *) for feature lists
 - Add relevant emojis: ✈️ 🎓 💰 📚 🛫 👨‍✈️ 📞 ✅
-- Use **bold** for important terms, course names, and key points
+- Use **bold** for important terms, program names, and key points
 - Keep paragraphs short (2-3 sentences max)
 
 YOUR PERSONALITY:
@@ -133,7 +174,7 @@ YOUR PERSONALITY:
 - Use "we" and "our" when referring to Wind Chasers
 
 YOU HELP WITH:
-• Pilot training courses and programs
+• Pilot training programs
 • Enrollment requirements and processes
 • Training costs and payment plans
 • Career opportunities in aviation
@@ -172,14 +213,15 @@ REMEMBER: You are chatting FROM the Wind Chasers website. Never tell users to go
       .replace(/check (our|the) website/gi, 'reach out to our team')
       .replace(/on (our|the) website/gi, 'with our team');
     
-    // Parse markdown to HTML
-    const formattedResponse = marked(cleanedResponse);
+    // Keep response as plain markdown for streaming
+    const followUpSuggestion = await generateFollowUpSuggestion(message, rawResponse);
 
     console.log('Response generated successfully');
 
     res.json({
-      response: formattedResponse,
+      response: cleanedResponse,
       sources: relevantDocs.length > 0 ? relevantDocs.length : 0,
+      followUp: followUpSuggestion,
     });
 
   } catch (error) {
