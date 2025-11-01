@@ -682,6 +682,12 @@ console.log('PROXE Widget Initializing...');
       input.placeholder = 'Ask me anything...';
       input.id = 'proxe-searchbar-input';
       input.autocomplete = 'off';
+      
+      const sendBtn = document.createElement('button');
+      sendBtn.className = 'proxe-searchbar-send-btn';
+      sendBtn.innerHTML = icons.send;
+      sendBtn.type = 'button';
+      sendBtn.style.display = 'none'; // Hidden by default
 
       // Quick buttons wrapper
       const quickButtonsWrapper = document.createElement('div');
@@ -767,7 +773,53 @@ console.log('PROXE Widget Initializing...');
       quickButtonsWrapper.appendChild(btn2);
       quickButtonsWrapper.appendChild(btn3);
 
-      // Show buttons on search focus
+      // Send handler function
+      const handleSearchSend = function() {
+        if (!input.value.trim()) return;
+        const userMessage = input.value;
+        input.value = '';
+        manualOpen = true;
+        isOpen = true;
+        sendBtn.style.display = 'none'; // Hide send button after sending
+        
+        // Add user message
+        messages.push({ type: 'user', text: userMessage });
+        
+        // Check if this is a schedule call request
+        if (checkForScheduleCall(userMessage)) {
+          createWidget();
+          showAdmissionsForm();
+          return;
+        }
+        
+        messages.push({ 
+          type: 'ai', 
+          text: '<div class="proxe-skeleton-loader"><div class="proxe-skeleton-line"></div><div class="proxe-skeleton-line"></div><div class="proxe-skeleton-line"></div></div>',
+          isLoading: true
+        });
+        createWidget();
+        
+        fetch(API_CHAT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: userMessage })
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          console.log('API Response:', data);
+          handleApiResponse(data);
+        })
+        .catch(handleApiError);
+      };
+      
+      // Send button click handler
+      sendBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleSearchSend();
+      });
+      
+      // Show buttons and send button on search focus
       input.addEventListener('focus', function() {
         if (messages.length > 0) {
           isOpen = true;
@@ -778,6 +830,21 @@ console.log('PROXE Widget Initializing...');
           quickButtonsWrapper.style.display = 'flex';
           searchbarWrapper.classList.add('proxe-expanded-mobile');
         }
+        if (input.value.trim()) {
+          sendBtn.style.display = 'flex';
+          searchIcon.style.display = 'none';
+        }
+      });
+      
+      // Update send button visibility on input change
+      input.addEventListener('input', function() {
+        if (input.value.trim()) {
+          sendBtn.style.display = 'flex';
+          searchIcon.style.display = 'none';
+        } else {
+          sendBtn.style.display = 'none';
+          searchIcon.style.display = 'flex';
+        }
       });
 
       // Hide buttons on blur if empty
@@ -786,50 +853,21 @@ console.log('PROXE Widget Initializing...');
           if (!input.value.trim() && !isDown) {
             quickButtonsWrapper.style.display = 'none';
             searchbarWrapper.classList.remove('proxe-expanded-mobile');
+            sendBtn.style.display = 'none';
+            searchIcon.style.display = 'flex';
           }
         }, 200); // Delay to allow button click to register
       });
 
       input.addEventListener('keypress', function(e) {
         if (e.key === 'Enter' && input.value.trim()) {
-          const userMessage = input.value;
-          input.value = '';
-          manualOpen = true;
-          isOpen = true;
-          
-          // Add user message
-          messages.push({ type: 'user', text: userMessage });
-          
-          // Check if this is a schedule call request
-          if (checkForScheduleCall(userMessage)) {
-            createWidget();
-            showAdmissionsForm();
-            return;
-          }
-          
-          messages.push({ 
-            type: 'ai', 
-            text: '<div class="proxe-skeleton-loader"><div class="proxe-skeleton-line"></div><div class="proxe-skeleton-line"></div><div class="proxe-skeleton-line"></div></div>',
-            isLoading: true
-          });
-          createWidget();
-          
-          fetch(API_CHAT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: userMessage })
-          })
-          .then(function(res) { return res.json(); })
-          .then(function(data) {
-            console.log('API Response:', data);
-            handleApiResponse(data);
-          })
-          .catch(handleApiError);
+          handleSearchSend();
         }
       });
 
       searchbar.appendChild(searchIcon);
       searchbar.appendChild(input);
+      searchbar.appendChild(sendBtn);
 
       searchbarWrapper.appendChild(quickButtonsWrapper);
       searchbarWrapper.appendChild(searchbar);
