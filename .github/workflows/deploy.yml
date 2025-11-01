@@ -21,6 +21,10 @@ jobs:
             git fetch origin
             git reset --hard origin/main
             cd backend
+            if [ ! -f .env ]; then
+              echo "❌ backend/.env file is missing! Please create it on the VPS with your API keys."
+              exit 1
+            fi
             npm install
             cd ..
             pm2 delete webagent-backend || true
