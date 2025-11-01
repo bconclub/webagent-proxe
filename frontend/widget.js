@@ -6,8 +6,6 @@ console.log('PROXE Widget Initializing...');
   let completedAiMessages = 0;
   let phonePromptShown = false;
   let formShown = false;
-  let userName = null;
-  let nameAsked = false;
   const brandName = 'Wind Chasers';
 
   // Auto-detect API URL based on current page location
@@ -603,51 +601,12 @@ console.log('PROXE Widget Initializing...');
     renderMessages();
   }
   
-  function askForName() {
-    if (nameAsked || userName) return;
-    
-    nameAsked = true;
-    messages.push({
-      type: 'ai',
-      text: '<p>Hi! 👋 What\'s your name?</p>',
-      hasStreamed: true
-    });
-    renderMessages();
-  }
-  
-  function captureName(message) {
-    if (nameAsked && !userName) {
-      // Extract name from message (simple approach - take first word)
-      const words = message.trim().split(/\s+/);
-      userName = words[0].charAt(0).toUpperCase() + words[0].slice(1).toLowerCase();
-      return true;
-    }
-    return false;
-  }
-
   // Centralized handler for quick button clicks
   function handleQuickButtonClick(promptText) {
     console.log('Quick button clicked:', promptText);
     
-    // Ask for name if first message
-    if (!nameAsked && !userName) {
-      askForName();
-      return;
-    }
-    
     // Add user message
     messages.push({ type: 'user', text: promptText });
-    
-    // Capture name if we just asked
-    if (captureName(promptText)) {
-      messages.push({
-        type: 'ai',
-        text: '<p>Nice to meet you, <strong>' + userName + '</strong>! 😊 How can I help you today?</p>',
-        hasStreamed: true
-      });
-      renderMessages();
-      return;
-    }
     
     // Check if this is a schedule call request
     if (checkForScheduleCall(promptText)) {
@@ -672,7 +631,7 @@ console.log('PROXE Widget Initializing...');
     fetch(API_CHAT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: promptText, userName: userName })
+      body: JSON.stringify({ message: promptText })
     })
     .then(function(res) { return res.json(); })
     .then(function(data) {
@@ -817,25 +776,8 @@ console.log('PROXE Widget Initializing...');
           input.value = '';
           isOpen = true;
           
-          // Ask for name if first message
-          if (!nameAsked && !userName) {
-            askForName();
-            return;
-          }
-          
           // Add user message
           messages.push({ type: 'user', text: userMessage });
-          
-          // Capture name if we just asked
-          if (captureName(userMessage)) {
-            messages.push({
-              type: 'ai',
-              text: '<p>Nice to meet you, <strong>' + userName + '</strong>! 😊 How can I help you today?</p>',
-              hasStreamed: true
-            });
-            createWidget();
-            return;
-          }
           
           // Check if this is a schedule call request
           if (checkForScheduleCall(userMessage)) {
@@ -854,7 +796,7 @@ console.log('PROXE Widget Initializing...');
           fetch(API_CHAT_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: userMessage, userName: userName })
+            body: JSON.stringify({ message: userMessage })
           })
           .then(function(res) { return res.json(); })
           .then(function(data) {

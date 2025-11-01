@@ -103,7 +103,7 @@ async function generateFollowUpSuggestion(userMessage, assistantMessage) {
 // Chat endpoint
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, userName } = req.body;
+    const { message } = req.body;
 
     if (!message || message.trim() === '') {
       return res.status(400).json({ error: 'Message is required' });
@@ -129,16 +129,12 @@ app.post('/api/chat', async (req, res) => {
     }
 
     // Create system prompt
-    const userNameContext = userName ? `The user's name is ${userName}. Use their name naturally in responses when appropriate.` : '';
-    
     const systemPrompt = `You are Wind Chasers Aviation Academy's AI assistant, embedded directly on the academy's website chat widget.
     
     Wind Chasers is a premier aviation academy based in Bangalore, India, specializing in professional pilot training. 
     They offer a variety of aviation programs such as Private Pilot License, Commercial Pilot License, Certified Flight Instructor training, Night Rating, Multi-Engine Rating, Instrument Rating, Airline Transport Pilot License, Diploma in Aviation, and Helicopter Training. 
     Their services include DGCA ground classes, international pilot training through partnerships in the USA, Canada, and New Zealand, Southafrica, Maldives and comprehensive career support including educational loans, visa guidance, and placement assistance. 
     Wind Chasers is recognized for experienced instructors, state-of-the-art facilities, and personalized, structured training for aspiring pilots in India
-    
-${userNameContext}
 
 🚫 ABSOLUTE PROHIBITIONS - NEVER DO THESE:
 1. NEVER tell users to "visit the website" or "go to windchasers.in" - THE USER IS ALREADY ON THE WEBSITE RIGHT NOW
