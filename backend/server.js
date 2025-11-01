@@ -6,6 +6,8 @@ import { createClient } from '@supabase/supabase-js';
 import Anthropic from '@anthropic-ai/sdk';
 import { marked } from 'marked';
 import dotenv from 'dotenv';
+import { getProxeSystemPrompt } from './prompts/proxe-prompt.js';
+import { getWindChasersSystemPrompt } from './prompts/windchasers-prompt.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,10 +27,92 @@ app.use(express.json());
 // Serve static files from frontend directory
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// Initialize Supabase
-const supabaseUrl = process.env.SUPABASE_URL || 'https://nfnwmkxgfgqgorwgonwf.supabase.co';
-const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mbndta3hnZmdxZ29yd2dvbndmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwOTU4MTcsImV4cCI6MjA3NTY3MTgxN30.fTwOPszajAM_MhulX4cPGWzzYchfHMaBNkCs_6S4ZYQ';
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Initialize Supabase clients for different brands
+// PROXe Supabase (for homepage chatbot)
+const proxeSupabaseUrl = process.env.PROXE_SUPABASE_URL;
+const proxeSupabaseKey = process.env.PROXE_SUPABASE_ANON_KEY;
+const proxeSupabase = proxeSupabaseUrl && proxeSupabaseKey 
+  ? createClient(proxeSupabaseUrl, proxeSupabaseKey)
+  : null;
+
+// Wind Chasers Supabase (for /windchasers-proxe page)
+const windchasersSupabaseUrl = process.env.SUPABASE_URL || 'https://nfnwmkxgfgqgorwgonwf.supabase.co';
+const windchasersSupabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mbndta3hnZmdxZ29yd2dvbndmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwOTU4MTcsImV4cCI6MjA3NTY3MTgxN30.fTwOPszajAM_MhulX4cPGWzzYchfHMaBNkCs_6S4ZYQ';
+const windchasersSupabase = createClient(windchasersSupabaseUrl, windchasersSupabaseKey);
+
+// Test Supabase connections on startup - tests multiple tables
+async function testSupabaseConnection(client, name, url) {
+  try {
+    // Try testing multiple tables to see what exists
+    const tablesToTest = [
+      'chatbot_responses',
+      'system_prompts',
+      'agents',
+      'conversation_states',
+      'cta_triggers',
+      'model_context'
+    ];
+    
+    let successfulTables = [];
+    let failedTables = [];
+    
+    for (const table of tablesToTest) {
+      try {
+        const { data, error } = await Promise.race([
+          client.from(table).select('count').limit(1),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 5000)
+          )
+        ]);
+        
+        if (error) {
+          // Table doesn't exist or permission issue
+          failedTables.push(table);
+        } else {
+          successfulTables.push(table);
+        }
+      } catch (err) {
+        // Skip network errors for individual table tests
+        if (err.message && err.message.includes('fetch failed')) {
+          throw err; // Re-throw network errors to handle at top level
+        }
+        failedTables.push(table);
+      }
+    }
+    
+    if (successfulTables.length > 0) {
+      console.log(`✅ ${name} Supabase: Connection successful`);
+      console.log(`   Available tables: ${successfulTables.join(', ')}`);
+      if (failedTables.length > 0) {
+        console.log(`   Note: Some tables not found: ${failedTables.join(', ')}`);
+      }
+      return true;
+    } else {
+      console.warn(`⚠️ ${name} Supabase: No tables found. Tables may not be created yet.`);
+      return false;
+    }
+  } catch (error) {
+    console.warn(`⚠️ ${name} Supabase: Connection test failed - ${error.message}`);
+    if (error.message && error.message.includes('fetch failed')) {
+      console.warn(`   Check if URL is accessible: ${url}`);
+      console.warn(`   Possible issues: Network error, project paused, or firewall blocking`);
+      console.warn(`   The chatbot will continue but may not have access to knowledge base.`);
+    }
+    return false;
+  }
+}
+
+console.log('Supabase clients initialized:');
+console.log('- Wind Chasers Supabase URL:', windchasersSupabaseUrl);
+console.log('- PROXe Supabase URL:', proxeSupabaseUrl || 'Not configured');
+
+// Test connections asynchronously (don't block server startup)
+if (windchasersSupabase) {
+  testSupabaseConnection(windchasersSupabase, 'Wind Chasers', windchasersSupabaseUrl).catch(() => {});
+}
+if (proxeSupabase) {
+  testSupabaseConnection(proxeSupabase, 'PROXe', proxeSupabaseUrl).catch(() => {});
+}
 
 // Initialize Claude API
 const anthropic = new Anthropic({
@@ -41,105 +125,381 @@ marked.setOptions({
   gfm: true,
 });
 
-// Function to search similar content in Supabase
-async function searchKnowledgeBase(query, table = 'documents', limit = 3) {
+// Function to search ALL knowledge base tables in Supabase
+// Pulls from: system_prompts, agents, conversation_states, cta_triggers, model_context, chatbot_responses
+// Detects brand and uses appropriate Supabase client
+async function searchKnowledgeBase(query, brand = 'proxe', limit = 3) {
   try {
-    console.log(`Searching for: "${query}" in table: "${table}"`);
+    // Determine which Supabase client to use
+    let supabaseClient;
     
-    // Use ilike for simple text matching - fix the syntax
-    const { data, error } = await supabase
-      .from(table)
-      .select('id, content, metadata')
-      .ilike('content', `%${query}%`)
-      .limit(limit);
-
-    if (error) {
-      console.error('Search error:', error);
-      return [];
+    if (brand === 'proxe' || brand === 'PROXe') {
+      // PROXe chatbot (homepage) - use PROXe Supabase
+      supabaseClient = proxeSupabase;
+      
+      if (!supabaseClient) {
+        console.warn('⚠️ PROXe Supabase not configured. Set PROXE_SUPABASE_URL and PROXE_SUPABASE_ANON_KEY');
+        return [];
+      }
+    } else {
+      // Wind Chasers chatbot (/windchasers-proxe page) - use Wind Chasers Supabase
+      supabaseClient = windchasersSupabase;
+      
+      if (!supabaseClient) {
+        console.warn('⚠️ Wind Chasers Supabase not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY');
+        return [];
+      }
     }
-
-    console.log(`Found ${data ? data.length : 0} documents`);
-    return data || [];
+    
+    console.log(`[${brand}] Searching ALL knowledge base tables for: "${query}"`);
+    console.log(`[${brand}] Using Supabase URL: ${brand === 'proxe' ? proxeSupabaseUrl : windchasersSupabaseUrl}`);
+    
+    // Helper function to safely query a table with timeout
+    const safeQuery = async (table, filters, timeout = 5000) => {
+      try {
+        const result = await Promise.race([
+          supabaseClient.from(table).select('*').match(filters),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error(`Query timeout for ${table}`)), timeout)
+          )
+        ]);
+        
+        if (result.error) {
+          console.warn(`[${brand}] Error querying ${table}:`, result.error.message);
+          return [];
+        }
+        return result.data || [];
+      } catch (error) {
+        if (error.message && error.message.includes('fetch failed')) {
+          throw error; // Re-throw network errors
+        }
+        console.warn(`[${brand}] Query error for ${table}:`, error.message);
+        return [];
+      }
+    };
+    
+    // Helper function to search with ilike across multiple columns
+    const searchTable = async (table, columns, searchTerm, perColumnLimit = 2) => {
+      const allResults = [];
+      
+      for (const column of columns) {
+        try {
+          const result = await Promise.race([
+            supabaseClient
+              .from(table)
+              .select('*')
+              .eq('brand', brand.toLowerCase())
+              .ilike(column, `%${searchTerm}%`)
+              .limit(perColumnLimit),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error(`Timeout`)), 5000)
+            )
+          ]);
+          
+          if (!result.error && result.data) {
+            allResults.push(...result.data);
+          }
+        } catch (error) {
+          if (error.message && error.message.includes('fetch failed')) {
+            throw error;
+          }
+          // Continue with other columns
+        }
+      }
+      
+      // Remove duplicates by id
+      const uniqueResults = Array.from(new Map(allResults.map(item => [item.id, item])).values());
+      return uniqueResults;
+    };
+    
+    const allResults = [];
+    
+    try {
+      // Query all tables in parallel where possible
+      const queryPromises = [
+        // 1. system_prompts - search in content, title, description
+        searchTable('system_prompts', ['content', 'title', 'description'], query, 2).catch(() => []),
+        
+        // 2. agents - search in agent_name, what_it_does, pain_point_mapped_to
+        searchTable('agents', ['agent_name', 'what_it_does', 'pain_point_mapped_to'], query, 2).catch(() => []),
+        
+        // 3. conversation_states - search in state_name, description
+        searchTable('conversation_states', ['state_name', 'description', 'notes'], query, 2).catch(() => []),
+        
+        // 4. cta_triggers - search in cta_text, trigger_condition, use_case
+        searchTable('cta_triggers', ['cta_text', 'trigger_condition', 'use_case'], query, 2).catch(() => []),
+        
+        // 5. model_context - search in key, value, category
+        searchTable('model_context', ['key', 'value', 'category'], query, 3).catch(() => []),
+        
+        // 6. chatbot_responses - existing logic (multiple columns)
+        (async () => {
+          try {
+            const columns = ['question', 'query', 'user_message', 'keywords'];
+            return await searchTable('chatbot_responses', columns, query, 2);
+          } catch {
+            return [];
+          }
+        })()
+      ];
+      
+      const results = await Promise.allSettled(queryPromises);
+      
+      // Process results from each table
+      results.forEach((result, index) => {
+        const tableNames = ['system_prompts', 'agents', 'conversation_states', 'cta_triggers', 'model_context', 'chatbot_responses'];
+        
+        if (result.status === 'fulfilled' && result.value && Array.isArray(result.value)) {
+          result.value.forEach(item => {
+            let content = '';
+            let metadata = { table: tableNames[index], brand: item.brand || brand };
+            
+            // Format content based on table type
+            switch (tableNames[index]) {
+              case 'system_prompts':
+                content = `${item.title || item.prompt_type || 'System Prompt'}: ${item.content}`;
+                metadata.prompt_type = item.prompt_type;
+                metadata.version = item.version;
+                break;
+                
+              case 'agents':
+                content = `Agent: ${item.agent_name}\nWhat it does: ${item.what_it_does || ''}\n${item.trenches_energy ? `Trenches energy: ${item.trenches_energy}\n` : ''}${item.amplification_energy ? `Amplification: ${item.amplification_energy}\n` : ''}${item.real_example ? `Example: ${item.real_example}\n` : ''}${item.results ? `Results: ${item.results}` : ''}`;
+                metadata.agent_key = item.agent_key;
+                metadata.pain_point = item.pain_point_mapped_to;
+                break;
+                
+              case 'conversation_states':
+                content = `State: ${item.state_name} (${item.state_key})\n${item.description || ''}\n${item.notes ? `Notes: ${item.notes}` : ''}`;
+                metadata.state_key = item.state_key;
+                metadata.qualification_level = item.qualification_level;
+                break;
+                
+              case 'cta_triggers':
+                content = `CTA: ${item.cta_text}\nTrigger: ${item.trigger_condition}\n${item.use_case ? `Use case: ${item.use_case}` : ''}`;
+                metadata.trigger_condition = item.trigger_condition;
+                metadata.qualification_level = item.qualification_level;
+                break;
+                
+              case 'model_context':
+                content = `[${item.category}] ${item.key}: ${item.value}`;
+                metadata.category = item.category;
+                metadata.key = item.key;
+                break;
+                
+              case 'chatbot_responses':
+                content = item.response || item.answer || item.content || item.reply || '';
+                metadata.question = item.question || item.query || item.user_message || '';
+                metadata.keywords = item.keywords || '';
+                break;
+            }
+            
+            if (content.trim()) {
+              allResults.push({
+                id: item.id,
+                content: content.trim(),
+                metadata
+              });
+            }
+          });
+        }
+      });
+      
+      // Sort by relevance (could be improved with better scoring)
+      // For now, prioritize system_prompts and agents
+      const sortedResults = allResults.sort((a, b) => {
+        const priorityOrder = { 'system_prompts': 3, 'agents': 2, 'conversation_states': 1, 'cta_triggers': 1, 'model_context': 0, 'chatbot_responses': 1 };
+        return (priorityOrder[b.metadata.table] || 0) - (priorityOrder[a.metadata.table] || 0);
+      });
+      
+      // Limit results
+      const formattedData = sortedResults.slice(0, limit * 3); // Get more from all sources
+      
+      console.log(`[${brand}] Found ${formattedData.length} results from ${new Set(formattedData.map(r => r.metadata.table)).size} tables`);
+      return formattedData;
+      
+    } catch (error) {
+      // Handle network errors
+      if (error.message && (error.message.includes('fetch failed') || error.message.includes('network'))) {
+        console.warn(`[${brand}] Network error detected. Skipping knowledge base search.`);
+        return [];
+      }
+      throw error;
+    }
   } catch (error) {
-    console.error('Error searching knowledge base:', error);
+    console.error(`[${brand}] Error searching knowledge base:`, error);
+    console.error(`[${brand}] Error details:`, {
+      message: error.message,
+      cause: error.cause,
+      name: error.name,
+      stack: error.stack?.split('\n').slice(0, 5).join('\n')
+    });
+    
+    // Check if it's a fetch/network error
+    if (error.message && (error.message.includes('fetch failed') || error.message.includes('network'))) {
+      const supabaseUrl = brand === 'proxe' ? proxeSupabaseUrl : windchasersSupabaseUrl;
+      console.error(`[${brand}] Network error detected. Possible issues:`);
+      console.error(`  - Supabase URL: ${supabaseUrl || 'NOT SET'}`);
+      console.error(`  - Check if URL is accessible`);
+      console.error(`  - Check if Supabase project is active`);
+      console.error(`  - Check network connection`);
+      console.error(`  - Check firewall/proxy settings`);
+    }
+    
     return [];
   }
 }
 
-async function generateFollowUpSuggestion(userMessage, assistantMessage, messageCount = 0) {
+async function generateFollowUpSuggestion(userMessage, assistantMessage, messageCount = 0, brand = 'proxe') {
   try {
     const lowerResponse = assistantMessage.toLowerCase();
     const lowerQuestion = userMessage.toLowerCase();
+    const normalizedBrand = (brand || 'proxe').toLowerCase();
     
-    // After first response, always suggest "Choose Your Program"
-    if (messageCount === 1) {
-      return 'Choose Your Program 📚'; // Special marker for program selection
+    // Brand-specific follow-up logic
+    if (normalizedBrand === 'windchasers') {
+      // Wind Chasers specific follow-up suggestions
+      // After first response, always suggest "Choose Your Program"
+      if (messageCount === 1) {
+        return 'Choose Your Program 📚'; // Special marker for program selection
+      }
+      
+      // Check if user selected a program (their message matches a program name)
+      const programNames = [
+        'dgca ground classes',
+        'ppl',
+        'private pilot license',
+        'cpl',
+        'commercial pilot license',
+        'atpl',
+        'airline transport pilot license',
+        'ir',
+        'instrument rating',
+        'me',
+        'multi-engine rating',
+        'cfi',
+        'certified flight instructor',
+        'cabin crew training',
+        'cabin crew',
+        'international flight schools',
+        'international pilot training',
+        'type rating programs',
+        'type rating',
+        'helicopter training',
+        'helicopter'
+      ];
+      
+      const isProgramSelection = programNames.some(program => 
+        lowerQuestion.includes(program)
+      );
+      
+      // Check if program details were shared (response contains program-specific information)
+      const programDetailIndicators = [
+        'cost', 'fee', 'price', 'duration', 'eligibility', 'requirement', 
+        'certificate', 'license', 'training', 'course', 'program details',
+        'age', 'medical', 'duration', 'months', 'weeks', 'hours'
+      ];
+      const hasProgramDetails = programDetailIndicators.some(indicator => 
+        lowerResponse.includes(indicator)
+      );
+      
+      // If user asked about a program and we shared details, show "I am ready to enroll"
+      if (isProgramSelection && hasProgramDetails && messageCount > 1) {
+        return 'I am ready to enroll 🎓';
+      }
+      
+      // If user selected a program but no details yet, suggest scheduling a call
+      if (isProgramSelection && !hasProgramDetails && messageCount > 1) {
+        return 'Schedule Admissions Call 📞';
+      }
+      
+      // Skip if the follow-up would be repetitive
+      if (lowerQuestion.includes('program') && lowerResponse.includes('program') && !isProgramSelection) {
+        return null;
+      }
+      if (lowerQuestion.includes('training') && lowerResponse.includes('training') && !isProgramSelection) {
+        return null;
+      }
+      if (lowerQuestion.includes('eligibility') && lowerResponse.includes('eligibility')) {
+        return null;
+      }
+    } else {
+      // PROXe specific follow-up suggestions
+      // Detect if booking/demo was already suggested or discussed
+      const bookingKeywords = ['demo', 'call', 'book', 'schedule', '15-minute', '15 minute'];
+      const hasBookingMention = bookingKeywords.some(keyword => lowerResponse.includes(keyword));
+      
+      // If booking was already suggested, don't suggest again
+      if (hasBookingMention && messageCount > 2) {
+        return null;
+      }
+      
+      // After discussing features/benefits, suggest booking
+      if (messageCount >= 2 && !hasBookingMention) {
+        const featureKeywords = ['agent', 'whatsapp', 'content', 'website', 'engine', 'handles', 'works'];
+        const hasFeatureDiscussion = featureKeywords.some(keyword => lowerResponse.includes(keyword));
+        if (hasFeatureDiscussion) {
+          return 'Book a Demo 🚀';
+        }
+      }
     }
     
-    // Check if user selected a program (their message matches a program name)
-    const programNames = [
-      'dgca ground classes',
-      'ppl',
-      'private pilot license',
-      'cpl',
-      'commercial pilot license',
-      'atpl',
-      'airline transport pilot license',
-      'ir',
-      'instrument rating',
-      'me',
-      'multi-engine rating',
-      'cfi',
-      'certified flight instructor',
-      'cabin crew training',
-      'cabin crew',
-      'international flight schools',
-      'international pilot training',
-      'type rating programs',
-      'type rating',
-      'helicopter training',
-      'helicopter'
-    ];
-    
-    const isProgramSelection = programNames.some(program => 
-      lowerQuestion.includes(program)
-    );
-    
-    // Check if program details were shared (response contains program-specific information)
-    const programDetailIndicators = [
-      'cost', 'fee', 'price', 'duration', 'eligibility', 'requirement', 
-      'certificate', 'license', 'training', 'course', 'program details',
-      'age', 'medical', 'duration', 'months', 'weeks', 'hours'
-    ];
-    const hasProgramDetails = programDetailIndicators.some(indicator => 
-      lowerResponse.includes(indicator)
-    );
-    
-    // If user asked about a program and we shared details, show "I am ready to enroll"
-    if (isProgramSelection && hasProgramDetails && messageCount > 1) {
-      return 'I am ready to enroll 🎓';
-    }
-    
-    // If user selected a program but no details yet, suggest scheduling a call
-    if (isProgramSelection && !hasProgramDetails && messageCount > 1) {
-      return 'Schedule Admissions Call 📞';
-    }
-    
-    // Skip if the follow-up would be repetitive
-    if (lowerQuestion.includes('program') && lowerResponse.includes('program') && !isProgramSelection) {
-      return null;
-    }
-    if (lowerQuestion.includes('training') && lowerResponse.includes('training') && !isProgramSelection) {
-      return null;
-    }
-    if (lowerQuestion.includes('eligibility') && lowerResponse.includes('eligibility')) {
-      return null;
-    }
-    
-    const followUpResponse = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 60,
-      system: `You create one short follow-up call-to-action label for a website chat widget button. 
+    // Brand-specific system prompt for Claude
+    const brandPrompt = normalizedBrand === 'proxe' 
+      ? `You create one short, direct follow-up call-to-action label for the PROXe chatbot.
+
+PROXe is an AI Operating System for business. It automates 24/7 customer interactions (WhatsApp, website, calls, content, dashboard). Users are Indian SMB owners (₹1-10Cr revenue) drowning in repetitive work.
+
+TONE & STYLE:
+- Direct. No corporate speak. Real talk.
+- Built from trenches. "I've lived this problem" energy.
+- Human × AI. Not hype. Practical.
+- Action-focused. What's the next real step?
+
+IMPORTANT RULES:
+- 3-7 words. Title case. Optional emoji (use sparingly, only if it adds clarity).
+- NEVER repeat what was just explained
+- NEVER suggest something they already understood
+- NEVER use: "Learn more", "Explore", "Discover", "Innovative", "Revolutionary"
+- NEVER suggest "sign up" or "join" - we book demos, not memberships
+
+CONTEXT-SPECIFIC CTAs:
+
+If the conversation covered:
+- The problem (drowning, losing leads, burned out) → "See How This Fixes It"
+- How agents work (technical explanation) → "How Much Would This Help?"
+- Pricing or cost → "One Demo. Then Decide."
+- Who it's for (ICP match) → "Book A 15-Minute Call"
+- Objections (too expensive, lose human touch) → "Show Me The ROI"
+- They're clearly ready (buying signals) → "Let's Get Started"
+- Multiple agents explained → "Which Agent Matters Most?"
+- Content creation specifically → "See Content In Action"
+- WhatsApp/messages specifically → "Show Me WhatsApp Handling"
+- Lead capture/conversion → "See Live Lead Capture"
+- Edge case or unclear → SKIP
+
+EXAMPLES OF GOOD CTAs:
+- "Here's The Real Math"
+- "Show Me It Working"
+- "What's Your Biggest Pain?"
+- "Book A Quick Demo"
+- "One Deal Pays For This"
+- "See Your ROI"
+- "Ready To Get Back Time?"
+
+EXAMPLES OF BAD CTAs (NEVER USE):
+- "Learn More" (too generic)
+- "Explore Our Solution" (corporate speak)
+- "Sign Up Today" (we don't sell memberships)
+- "Get Your Free Trial" (we do demos)
+- "Choose Your Plan" (premature)
+- "Schedule A Call" (too formal, use "book" not "schedule")
+
+FINAL RULE:
+- If no relevant follow-up is appropriate or context doesn't warrant action, respond with only: SKIP
+- Output ONLY the label text. No quotes. No explanation.`
+      : `You create one short follow-up call-to-action label for Wind Chasers chatbot button.
+
+Wind Chasers is an aviation training academy. Users are prospective pilots.
 
 IMPORTANT RULES:
 - Keep it encouraging, specific to the conversation, and 3-7 words
@@ -148,7 +508,12 @@ IMPORTANT RULES:
 - If the response already covered programs/courses/training, do NOT suggest asking about programs/courses/training again
 - If the user asked about programs and we explained them, suggest they tell us which program interests them
 - If no relevant follow-up is appropriate or it would be repetitive, respond with the single word SKIP
-- Output only the label text without quotation marks.`,
+- Output only the label text without quotation marks.`;
+    
+    const followUpResponse = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 60,
+      system: brandPrompt,
       messages: [
         {
           role: 'user',
@@ -180,19 +545,48 @@ IMPORTANT RULES:
 // Chat endpoint
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, messageCount = 0 } = req.body;
+    let { message, messageCount = 0, userName, userPhone, conversationState = 'cold', painPoint, brand = 'proxe' } = req.body;
 
+    // Handle empty messages when collecting user info (state updates)
+    // If we have userName or userPhone but no message, this is a state update
+    const isStateUpdate = (!message || message.trim() === '') && (userName || userPhone);
+    
     if (!message || message.trim() === '') {
-      return res.status(400).json({ error: 'Message is required' });
+      if (isStateUpdate) {
+        // Allow empty messages for state updates (name/phone collection)
+        // Use a default message that will trigger appropriate response
+        message = userName && !userPhone 
+          ? 'Thanks for providing your name.' 
+          : userName && userPhone 
+          ? 'Thanks for providing your information.'
+          : 'Continue conversation.';
+      } else {
+        return res.status(400).json({ error: 'Message is required' });
+      }
     }
 
-    console.log('User message:', message);
-
-    // Search knowledge base
-    console.log('Searching knowledge base...');
-    const relevantDocs = await searchKnowledgeBase(message, 'documents', 3);
+    // Normalize brand to lowercase
+    const normalizedBrand = (brand || 'proxe').toLowerCase();
     
-    console.log('Found docs:', relevantDocs.length);
+    console.log(`\n🔍 [${normalizedBrand.toUpperCase()}] Request received:`);
+    console.log(`   Brand: ${normalizedBrand} (from frontend: ${brand})`);
+    console.log(`   Message: ${message}`);
+    console.log(`   Conversation state: ${conversationState}`);
+    console.log(`   User name: ${userName || 'none'}`);
+    console.log(`   User phone: ${userPhone || 'none'}`);
+    console.log(`   Pain point: ${painPoint || 'none'}`);
+
+    // Search knowledge base - uses appropriate Supabase based on brand
+    // Skip knowledge base search for state updates (empty messages with user info)
+    let relevantDocs = [];
+    if (!isStateUpdate) {
+      console.log(`   Searching knowledge base for brand: ${normalizedBrand}...`);
+      relevantDocs = await searchKnowledgeBase(message, normalizedBrand, 3);
+    } else {
+      console.log(`   Skipping knowledge base search (state update)`);
+    }
+    
+    console.log(`   Found ${relevantDocs.length} relevant results from knowledge base tables (${normalizedBrand === 'proxe' ? 'PROXe' : 'Wind Chasers'} Supabase)`);
 
     // Format context
     let context = '';
@@ -205,59 +599,14 @@ app.post('/api/chat', async (req, res) => {
       context = 'No specific information found in knowledge base. Provide general helpful response.';
     }
 
-    // Create system prompt
-    const systemPrompt = `You are Wind Chasers Aviation Academy's AI assistant, embedded directly on the academy's website chat widget.
+    // Get brand-specific system prompt from separate prompt files
+    let systemPrompt;
     
-    Wind Chasers is a premier aviation academy based in Bangalore, India, specializing in professional pilot training. 
-    They offer a variety of aviation programs such as Private Pilot License, Commercial Pilot License, Certified Flight Instructor training, Night Rating, Multi-Engine Rating, Instrument Rating, Airline Transport Pilot License, Diploma in Aviation, and Helicopter Training. 
-    Their services include DGCA ground classes, international pilot training through partnerships in the USA, Canada, and New Zealand, Southafrica, Maldives and comprehensive career support including educational loans, visa guidance, and placement assistance. 
-    Wind Chasers is recognized for experienced instructors, state-of-the-art facilities, and personalized, structured training for aspiring pilots in India
-
-🚫 ABSOLUTE PROHIBITIONS - NEVER DO THESE:
-1. NEVER use greetings like "Hi there!", "Hello!", "Hey!" or any casual greetings - jump straight into the response
-2. NEVER tell users to "visit the website" or "go to windchasers.in" - THE USER IS ALREADY ON THE WEBSITE RIGHT NOW
-3. NEVER say "contact the academy at their website" - just say "Would you like to schedule a call with our team?"
-4. NEVER say "I don't have that in my database" or any technical limitations language
-5. NEVER refer to the website as a third-party resource - YOU ARE ON THE WEBSITE
-6. NEVER mention "Modern aircraft fleet"  in your responses
-7. NEVER mention "job placement assistance" or "placement support" in your responses
-8. Windchasers is not a flight school and do not have a fleet of aircraft. so dont mention that they have a fleet of aircraft.
-
-✅ INSTEAD, WHEN YOU DON'T KNOW SOMETHING:
-Say: "I'm afraid I don't have those specific details right now. Would you like me to connect you with our admissions team for a detailed discussion? 📞"
-
-RESPONSE LENGTH:
-- Keep responses VERY SHORT and TO THE POINT (1-2 sentences maximum)
-- NEVER provide detailed explanations unless the user explicitly asks for more
-- If someone asks about program details or eligibility, simply ask "Which program are you looking to pursue?" and wait for their answer
-- Do NOT answer questions fully on the first response - keep it conversational and short
-- Let the conversation build naturally as users ask follow-up questions
-
-FORMATTING REQUIREMENTS:
-- Use headings: # for main titles, ## for sections, ### for subsections
-- Use numbered lists (1., 2., 3.) for step-by-step or sequential information
-- Use bullet points (- or *) for feature lists
-- Add relevant emojis: ✈️ 🎓 💰 📚 🛫 👨‍✈️ 📞 ✅
-- Use **bold** for important terms, program names, and key points
-- Keep paragraphs short (2-3 sentences max)
-
-YOUR PERSONALITY:
-- Friendly and encouraging about aviation careers
-- Professional but warm
-- Enthusiastic about helping students achieve their pilot dreams
-- Use "we" and "our" when referring to Wind Chasers
-
-YOU HELP WITH:
-• Pilot training programs
-• Enrollment requirements and processes
-• Training costs and payment plans
-• Career opportunities in aviation
-• Aircraft fleet and facilities
-
-Context from our knowledge base:
-${context}
-
-REMEMBER: You are chatting FROM the Wind Chasers website. Never tell users to go to a website they're already on. Be concise unless more detail is requested.`;
+    if (normalizedBrand === 'proxe') {
+      systemPrompt = getProxeSystemPrompt(context, conversationState, userName, userPhone, painPoint, messageCount);
+    } else {
+      systemPrompt = getWindChasersSystemPrompt(context, conversationState, userName, userPhone, painPoint);
+    }
 
     // Get response from Claude
     console.log('Generating response from Claude...');
@@ -270,7 +619,13 @@ REMEMBER: You are chatting FROM the Wind Chasers website. Never tell users to go
           role: 'user',
           content: `${message}
 
-[SYSTEM REMINDER: You are responding FROM the Wind Chasers website chat. Never tell the user to visit the website or go to any URL. They are already here. If you need to refer them somewhere, say "Would you like to schedule a call with our team?" instead.]`
+[SYSTEM REMINDER: 
+- Current state: ${conversationState}
+- ${userName ? `Address them as ${userName}` : 'Ask for their name if you haven\'t collected it yet'}
+- ${painPoint ? `Reference their pain point: ${painPoint}` : 'Identify their pain point'}
+- Use one of the two pillars (Trenches OR Human × AI) in your response
+- Never tell them to visit a website - they're already here
+- If they're ready, suggest a 15-minute demo call]`
         },
       ],
     });
@@ -291,14 +646,36 @@ REMEMBER: You are chatting FROM the Wind Chasers website. Never tell users to go
       .trim(); // Remove leading/trailing whitespace after greeting removal
     
     // Keep response as plain markdown for streaming
-    const followUpSuggestion = await generateFollowUpSuggestion(message, rawResponse, messageCount);
+    const followUpSuggestion = await generateFollowUpSuggestion(
+      message, 
+      rawResponse, 
+      messageCount,
+      normalizedBrand
+    );
 
     console.log('Response generated successfully');
+
+    // Detect if we should collect name/phone
+    const shouldCollectName = conversationState === 'cold' && !userName && messageCount >= 1;
+    const shouldCollectPhone = conversationState === 'cold' && userName && !userPhone;
+    
+    // Detect buying signals
+    const buyingSignals = [
+      'how do we start', 'what\'s next', 'i want to try', 'can you set up', 'when can we get started',
+      'how do i sign up', 'let\'s do this', 'sounds good', 'i\'m ready', 'book a call', 'schedule a call',
+      'when can we', 'how do we', 'i\'d like to'
+    ];
+    const detectedBuyingSignal = buyingSignals.some(signal => message.toLowerCase().includes(signal));
+    const newState = detectedBuyingSignal ? 'ready_to_book' : (userName && userPhone ? 'qualified' : conversationState);
 
     res.json({
       response: cleanedResponse,
       sources: relevantDocs.length > 0 ? relevantDocs.length : 0,
       followUp: followUpSuggestion,
+      shouldCollectName: shouldCollectName,
+      shouldCollectPhone: shouldCollectPhone,
+      conversationState: newState,
+      suggestBooking: detectedBuyingSignal || (messageCount >= 3 && conversationState === 'qualified'),
     });
 
   } catch (error) {
@@ -312,7 +689,7 @@ REMEMBER: You are chatting FROM the Wind Chasers website. Never tell users to go
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', service: 'Wind Chasers Website PROXe API' });
+  res.json({ status: 'ok', service: 'PROXe Chatbot API' });
 });
 
 // Serve windchasers-proxe.html page
@@ -328,7 +705,7 @@ app.get('*', (req, res) => {
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Wind Chasers Website PROXe API running on port ${PORT}`);
+  console.log(`🚀 PROXe Chatbot API running on port ${PORT}`);
   console.log(`📍 Local: http://localhost:${PORT}`);
   console.log(`📍 Network: http://192.168.1.4:${PORT}`);
   console.log(`✅ Health check: http://localhost:${PORT}/api/health`);
