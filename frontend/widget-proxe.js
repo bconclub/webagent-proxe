@@ -504,6 +504,9 @@ console.log('PROXE Widget Initializing...');
       const quickButtonsWrapper = document.createElement('div');
       quickButtonsWrapper.className = 'proxe-quick-buttons';
 
+      // Track if button is being clicked to prevent blur from hiding buttons
+      let isDown = false;
+
       // Create PROXe quick buttons
       const quickButtons = [
         { text: 'What is PROXe', message: 'What is PROXe' },
@@ -516,9 +519,19 @@ console.log('PROXE Widget Initializing...');
         btn.className = 'proxe-quick-btn';
         btn.textContent = buttonConfig.text;
         btn.type = 'button';
+        btn.addEventListener('mousedown', function() {
+          isDown = true;
+        });
+        btn.addEventListener('mouseup', function() {
+          isDown = false;
+        });
+        btn.addEventListener('mouseleave', function() {
+          isDown = false;
+        });
         btn.onclick = function(e) {
-        e.preventDefault();
-        e.stopPropagation();
+          if (!isDown) return;
+          e.preventDefault();
+          e.stopPropagation();
           handleQuickButtonClick(buttonConfig.message);
         };
         quickButtonsWrapper.appendChild(btn);
