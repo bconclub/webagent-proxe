@@ -27,6 +27,7 @@ jobs:
             fi
             npm install
             cd ..
+            mkdir -p /home/webagent/logs
             pm2 delete webagent-backend || true
             pm2 start ecosystem.config.js
             systemctl reload nginx
