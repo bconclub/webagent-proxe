@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import Anthropic from '@anthropic-ai/sdk';
 import { marked } from 'marked';
 import dotenv from 'dotenv';
+import fs from 'fs';
 import { getProxeSystemPrompt } from './prompts/proxe-prompt.js';
 import { getWindChasersSystemPrompt } from './prompts/windchasers-prompt.js';
 
@@ -128,10 +129,21 @@ if (proxeSupabase) {
 }
 
 // Initialize Claude API
+const envPath = path.join(__dirname, '.env');
+const envFileExists = fs.existsSync(envPath);
+
+console.log('🔍 Environment Check:');
+console.log('   .env file path:', envPath);
+console.log('   .env file exists:', envFileExists ? 'Yes' : 'No');
+
 const claudeApiKey = process.env.CLAUDE_API_KEY;
 if (!claudeApiKey) {
-  console.warn('⚠️  WARNING: CLAUDE_API_KEY not found in environment variables');
-  console.warn('   The chatbot will not be able to generate responses without this key');
+  console.error('❌ ERROR: CLAUDE_API_KEY not found in environment variables!');
+  console.error('   The chatbot will NOT be able to generate responses without this key');
+  console.error('   Please add CLAUDE_API_KEY to backend/.env file');
+  console.error('   Example: CLAUDE_API_KEY=sk-ant-api03-your-key-here');
+} else {
+  console.log('✅ CLAUDE_API_KEY found (length:', claudeApiKey.length, 'characters)');
 }
 
 const anthropic = claudeApiKey ? new Anthropic({
