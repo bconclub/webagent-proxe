@@ -472,6 +472,7 @@ console.log('PROXE Widget Initializing...');
   }
 
   function createWidget() {
+    console.log('🔧 createWidget called');
     let container = document.getElementById('proxe-widget-container');
     
     if (!container) {
@@ -806,6 +807,7 @@ console.log('PROXE Widget Initializing...');
 
   // Robust initialization for all browsers, especially mobile
   function initializeWidget() {
+    console.log('🔧 initializeWidget called');
     loadCSS();
     // Small delay to ensure DOM is ready, especially on mobile
     if (document.body) {
