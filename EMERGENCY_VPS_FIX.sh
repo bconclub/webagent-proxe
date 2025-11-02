@@ -14,7 +14,7 @@ pkill -f "node.*server.js" 2>/dev/null
 sleep 2
 
 # Navigate to project (adjust path if different)
-cd /home/webagent/backend || cd /root/webagent-backend || { echo "❌ Could not find project directory"; exit 1; }
+cd /home/webagent || cd /root/webagent-backend || { echo "❌ Could not find project directory"; exit 1; }
 
 echo "📥 Pulling latest code..."
 git pull origin main
