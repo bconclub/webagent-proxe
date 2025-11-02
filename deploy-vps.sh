@@ -103,8 +103,31 @@ fi
 echo ""
 echo "🎉 Deployment complete!"
 echo ""
-echo "Server should be running at:"
-echo "  - Main: http://your-vps-ip:3000/"
-echo "  - Wind Chasers: http://your-vps-ip:3000/windchasers-proxe"
-echo "  - Health: http://your-vps-ip:3000/api/health"
+
+# Test server health
+echo "🏥 Testing server health..."
+sleep 1
+if curl -s http://localhost:3000/api/health > /dev/null; then
+    echo "✅ Health check passed!"
+    echo ""
+    echo "Server is running at:"
+    echo "  - Main: http://your-vps-ip:3000/"
+    echo "  - Wind Chasers: http://your-vps-ip:3000/windchasers-proxe"
+    echo "  - Health: http://your-vps-ip:3000/api/health"
+else
+    echo "❌ Health check failed!"
+    echo ""
+    echo "⚠️  Server might not be responding. Check logs:"
+    if command -v pm2 &> /dev/null; then
+        echo "  pm2 logs webagent-backend"
+    else
+        echo "  tail -f backend/server.log"
+    fi
+    echo ""
+    echo "Common issues:"
+    echo "  1. Missing CLAUDE_API_KEY in backend/.env"
+    echo "  2. Port 3000 already in use"
+    echo "  3. Server crashed - check error logs"
+    echo "  4. Missing dependencies - run: cd backend && npm install"
+fi
 
