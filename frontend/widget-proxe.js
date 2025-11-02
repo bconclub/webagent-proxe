@@ -530,9 +530,9 @@ console.log('PROXE Widget Initializing...');
           isDown = false;
         });
         btn.onclick = function(e) {
-          if (!isDown) return;
           e.preventDefault();
           e.stopPropagation();
+          console.log('🔧 Quick button clicked:', buttonConfig.text);
           handleQuickButtonClick(buttonConfig.message);
         };
         quickButtonsWrapper.appendChild(btn);
