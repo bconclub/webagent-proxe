@@ -39,7 +39,17 @@ app.get('/windchasers-proxe', (req, res) => {
 });
 
 // Serve static files from frontend directory (CSS, JS, images, etc.)
-app.use(express.static(path.join(__dirname, '../frontend')));
+// Add no-cache headers for widget JS files to prevent browser caching issues
+app.use(express.static(path.join(__dirname, '../frontend'), {
+  setHeaders: (res, path) => {
+    // Disable caching for widget JS files
+    if (path.endsWith('widget-proxe.js') || path.endsWith('widget-windchasers.js')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 // Initialize Supabase clients for different brands
 // PROXe Supabase (for homepage chatbot)
