@@ -1,107 +1,264 @@
-/* PROXe Brand Colors - Default */
-:root {
-  /* Primary Colors - PROXe Blue */
-  --primary-color: #6f95f7;
-  --primary-light: #2E7FFF;
-  --primary-dark: #1545CC;
-  
-  /* Dark Backgrounds */
-  --dark-bg: #0F1419;
-  --dark-card: #1A2332;
-  --dark-surface: #222D3D;
-  
-  /* Text Colors */
-  --text-primary: #FFFFFF;
-  --text-secondary: #8FA3B8;
-  --text-tertiary: #5A6F8C;
-  
-  /* Borders */
-  --border-light: rgba(255, 255, 255, 0.1);
-  --border-medium: rgba(255, 255, 255, 0.15);
-  --border-accent: rgba(30, 95, 255, 0.3);
-  
-  /* Accent Colors */
-  --green-success: #00CC66;
-  --teal-accent: #20D9C4;
-  
-  /* Theme-aware colors - PROXe Blue Theme */
-  --bg-primary: rgba(26, 35, 50, 0.5);
-  --bg-header: rgba(34, 45, 61, 0.7);
-  --bg-message-area: rgba(15, 20, 25, 0.4);
-  
-  /* Chat bubble colors - PROXe blue theme */
-  --bubble-user-bg: rgba(30, 95, 255, 0.15);
-  --bubble-user-border: rgba(30, 95, 255, 0.3);
-  --bubble-ai-bg: rgba(34, 45, 61, 0.5);
-  --bubble-ai-border: rgba(255, 255, 255, 0.15);
-  
-  /* Legacy/Compatibility - PROXe */
-  --proxe-primary-blue: var(--primary-color);
-  --proxe-blue-light: var(--primary-light);
-  --proxe-blue-dark: var(--primary-dark);
-  --proxe-dark-bg: var(--dark-bg);
-  --proxe-dark-card: var(--dark-card);
-  --proxe-dark-surface: var(--dark-surface);
-  --proxe-text-primary: var(--text-primary);
-  --proxe-text-secondary: var(--text-secondary);
-  --proxe-text-tertiary: var(--text-tertiary);
-  --proxe-border-light: var(--border-light);
-  --proxe-border-medium: var(--border-medium);
-  --proxe-border-accent: var(--border-accent);
-  --proxe-green-success: var(--green-success);
-  --proxe-teal-accent: var(--teal-accent);
-  --gold-primary: var(--primary-color);
-  --gold-light: var(--primary-light);
-  --dark-navy: var(--dark-bg);
-  --charcoal: var(--dark-surface);
-  --white: var(--text-primary);
-}
+/* ========================================================================
+   PROXe Theme: Purple Gradient (#7C3AED → #A855F7 → #C084FC)
+   Frosted glass effect with purple gradient aesthetic
+   ======================================================================== */
 
-/* Light Theme */
-[data-theme="light"] {
-  --bg-primary: rgba(240, 245, 250, 0.7);
-  --bg-header: rgba(250, 252, 255, 0.8);
-  --bg-message-area: rgba(245, 248, 252, 0.5);
-  --text-primary: var(--dark-bg);
-  --text-secondary: var(--text-tertiary);
-  --border-color: rgba(0, 0, 0, 0.1);
+   [data-theme="purple-frost"],
+   #proxe-widget-container,
+   [data-brand="proxe"] {
+    /* Purple Gradient Theme */
+    --primary-color: #A855F7;
+    --primary-light: #C084FC;
+    --primary-dark: #7C3AED;
+    --primary-vibrant: #9333EA;
+    
+    /* Gradient backgrounds */
+    --gradient-purple-start: #7C3AED;
+    --gradient-purple-mid: #A855F7;
+    --gradient-purple-end: #C084FC;
+    
+    /* Dark Backgrounds with purple tint */
+    --dark-bg: #1A0B2E;
+    --dark-card: rgba(139, 92, 246, 0.15);
+    --dark-surface: rgba(168, 85, 247, 0.1);
+    
+    /* Frosted Glass Effect - More transparent to show background */
+    --glass-bg: rgba(168, 85, 247, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-shadow: rgba(139, 92, 246, 0.2);
+    
+    /* Text Colors */
+    --text-primary: #FFFFFF;
+    --text-secondary: rgba(255, 255, 255, 0.7);
+    --text-tertiary: rgba(255, 255, 255, 0.5);
+    --text-muted: rgba(255, 255, 255, 0.4);
+    --white: #FFFFFF;
+    
+    /* Borders with glow */
+    --border-light: rgba(255, 255, 255, 0.08);
+    --border-medium: rgba(255, 255, 255, 0.12);
+    --border-accent: rgba(168, 85, 247, 0.3);
+    --border-glow: rgba(168, 85, 247, 0.4);
+    --border-color: rgba(168, 85, 247, 0.2);
+    
+    /* Accent Colors */
+    --green-success: #10B981;
+    --teal-accent: #8B5CF6;
+    --pink-accent: #EC4899;
+    
+    /* Theme-aware backgrounds with blur effect - More transparent */
+    --bg-primary: rgba(139, 92, 246, 0.05);
+    --bg-header: rgba(168, 85, 247, 0.08);
+    --bg-message-area: rgba(124, 58, 237, 0.03);
+    --bg-hover: rgba(168, 85, 247, 0.12);
+    --bg-active: rgba(168, 85, 247, 0.15);
+    
+    /* Chat bubbles with frosted effect - More transparent */
+    --bubble-user-bg: rgba(168, 85, 247, 0.08);
+    --bubble-user-border: rgba(192, 132, 252, 0.25);
+    --bubble-user-shadow: 0 8px 32px rgba(168, 85, 247, 0.15);
+    
+    --bubble-ai-bg: rgba(139, 92, 246, 0.05);
+    --bubble-ai-border: rgba(255, 255, 255, 0.1);
+    --bubble-ai-shadow: 0 8px 32px rgba(139, 92, 246, 0.1);
+    
+    /* Button states - More transparent */
+    --button-bg: rgba(168, 85, 247, 0.12);
+    --button-hover: rgba(168, 85, 247, 0.2);
+    --button-active: rgba(168, 85, 247, 0.3);
+    
+    /* Backdrop blur values (use with backdrop-filter) */
+    --blur-sm: blur(8px);
+    --blur-md: blur(12px);
+    --blur-lg: blur(16px);
+    --blur-xl: blur(24px);
+  }
   
-  /* Light theme bubbles - PROXe blue */
-  --bubble-user-bg: rgba(30, 95, 255, 0.1);
-  --bubble-user-border: rgba(30, 95, 255, 0.2);
-  --bubble-ai-bg: rgba(230, 235, 240, 0.7);
-  --bubble-ai-border: rgba(200, 210, 220, 0.4);
-}
-
-/* Dark Theme (Default) */
-[data-theme="dark"] {
-  --bg-primary: rgba(26, 35, 50, 0.5);
-  --bg-header: rgba(34, 45, 61, 0.7);
-  --bg-message-area: rgba(15, 20, 25, 0.4);
-  --text-primary: var(--text-primary);
-  --text-secondary: var(--text-secondary);
-  --border-color: var(--border-medium);
+  /* ========================================================================
+     Purple Frost Component Styles
+     Apply these classes to elements for the frosted glass effect
+     ======================================================================== */
   
-  /* Dark theme bubbles - PROXe blue */
-  --bubble-user-bg: rgba(30, 95, 255, 0.15);
-  --bubble-user-border: var(--border-accent);
-  --bubble-ai-bg: rgba(34, 45, 61, 0.5);
-  --bubble-ai-border: var(--border-medium);
-}
-
-/* Default to dark theme */
-html {
-  --bg-primary: rgba(26, 35, 50, 0.5);
-  --bg-header: rgba(34, 45, 61, 0.7);
-  --bg-message-area: rgba(15, 20, 25, 0.4);
-  --text-primary: #FFFFFF;
-  --text-secondary: #8FA3B8;
-  --border-color: rgba(255, 255, 255, 0.15);
-  --bubble-user-bg: rgba(30, 95, 255, 0.15);
-  --bubble-user-border: rgba(30, 95, 255, 0.3);
-  --bubble-ai-bg: rgba(34, 45, 61, 0.5);
-  --bubble-ai-border: rgba(255, 255, 255, 0.15);
-}
+  /* Frosted glass card */
+  .frost-card {
+    background: var(--glass-bg);
+    backdrop-filter: var(--blur-lg);
+    -webkit-backdrop-filter: var(--blur-lg);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px var(--glass-shadow);
+  }
+  
+  /* Frosted glass header */
+  .frost-header {
+    background: var(--bg-header);
+    backdrop-filter: var(--blur-md);
+    -webkit-backdrop-filter: var(--blur-md);
+    border-bottom: 1px solid var(--border-light);
+  }
+  
+  /* Frosted chat bubble - User */
+  .frost-bubble-user {
+    background: var(--bubble-user-bg);
+    backdrop-filter: var(--blur-md);
+    -webkit-backdrop-filter: var(--blur-md);
+    border: 1px solid var(--bubble-user-border);
+    box-shadow: var(--bubble-user-shadow);
+    border-radius: 18px 18px 4px 18px;
+    padding: 12px 18px;
+  }
+  
+  /* Frosted chat bubble - AI */
+  .frost-bubble-ai {
+    background: var(--bubble-ai-bg);
+    backdrop-filter: var(--blur-md);
+    -webkit-backdrop-filter: var(--blur-md);
+    border: 1px solid var(--bubble-ai-border);
+    box-shadow: var(--bubble-ai-shadow);
+    border-radius: 18px 18px 18px 4px;
+    padding: 12px 18px;
+  }
+  
+  /* Frosted button */
+  .frost-button {
+    background: var(--button-bg);
+    backdrop-filter: var(--blur-sm);
+    -webkit-backdrop-filter: var(--blur-sm);
+    border: 1px solid var(--border-medium);
+    border-radius: 12px;
+    padding: 10px 20px;
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+  }
+  
+  .frost-button:hover {
+    background: var(--button-hover);
+    border-color: var(--border-glow);
+    box-shadow: 0 4px 16px var(--glass-shadow);
+    transform: translateY(-2px);
+  }
+  
+  .frost-button:active {
+    background: var(--button-active);
+    transform: translateY(0);
+  }
+  
+  /* Frosted input */
+  .frost-input {
+    background: rgba(168, 85, 247, 0.15);
+    backdrop-filter: var(--blur-sm);
+    -webkit-backdrop-filter: var(--blur-sm);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+  }
+  
+  .frost-input:focus {
+    background: rgba(168, 85, 247, 0.2);
+    border-color: var(--border-glow);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+  }
+  
+  .frost-input::placeholder {
+    color: var(--text-muted);
+  }
+  
+  /* Purple gradient background (like in the image) */
+  .purple-gradient-bg {
+    background: linear-gradient(
+      135deg,
+      var(--gradient-purple-start) 0%,
+      var(--gradient-purple-mid) 50%,
+      var(--gradient-purple-end) 100%
+    );
+  }
+  
+  /* Radial gradient (for spotlight effect) */
+  .purple-radial-bg {
+    background: radial-gradient(
+      ellipse at center,
+      rgba(168, 85, 247, 0.4) 0%,
+      rgba(124, 58, 237, 0.2) 50%,
+      var(--dark-bg) 100%
+    );
+  }
+  
+  /* Glow effect for hover states */
+  .purple-glow {
+    box-shadow: 
+      0 0 20px rgba(168, 85, 247, 0.3),
+      0 0 40px rgba(168, 85, 247, 0.2),
+      0 0 60px rgba(168, 85, 247, 0.1);
+  }
+  
+  /* Text gradient (for headings) */
+  .purple-text-gradient {
+    background: linear-gradient(
+      135deg,
+      #C084FC 0%,
+      #A855F7 50%,
+      #8B5CF6 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  /* Suggestion item hover (like in the image) */
+  .frost-suggestion-item {
+    background: transparent;
+    backdrop-filter: none;
+    border-radius: 8px;
+    padding: 12px 16px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  
+  .frost-suggestion-item:hover {
+    background: rgba(168, 85, 247, 0.3);
+    backdrop-filter: var(--blur-sm);
+    -webkit-backdrop-filter: var(--blur-sm);
+  }
+  
+  /* ========================================================================
+     Usage Example HTML
+     ======================================================================== */
+  
+  /*
+  <body data-theme="purple-frost">
+    <div class="frost-card">
+      <div class="frost-header">
+        <input type="text" class="frost-input" placeholder="Type a command or search...">
+      </div>
+      
+      <div class="suggestions">
+        <div class="frost-suggestion-item">
+          📅 Calendar
+        </div>
+        <div class="frost-suggestion-item">
+          😊 Search Emoji
+        </div>
+        <div class="frost-suggestion-item">
+          🧮 Calculator
+        </div>
+      </div>
+      
+      <div class="chat-area">
+        <div class="frost-bubble-user">
+          What is PROXe?
+        </div>
+        <div class="frost-bubble-ai">
+          PROXe is the AI Operating System for your business...
+        </div>
+      </div>
+      
+      <button class="frost-button">Book a Call</button>
+    </div>
+  </body>
+  */
 
 #proxe-widget-container {
   position: fixed;
@@ -176,11 +333,11 @@ html {
 
 .proxe-quick-btn {
   padding: 8px 14px;
-  /* Ultra-frosted glass button */
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px) saturate(200%);
-  -webkit-backdrop-filter: blur(20px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  /* Ultra-frosted glass button - more transparent */
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--border-light);
   color: var(--white);
   border-radius: 20px;
   cursor: pointer;
@@ -190,9 +347,9 @@ html {
   font-family: inherit;
   flex-shrink: 0;
   box-shadow: 
-    0 2px 10px rgba(0, 0, 0, 0.3),
-    0 0 0 0.5px rgba(255, 255, 255, 0.1) inset,
-    0 1px 2px rgba(255, 255, 255, 0.12) inset;
+    0 2px 10px rgba(0, 0, 0, 0.2),
+    0 0 0 0.5px rgba(255, 255, 255, 0.06) inset,
+    0 1px 2px rgba(255, 255, 255, 0.08) inset;
   min-width: fit-content;
   pointer-events: auto;
   z-index: 10000;
@@ -206,23 +363,26 @@ html {
   inset: 0;
   background: linear-gradient(
     135deg,
-    rgba(30, 95, 255, 0.1) 0%,
-    rgba(46, 127, 255, 0.05) 100%
+    var(--primary-color) 0%,
+    var(--primary-light) 100%
   );
   opacity: 0;
   transition: opacity 0.3s ease;
+  z-index: -1;
 }
 
 .proxe-quick-btn:hover {
-  background: rgba(30, 95, 255, 0.15);
-  backdrop-filter: blur(25px) saturate(220%) brightness(1.1);
-  -webkit-backdrop-filter: blur(25px) saturate(220%) brightness(1.1);
-  border-color: rgba(30, 95, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(25px) saturate(200%);
+  -webkit-backdrop-filter: blur(25px) saturate(200%);
+  border-color: var(--border-accent);
+  color: var(--white); /* Ensure text stays white on hover */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); /* Add text shadow for better readability */
   box-shadow: 
-    0 4px 20px rgba(30, 95, 255, 0.4),
-    0 0 0 1px rgba(30, 95, 255, 0.25) inset,
+    0 4px 20px var(--glass-shadow),
+    0 0 0 1px var(--border-accent) inset,
     0 1px 4px rgba(255, 255, 255, 0.15) inset,
-    0 0 30px rgba(30, 95, 255, 0.12);
+    0 0 30px rgba(168, 85, 247, 0.15);
   transform: translateY(-1px);
   cursor: pointer;
 }
@@ -238,10 +398,10 @@ html {
 .proxe-searchbar {
   width: 400px;
   max-width: 90vw;
-  /* Ultra-frosted glass searchbar - theme aware */
-  background: var(--bg-primary);
-  backdrop-filter: blur(40px) saturate(220%) brightness(1.1);
-  -webkit-backdrop-filter: blur(40px) saturate(220%) brightness(1.1);
+  /* Ultra-frosted glass searchbar - theme aware, more transparent */
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
   border-radius: 28px;
   padding: 8px 16px;
   display: flex;
@@ -251,9 +411,9 @@ html {
   position: relative;
   cursor: pointer;
   box-shadow: 
-    0 4px 24px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(255, 255, 255, 0.12) inset,
-    0 1px 3px rgba(255, 255, 255, 0.15) inset;
+    0 4px 24px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 1px 3px rgba(255, 255, 255, 0.1) inset;
   border: 1.5px solid var(--border-color);
   background-clip: padding-box;
   z-index: 2;
@@ -315,15 +475,15 @@ html {
 }
 
 .proxe-searchbar:hover {
-  background: var(--bg-primary);
-  backdrop-filter: blur(45px) saturate(240%) brightness(1.15);
-  -webkit-backdrop-filter: blur(45px) saturate(240%) brightness(1.15);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(45px) saturate(200%);
+  -webkit-backdrop-filter: blur(45px) saturate(200%);
   box-shadow: 
-    0 8px 32px rgba(30, 95, 255, 0.6), 
-    0 12px 64px rgba(46, 127, 255, 0.5),
-    0 0 0 1px rgba(30, 95, 255, 0.3) inset,
-    0 1px 4px rgba(255, 255, 255, 0.2) inset,
-    0 0 50px rgba(30, 95, 255, 0.15);
+    0 8px 32px rgba(168, 85, 247, 0.3), 
+    0 12px 64px rgba(139, 92, 246, 0.2),
+    0 0 0 1px var(--border-accent) inset,
+    0 1px 4px rgba(255, 255, 255, 0.12) inset,
+    0 0 50px rgba(168, 85, 247, 0.1);
   border-color: var(--border-accent);
 }
 
@@ -401,20 +561,20 @@ html {
   height: auto;
   display: flex;
   flex-direction: column;
-  /* Ultra-frosted glass background - theme aware */
-  background: var(--bg-primary);
-  backdrop-filter: blur(60px) saturate(220%) brightness(1.1);
-  -webkit-backdrop-filter: blur(60px) saturate(220%) brightness(1.1);
+  /* Ultra-frosted glass background - theme aware, more transparent */
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(60px) saturate(180%);
+  -webkit-backdrop-filter: blur(60px) saturate(180%);
   /* Modern frosted border */
   border: 1.5px solid var(--border-color);
   border-radius: 24px;
-  /* Ultra-modern multi-layer shadows with glow - PROXe blue */
+  /* Ultra-modern multi-layer shadows with glow - Purple */
   box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.7),
-    0 20px 64px rgba(0, 0, 0, 0.9),
-    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
-    0 1px 3px rgba(255, 255, 255, 0.12) inset,
-    0 0 80px rgba(30, 95, 255, 0.08);
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 20px 64px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 1px 3px rgba(255, 255, 255, 0.08) inset,
+    0 0 80px rgba(168, 85, 247, 0.05);
 }
 
 @keyframes expandUp {
@@ -432,10 +592,10 @@ html {
 
 .proxe-chat-header {
   padding: 16px 24px;
-  /* Ultra-frosted glass header - theme aware */
-  background: var(--bg-header);
-  backdrop-filter: blur(40px) saturate(240%) brightness(1.05);
-  -webkit-backdrop-filter: blur(40px) saturate(240%) brightness(1.05);
+  /* Ultra-frosted glass header - theme aware, more transparent */
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
   color: var(--text-primary);
   display: flex;
   justify-content: space-between;
@@ -445,10 +605,10 @@ html {
   position: relative;
   border-top-left-radius: 24px;
   border-top-right-radius: 24px;
-  /* Frosted glass inner glow - PROXe blue */
+  /* Frosted glass inner glow - Purple */
   box-shadow: 
-    0 1px 2px rgba(255, 255, 255, 0.08) inset,
-    0 0 20px rgba(30, 95, 255, 0.05);
+    0 1px 2px rgba(255, 255, 255, 0.05) inset,
+    0 0 20px rgba(168, 85, 247, 0.03);
 }
 
 .proxe-chat-header::after {
@@ -507,10 +667,10 @@ html {
   width: 32px;
   height: 32px;
   /* Ultra-frosted glass button - PROXe blue */
-  background: rgba(30, 95, 255, 0.15);
+  background: var(--button-bg);
   backdrop-filter: blur(15px) saturate(200%);
   -webkit-backdrop-filter: blur(15px) saturate(200%);
-  border: 1px solid rgba(30, 95, 255, 0.3);
+  border: 1px solid var(--border-accent);
   border-radius: 8px;
   color: var(--text-primary);
   cursor: pointer;
@@ -521,17 +681,17 @@ html {
   padding: 0;
   box-shadow: 
     0 2px 8px rgba(0, 0, 0, 0.2),
-    0 0 0 0.5px rgba(30, 95, 255, 0.08) inset;
+    0 0 0 0.5px var(--border-accent) inset;
 }
 
 .proxe-header-btn:hover {
-  background: rgba(30, 95, 255, 0.25);
+  background: var(--button-hover);
   backdrop-filter: blur(20px) saturate(220%);
   -webkit-backdrop-filter: blur(20px) saturate(220%);
-  border-color: rgba(30, 95, 255, 0.4);
+  border-color: var(--border-glow);
   box-shadow: 
-    0 4px 12px rgba(30, 95, 255, 0.15),
-    0 0 0 0.5px rgba(30, 95, 255, 0.12) inset;
+    0 4px 12px var(--glass-shadow),
+    0 0 0 0.5px var(--border-glow) inset;
   transform: translateY(-1px);
 }
 
@@ -553,10 +713,10 @@ html {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  /* Frosted glass background - theme aware */
-  background: var(--bg-message-area);
-  backdrop-filter: blur(30px) saturate(180%);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  /* Frosted glass background - theme aware, more transparent */
+  background: rgba(255, 255, 255, 0.01);
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
   min-height: 0;
   position: relative;
   transition: background 0.3s ease;
@@ -644,6 +804,7 @@ html {
   color: var(--text-primary); /* Brand white text */
   transition: color 0.3s ease;
   font-size: 16px; /* Inherits from bubble but ensuring it's 16px */
+  font-weight: 300; /* Thinner/lighter font weight */
 }
 
 .proxe-message.user .proxe-message-bubble {
@@ -698,6 +859,7 @@ html {
   color: var(--text-primary); /* Brand white text */
   transition: color 0.3s ease;
   font-size: 16px; /* Inherits from bubble but ensuring it's 16px */
+  font-weight: 300; /* Thinner/lighter font weight */
 }
 
 .proxe-message.ai .proxe-message-bubble {
@@ -747,31 +909,31 @@ html {
 .proxe-followup-btn {
   padding: 10px 16px;
   /* Ultra-frosted glass button - PROXe blue */
-  background: rgba(30, 95, 255, 0.15);
+  background: var(--button-bg);
   backdrop-filter: blur(20px) saturate(200%) brightness(1.05);
   -webkit-backdrop-filter: blur(20px) saturate(200%) brightness(1.05);
-  border: 1px solid rgba(30, 95, 255, 0.3);
+  border: 1px solid var(--border-accent);
   color: var(--text-primary);
   border-radius: 12px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 500;
   text-align: left;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: inherit;
   box-shadow: 
     0 2px 10px rgba(0, 0, 0, 0.4),
-    0 0 0 0.5px rgba(30, 95, 255, 0.15) inset,
+    0 0 0 0.5px var(--border-accent) inset,
     0 1px 2px rgba(255, 255, 255, 0.1) inset;
   width: 100%;
   display: block;
 }
 
 .proxe-followup-btn:hover {
-  background: rgba(30, 95, 255, 0.25);
-  box-shadow: 0 4px 12px rgba(30, 95, 255, 0.3);
+  background: var(--button-hover);
+  box-shadow: 0 4px 12px var(--glass-shadow);
   transform: translateY(-1px);
-  border-color: rgba(30, 95, 255, 0.4);
+  border-color: var(--border-glow);
 }
 
 .proxe-followup-btn:active {
@@ -779,14 +941,14 @@ html {
 }
 
 .proxe-followup-btn.primary {
-  background: rgba(30, 95, 255, 0.25);
+  background: var(--bg-header);
   color: var(--text-primary);
   font-weight: 600;
 }
 
 .proxe-followup-btn.primary:hover {
-  background: rgba(30, 95, 255, 0.35);
-  border-color: rgba(30, 95, 255, 0.5);
+  background: var(--button-hover);
+  border-color: var(--border-glow);
 }
 
 .proxe-phone-request .proxe-message-bubble {
@@ -1229,7 +1391,7 @@ html {
 
 .proxe-message-bubble strong {
   font-weight: 700;
-  color: var(--primary-color); /* Brand blue for emphasis */
+  color: var(--text-primary); /* White text */
 }
 
 .proxe-message-bubble em {
@@ -1244,9 +1406,10 @@ html {
   font-weight: 800;
   font-size: 1.5em;
   line-height: 1.4;
-  color: var(--primary-color); /* Brand blue for headings */
-  border-bottom: 2px solid var(--primary-color);
+  color: var(--text-primary); /* White text */
+  border-bottom: 2px solid var(--text-primary);
   padding-bottom: 8px;
+  opacity: 0.9;
 }
 
 .proxe-message-bubble h2 {
@@ -1255,9 +1418,10 @@ html {
   font-weight: 700;
   font-size: 1.3em;
   line-height: 1.4;
-  color: var(--primary-color); /* Brand blue for section headings */
-  border-bottom: 1px solid var(--primary-color);
+  color: var(--text-primary); /* White text */
+  border-bottom: 1px solid var(--text-primary);
   padding-bottom: 6px;
+  opacity: 0.9;
 }
 
 .proxe-message-bubble h3 {
@@ -1266,11 +1430,11 @@ html {
   font-weight: 600;
   font-size: 1.15em;
   line-height: 1.4;
-  color: var(--primary-color); /* Brand blue for subheadings */
+  color: var(--text-primary); /* White text */
 }
 
 .proxe-message-bubble code {
-  background: rgba(30, 95, 255, 0.15); /* Brand blue tint */
+  background: var(--glass-bg); /* Brand blue tint */
   padding: 2px 6px;
   border-radius: 3px;
   font-family: monospace;
@@ -1281,16 +1445,17 @@ html {
 .proxe-message-bubble a {
   word-break: break-all;
   overflow-wrap: break-word;
-  color: var(--primary-color);
+  color: var(--text-primary);
   text-decoration: underline;
 }
 
 .proxe-message-bubble a:hover {
-  color: var(--primary-light);
+  color: var(--text-primary);
+  opacity: 0.8;
 }
 
 .proxe-message-bubble pre {
-  background: rgba(30, 95, 255, 0.15);
+  background: var(--glass-bg);
   padding: 12px;
   border-radius: 6px;
   overflow-x: auto;
@@ -1336,37 +1501,51 @@ html {
   margin-top: 8px;
 }
 
-/* Typing Indicator Animation */
-.proxe-typing {
-  display: flex;
-  gap: 4px;
+/* Typing Indicator Animation - Infinity Symbol */
+.proxe-typing-infinity {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 24px;
 }
 
-.proxe-typing span {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #666;
-  animation: typingBounce 1.4s infinite;
+.proxe-typing-infinity svg {
+  width: 48px;
+  height: 24px;
+  overflow: visible;
 }
 
-.proxe-typing span:nth-child(2) {
-  animation-delay: 0.2s;
+.proxe-typing-infinity .infinity-path {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.3);
+  stroke-width: 2;
+  opacity: 0.3;
 }
 
-.proxe-typing span:nth-child(3) {
-  animation-delay: 0.4s;
+.proxe-typing-infinity .infinity-stroke {
+  fill: none;
+  stroke: var(--primary-color);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 120;
+  stroke-dashoffset: 120;
+  animation: infinityDraw 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-@keyframes typingBounce {
-  0%, 60%, 100% {
-    opacity: 0.5;
-    transform: translateY(0);
+@keyframes infinityDraw {
+  0% {
+    stroke-dashoffset: 120;
+    opacity: 0.6;
   }
-  30% {
+  50% {
+    stroke-dashoffset: 0;
     opacity: 1;
-    transform: translateY(-10px);
+  }
+  100% {
+    stroke-dashoffset: -120;
+    opacity: 0.6;
   }
 }
 

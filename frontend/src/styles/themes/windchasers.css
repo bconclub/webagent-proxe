@@ -1,0 +1,51 @@
+/* Wind Chasers Theme CSS Variables */
+[data-brand="windchasers"],
+[data-theme="warm-frost"] {
+  --primary-color: #C9B577;
+  --primary-light: #D4C289;
+  --primary-dark: #C9A96E;
+  --primary-vibrant: #D89B6B;
+  --gradient-start: #B8714A;
+  --gradient-mid: #D89B6B;
+  --gradient-end: #C9B577;
+  --dark-bg: #1A1410;
+  --dark-card: rgba(92, 58, 50, 0.3);
+  --dark-surface: rgba(61, 38, 33, 0.25);
+  --glass-bg: rgba(201, 181, 119, 0.08);
+  --glass-border: rgba(212, 196, 168, 0.15);
+  --glass-shadow: rgba(92, 58, 50, 0.3);
+  --text-primary: #D4C4A8;
+  --text-secondary: #FFFFFF;
+  --text-tertiary: rgba(255, 255, 255, 0.7);
+  --text-muted: rgba(212, 196, 168, 0.6);
+  --white: #FFFFFF;
+  --text-button: #3D3529;
+  --border-light: rgba(212, 196, 168, 0.2);
+  --border-medium: rgba(201, 181, 119, 0.3);
+  --border-accent: rgba(201, 169, 110, 0.4);
+  --border-glow: rgba(201, 181, 119, 0.5);
+  --border-color: rgba(201, 169, 110, 0.3);
+  --green-success: #10B981;
+  --gold-accent: #C9A96E;
+  --orange-accent: #D89B6B;
+  --burgundy-accent: #6B3A36;
+  --bg-primary: rgba(92, 58, 50, 0.15);
+  --bg-header: rgba(26, 20, 16, 0.85);
+  --bg-message-area: rgba(61, 38, 33, 0.1);
+  --bg-hover: rgba(201, 181, 119, 0.15);
+  --bg-active: rgba(201, 181, 119, 0.25);
+  --bubble-user-bg: rgba(201, 181, 119, 0.12);
+  --bubble-user-border: rgba(212, 196, 168, 0.3);
+  --bubble-user-shadow: 0 8px 32px rgba(92, 58, 50, 0.25);
+  --bubble-ai-bg: rgba(61, 38, 33, 0.15);
+  --bubble-ai-border: rgba(212, 196, 168, 0.2);
+  --bubble-ai-shadow: 0 8px 32px rgba(92, 58, 50, 0.2);
+  --button-bg: #C9B577;
+  --button-hover: #D4C289;
+  --button-active: #C9A96E;
+  --blur-sm: blur(8px);
+  --blur-md: blur(12px);
+  --blur-lg: blur(16px);
+  --blur-xl: blur(24px);
+}
+

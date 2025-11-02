@@ -12,7 +12,7 @@
         }
         
         body {
-            background: #0F1419;
+            background: transparent;
             min-height: 100vh;
             height: 300vh;
             overflow-y: scroll;
@@ -40,7 +40,7 @@
             overflow: hidden;
             z-index: -1;
             pointer-events: none;
-            background: #0F1419;
+            background: transparent;
         }
         
         .blob {
@@ -51,70 +51,71 @@
             mix-blend-mode: normal;
         }
         
-        /* Primary Blue Blob - Top Left */
+        /* Multi-color gradient blobs - Modern gradient palette */
+        /* Purple to Pink - Top Left */
         .blob-1 {
             width: 500px;
             height: 500px;
-            background: linear-gradient(135deg, #1E5FFF 0%, #2E7FFF 100%);
+            background: linear-gradient(135deg, #A855F7 0%, #EC4899 100%);
             top: -150px;
             left: -150px;
             animation: blobFloat1 18s ease-in-out infinite;
-            box-shadow: 0 0 100px rgba(30, 95, 255, 0.5);
+            box-shadow: 0 0 100px rgba(168, 85, 247, 0.5);
         }
         
-        /* Darker Blue - Right side */
+        /* Cyan to Blue - Right side */
         .blob-2 {
             width: 600px;
             height: 600px;
-            background: linear-gradient(135deg, #0D2E99 0%, #1E5FFF 100%);
+            background: linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%);
             top: 50%;
             right: -200px;
             animation: blobFloat2 22s ease-in-out infinite;
-            box-shadow: 0 0 120px rgba(13, 46, 153, 0.4);
+            box-shadow: 0 0 120px rgba(6, 182, 212, 0.4);
         }
         
-        /* Light Blue - Bottom Left */
+        /* Pink to Violet - Bottom Left */
         .blob-3 {
             width: 450px;
             height: 450px;
-            background: linear-gradient(135deg, #2E7FFF 0%, #1E5FFF 50%, #0D2E99 100%);
+            background: linear-gradient(135deg, #EC4899 0%, #8B5CF6 50%, #A855F7 100%);
             bottom: -100px;
             left: 30%;
             animation: blobFloat3 20s ease-in-out infinite;
-            box-shadow: 0 0 100px rgba(46, 127, 255, 0.4);
+            box-shadow: 0 0 100px rgba(236, 72, 153, 0.4);
         }
         
-        /* Deep Blue - Center */
+        /* Blue to Purple - Center */
         .blob-4 {
             width: 550px;
             height: 550px;
-            background: linear-gradient(135deg, #1545CC 0%, #1E5FFF 100%);
+            background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
             top: 30%;
             left: 60%;
             animation: blobFloat4 16s ease-in-out infinite;
-            box-shadow: 0 0 110px rgba(21, 69, 204, 0.45);
+            box-shadow: 0 0 110px rgba(59, 130, 246, 0.45);
         }
         
-        /* Light Blue accent - Bottom Right */
+        /* Cyan to Pink accent - Bottom Right */
         .blob-5 {
             width: 400px;
             height: 400px;
-            background: linear-gradient(135deg, #2E7FFF 0%, #1E5FFF 50%, #1545CC 100%);
+            background: linear-gradient(135deg, #06B6D4 0%, #EC4899 50%, #A855F7 100%);
             bottom: 20%;
             right: 20%;
             animation: blobFloat5 21s ease-in-out infinite;
-            box-shadow: 0 0 90px rgba(46, 127, 255, 0.35);
+            box-shadow: 0 0 90px rgba(6, 182, 212, 0.35);
         }
         
-        /* Additional accent blob - subtle */
+        /* Purple to Cyan - subtle accent */
         .blob-6 {
             width: 350px;
             height: 350px;
-            background: linear-gradient(135deg, #1E5FFF 0%, #2E7FFF 100%);
+            background: linear-gradient(135deg, #A855F7 0%, #06B6D4 100%);
             top: 60%;
             left: 10%;
             animation: blobFloat6 19s ease-in-out infinite;
-            box-shadow: 0 0 80px rgba(30, 95, 255, 0.5);
+            box-shadow: 0 0 80px rgba(168, 85, 247, 0.5);
             opacity: 0.5;
         }
         
@@ -213,7 +214,7 @@
         .content-overlay {
             position: relative;
             z-index: 2;
-            background: rgba(15, 20, 25, 0.3);
+            background: transparent;
             backdrop-filter: blur(10px);
         }
         
@@ -224,7 +225,7 @@
             left: 0;
             width: 100%;
             height: 40%;
-            background: linear-gradient(to top, #0F1419 0%, transparent 100%);
+            background: linear-gradient(to top, #0f141900 0%, transparent 100%);
             z-index: 0;
             pointer-events: none;
         }
@@ -241,18 +242,23 @@
             pointer-events: none;
             display: none;
             object-fit: cover;
-            background: #0F1419;
+            background: transparent;
         }
         
         @media (max-width: 768px) {
-            .video-background {
+            /* Mobile: Use same blob background as desktop */
+            .blob-container {
                 display: block;
             }
-            .blob-container {
+            .video-background {
                 display: none;
             }
             body {
-                background: #0F1419;
+                background: transparent;
+            }
+            /* Adjust blob sizes for mobile */
+            .blob-1, .blob-2, .blob-3, .blob-4, .blob-5, .blob-6 {
+                filter: blur(60px);
             }
         }
     </style>

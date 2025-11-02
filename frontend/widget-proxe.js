@@ -1,12 +1,7 @@
-console.log('PROXE Widget Initializing...');
-
 (function() {
   let isOpen = false;
   let messages = [];
   let completedAiMessages = 0;
-  let phonePromptShown = false;
-  let formShown = false;
-  let manualOpen = false; // Track if user manually opened chat
   let userMessageCount = 0; // Track total user messages sent
   let conversationState = 'cold'; // 'cold', 'qualified', 'ready_to_book'
   let userName = null;
@@ -21,8 +16,6 @@ console.log('PROXE Widget Initializing...');
   const API_BASE_URL = window.location.origin;
   const API_CHAT_URL = API_BASE_URL + '/api/chat';
   
-  console.log('🔍 PROXe Widget - Brand:', brand);
-  console.log('API URL:', API_CHAT_URL);
 
   // SVG Icons
   const icons = {
@@ -43,73 +36,22 @@ console.log('PROXE Widget Initializing...');
 
   function renderMessages() {
     const msgArea = document.querySelector('.proxe-messages-area');
-    if (!msgArea) return;
+    if (!msgArea) {
+      console.warn('⚠️ Message area not found!');
+      return;
+    }
 
     msgArea.innerHTML = '';
 
     if (messages.length === 0 && conversationState === 'cold') {
-      // Show opening hook with trigger buttons for PROXe
-      const openingMsg = document.createElement('div');
-      openingMsg.className = 'proxe-message ai';
-      
-      const bubble = document.createElement('div');
-      bubble.className = 'proxe-message-bubble';
-      
-      const header = document.createElement('div');
-      header.className = 'proxe-message-header';
-      
-      const avatar = document.createElement('div');
-      avatar.className = 'proxe-bubble-avatar';
-      avatar.innerHTML = icons.user;
-      
-      const name = document.createElement('div');
-      name.className = 'proxe-message-name';
-      name.textContent = brandName;
-      
-      header.appendChild(avatar);
-      header.appendChild(name);
-      
-      const textDiv = document.createElement('div');
-      textDiv.className = 'proxe-message-text';
-      textDiv.innerHTML = '<p><strong>You\'re answering WhatsApp at 11 PM.</strong></p><p>Not because you want to. Because your customers expect a response.</p><p>Leads are leaving because you can\'t respond in 2 minutes. Content isn\'t posted because you\'re too busy answering messages. You\'re thinking about hiring someone. But really, you need to sleep.</p><p><strong>This is what it looks like when you\'re doing it all alone.</strong></p><p>We got tired of watching business owners drown. So we built PROXe. AI handles the 24/7 stuff. You handle what matters.</p>';
-      
-      bubble.appendChild(header);
-      bubble.appendChild(textDiv);
-      openingMsg.appendChild(bubble);
-      msgArea.appendChild(openingMsg);
-      
-      // Add trigger buttons
-      const triggerWrapper = document.createElement('div');
-      triggerWrapper.className = 'proxe-trigger-buttons';
-      
-      const triggers = [
-        { text: 'Tell me about the WhatsApp agent', painPoint: 'slow-response-messages' },
-        { text: 'Tell me about the content engine', painPoint: 'content-creation-time' },
-        { text: 'Tell me about the website agent', painPoint: 'lost-leads' },
-        { text: 'Is this for me?', painPoint: 'general-qualification' }
-      ];
-      
-      triggers.forEach(function(trigger) {
-        const btn = document.createElement('button');
-        btn.className = 'proxe-followup-btn';
-        btn.type = 'button';
-        btn.textContent = trigger.text;
-        btn.onclick = function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          painPoint = trigger.painPoint;
-          handleQuickButtonClick(trigger.text);
-        };
-        triggerWrapper.appendChild(btn);
-      });
-      
-      openingMsg.appendChild(triggerWrapper);
+      // Empty state - no initial message text, buttons appear outside chat box
     } else {
       messages.forEach(function(msg, index) {
         const msgDiv = document.createElement('div');
         const messageType = msg.type || 'ai';
         msgDiv.className = 'proxe-message ' + messageType;
         msgDiv.dataset.index = index;
+        
 
         if (msg.variant === 'phone-request') {
           msgDiv.classList.add('proxe-phone-request');
@@ -152,10 +94,18 @@ console.log('PROXE Widget Initializing...');
 
         const textDiv = document.createElement('div');
         textDiv.className = 'proxe-message-text';
+        textDiv.dataset.messageIndex = index; // Store index for direct updates
         
         if (msg.isStreaming) {
-          const formattedText = formatTextToHTML(msg.text);
-          textDiv.innerHTML = formattedText + '<span class="streaming-cursor">▋</span>';
+          const textToFormat = msg.text || '';
+          // Show infinity symbol while streaming/thinking
+          if (!textToFormat) {
+            textDiv.className = 'proxe-message-text proxe-typing-infinity';
+            textDiv.innerHTML = '<svg viewBox="0 0 48 24" xmlns="http://www.w3.org/2000/svg"><path class="infinity-path" d="M12 12 C8 6, 4 6, 4 12 C4 18, 8 18, 12 12 M36 12 C40 6, 44 6, 44 12 C44 18, 40 18, 36 12 M12 12 C16 18, 20 18, 24 12 C28 18, 32 18, 36 12" /><path class="infinity-stroke" d="M12 12 C8 6, 4 6, 4 12 C4 18, 8 18, 12 12 M36 12 C40 6, 44 6, 44 12 C44 18, 40 18, 36 12 M12 12 C16 18, 20 18, 24 12 C28 18, 32 18, 36 12" /></svg>';
+          } else {
+            const formattedText = formatTextToHTML(textToFormat);
+            textDiv.innerHTML = formattedText + '<span class="streaming-cursor">▋</span>';
+          }
         } else {
           const formattedText = formatTextToHTML(msg.text || '');
           textDiv.innerHTML = formattedText;
@@ -164,19 +114,18 @@ console.log('PROXE Widget Initializing...');
         bubble.appendChild(textDiv);
         msgDiv.appendChild(bubble);
 
-        // Add follow-up buttons if present
+        // Add follow-up buttons if present - but exclude main action buttons (shown outside)
         if (msg.followUps && msg.followUps.length > 0) {
           const followUpWrapper = document.createElement('div');
           followUpWrapper.className = 'proxe-followup-buttons';
           
           msg.followUps.forEach(function(followUp) {
             const followUpLower = followUp.toLowerCase();
-            // Filter out Wind Chasers-specific buttons
-            const isWindChasersButton = followUpLower.includes('choose your program') || 
-                                        followUpLower.includes('which program') ||
-                                        followUpLower.includes('schedule admissions');
+            // Show all follow-up buttons in chat (no filtering needed)
+            // "What is PROXe", "Deploy PROXe", "Book a Call", "PROXe Pricing" can all appear in chat
+            const isOutsideOnlyCTA = false;
             
-            if (!isWindChasersButton) {
+            if (!isOutsideOnlyCTA) {
               const followUpBtn = document.createElement('button');
               followUpBtn.className = 'proxe-followup-btn';
               followUpBtn.type = 'button';
@@ -190,7 +139,10 @@ console.log('PROXE Widget Initializing...');
             }
           });
           
-          bubble.appendChild(followUpWrapper);
+          // Only append if there are buttons to show
+          if (followUpWrapper.children.length > 0) {
+            bubble.appendChild(followUpWrapper);
+          }
         }
 
         msgArea.appendChild(msgDiv);
@@ -276,69 +228,235 @@ console.log('PROXE Widget Initializing...');
     renderMessages();
 
     try {
-      const response = await fetch(API_CHAT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: message,
-          brand: brand,
-          conversationState: conversationState,
-          userName: userName,
-          userPhone: userPhone,
-          painPoint: painPoint,
-          messageCount: userMessageCount
-        })
-      });
-
-      if (!response.ok) {
-        // Try to get error details from response
-        let errorDetails = 'Network response was not ok';
-        try {
-          const errorData = await response.json();
-          errorDetails = errorData.error || errorData.details || errorDetails;
-          console.error('API Error:', errorData);
-        } catch (e) {
-          console.error('API Error Response:', response.status, response.statusText);
-        }
-        throw new Error(errorDetails);
-      }
-
-      const data = await response.json();
-      
-      // Check if response contains an error
-      if (data.error) {
-        throw new Error(data.error + (data.details ? ': ' + data.details : ''));
-      }
-      
-      // Remove loading message
-      const loadingIndex = messages.findIndex(m => m.isStreaming && !m.hasStreamed);
-      if (loadingIndex !== -1) {
-        messages.splice(loadingIndex, 1);
-      }
-
-      if (data.response) {
-        messages.push({
-          type: 'ai',
-          text: data.response,
-          hasStreamed: true,
-          followUps: data.followUps || []
+      // PROXe uses streaming
+      if (brand === 'proxe') {
+        // Streaming response
+        const response = await fetch(API_CHAT_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: message,
+            brand: brand,
+            messageCount: userMessageCount
+          })
         });
-        completedAiMessages++;
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // Remove loading message and add streaming message
+        const loadingIndex = messages.findIndex(m => m.isStreaming && !m.hasStreamed);
+        if (loadingIndex !== -1) {
+          messages.splice(loadingIndex, 1);
+        }
+
+        const streamingMsg = {
+          type: 'ai',
+          text: '',
+          isStreaming: true,
+          hasStreamed: false,
+          followUps: []
+        };
+        messages.push(streamingMsg);
+        const streamingMsgIndex = messages.length - 1;
+        
+        // Initial render with empty text to ensure message bubble appears
+        renderMessages();
+
+        // Read stream
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              // If stream ends without 'done' event, mark as complete
+              if (messages[streamingMsgIndex].isStreaming) {
+                messages[streamingMsgIndex].isStreaming = false;
+                messages[streamingMsgIndex].hasStreamed = true;
+                
+                // Clean response (remove greetings, etc.)
+                let cleanedText = messages[streamingMsgIndex].text
+                  .replace(/^(Hi there!|Hello!|Hey!|Hi!)\s*/gi, '')
+                  .replace(/^(Hi|Hello|Hey),?\s*/gi, '')
+                  .trim();
+                messages[streamingMsgIndex].text = cleanedText;
+                
+                completedAiMessages++;
+                renderMessages();
+              }
+              break;
+            }
+
+            const chunk = decoder.decode(value, { stream: true });
+            buffer += chunk;
+            
+            // Process complete SSE messages (separated by \n\n)
+            const lines = buffer.split('\n\n');
+            buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (trimmed.startsWith('data: ')) {
+                try {
+                  const jsonStr = trimmed.slice(6); // Remove 'data: ' prefix
+                  const data = JSON.parse(jsonStr);
+                  
+                  if (data.type === 'chunk') {
+                    // Update message text
+                    messages[streamingMsgIndex].text += data.text || '';
+                    
+                    // Update only the streaming message element directly (no full re-render)
+                    const msgArea = document.querySelector('.proxe-messages-area');
+                    if (msgArea) {
+                      const streamingMsgElement = msgArea.querySelector(`[data-index="${streamingMsgIndex}"]`);
+                      if (streamingMsgElement) {
+                        const textDiv = streamingMsgElement.querySelector('.proxe-message-text');
+                        if (textDiv) {
+                          const formattedText = formatTextToHTML(messages[streamingMsgIndex].text || '');
+                          textDiv.innerHTML = formattedText + '<span class="streaming-cursor">▋</span>';
+                          
+                          // Smooth scroll to bottom
+                          requestAnimationFrame(function() {
+                            msgArea.scrollTop = msgArea.scrollHeight;
+                          });
+                        }
+                      }
+                    }
+                  } else if (data.type === 'followUps') {
+                    messages[streamingMsgIndex].followUps = data.followUps || [];
+                    // Only re-render to add follow-up buttons
+                    renderMessages();
+                  } else if (data.type === 'error') {
+                    console.error('Stream error from server:', data.error);
+                    messages[streamingMsgIndex].isStreaming = false;
+                    messages[streamingMsgIndex].hasStreamed = true;
+                    messages[streamingMsgIndex].text = messages[streamingMsgIndex].text || 'Error: ' + (data.error || 'Unknown error');
+                    completedAiMessages++;
+                    renderMessages();
+                  } else if (data.type === 'done') {
+                    messages[streamingMsgIndex].isStreaming = false;
+                    messages[streamingMsgIndex].hasStreamed = true;
+                    
+                    // Clean response (remove greetings, etc.)
+                    let cleanedText = messages[streamingMsgIndex].text
+                      .replace(/^(Hi there!|Hello!|Hey!|Hi!)\s*/gi, '')
+                      .replace(/^(Hi|Hello|Hey),?\s*/gi, '')
+                      .trim();
+                    messages[streamingMsgIndex].text = cleanedText;
+                    
+                    // Update final text directly and remove cursor (no full re-render)
+                    const msgArea = document.querySelector('.proxe-messages-area');
+                    if (msgArea) {
+                      const streamingMsgElement = msgArea.querySelector(`[data-index="${streamingMsgIndex}"]`);
+                      if (streamingMsgElement) {
+                        const textDiv = streamingMsgElement.querySelector('.proxe-message-text');
+                        if (textDiv) {
+                          const formattedText = formatTextToHTML(cleanedText);
+                          textDiv.innerHTML = formattedText;
+                        }
+                      }
+                    }
+                    
+                    completedAiMessages++;
+                    // Re-render only if we need to add follow-up buttons
+                    renderMessages();
+                  }
+                } catch (parseError) {
+                  console.error('Error parsing stream data:', parseError, 'Line:', line);
+                  // Continue processing other lines
+                }
+              }
+            }
+          }
+        } catch (streamError) {
+          console.error('Stream reading error:', streamError);
+          // Mark message as complete even if stream fails
+          messages[streamingMsgIndex].isStreaming = false;
+          messages[streamingMsgIndex].hasStreamed = true;
+          messages[streamingMsgIndex].text = messages[streamingMsgIndex].text || 'Error receiving response. Please try again.';
+          completedAiMessages++;
+          renderMessages();
+        }
       } else {
-        throw new Error('No response received from server');
+        // Non-streaming fallback (shouldn't happen for PROXe)
+        const response = await fetch(API_CHAT_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: message,
+            brand: brand,
+            conversationState: conversationState,
+            userName: userName,
+            userPhone: userPhone,
+            painPoint: painPoint,
+            messageCount: userMessageCount
+          })
+        });
+
+        if (!response.ok) {
+          // Try to get error details from response
+          let errorDetails = 'Network response was not ok';
+          try {
+            const errorData = await response.json();
+            errorDetails = errorData.error || errorData.details || errorDetails;
+            console.error('API Error:', errorData);
+          } catch (e) {
+            console.error('API Error Response:', response.status, response.statusText);
+          }
+          throw new Error(errorDetails);
+        }
+
+        const data = await response.json();
+        
+        // Check if response contains an error
+        if (data.error) {
+          throw new Error(data.error + (data.details ? ': ' + data.details : ''));
+        }
+        
+        // Remove loading message
+        const loadingIndex = messages.findIndex(m => m.isStreaming && !m.hasStreamed);
+        if (loadingIndex !== -1) {
+          messages.splice(loadingIndex, 1);
+        }
+
+        if (data.response) {
+          // Handle both followUps array and followUp string for backward compatibility
+          let followUpsArray = [];
+          if (data.followUps && Array.isArray(data.followUps)) {
+            followUpsArray = data.followUps;
+          } else if (data.followUp && data.followUp.toLowerCase() !== 'skip') {
+            followUpsArray = [data.followUp];
+          }
+          
+          messages.push({
+            type: 'ai',
+            text: data.response,
+            hasStreamed: true,
+            followUps: followUpsArray
+          });
+          completedAiMessages++;
+        } else {
+          throw new Error('No response received from server');
+        }
+
+        // Update conversation state if provided
+        if (data.conversationState) {
+          conversationState = data.conversationState;
+        }
+
+        // Handle post-response actions
+        handlePostResponseActions(data);
+
+        renderMessages();
       }
-
-      // Update conversation state if provided
-      if (data.conversationState) {
-        conversationState = data.conversationState;
-      }
-
-      // Handle post-response actions
-      handlePostResponseActions(data);
-
-      renderMessages();
     } catch (error) {
       console.error('Error sending message:', error);
       console.error('Error details:', error.message);
@@ -446,15 +564,12 @@ console.log('PROXE Widget Initializing...');
   }
 
   function handleQuickButtonClick(message) {
-    console.log('🔧 handleQuickButtonClick called with message:', message);
     // Open chat if not already open
     if (!isOpen) {
-      console.log('🔧 Opening chat and sending message');
       isOpen = true;
       createWidget();
       // Wait for chatbox to be created before sending message
       setTimeout(function() {
-        console.log('🔧 Sending message after delay');
         sendMessage(message);
       }, 300);
       return;
@@ -475,7 +590,6 @@ console.log('PROXE Widget Initializing...');
   }
 
   function createWidget() {
-    console.log('🔧 createWidget called');
     let container = document.getElementById('proxe-widget-container');
     
     if (!container) {
@@ -511,11 +625,11 @@ console.log('PROXE Widget Initializing...');
       // Track if button is being clicked to prevent blur from hiding buttons
       let isDown = false;
 
-      // Create PROXe quick buttons
+      // Create PROXe quick buttons - shown outside chat box
       const quickButtons = [
         { text: 'What is PROXe', message: 'What is PROXe' },
         { text: 'Deploy PROXe', message: 'Deploy PROXe' },
-        { text: 'Book a Demo', message: 'Book a Demo' }
+        { text: 'Book a Call', message: 'Book a Call' }
       ];
       
       quickButtons.forEach(function(buttonConfig) {
@@ -535,7 +649,6 @@ console.log('PROXE Widget Initializing...');
         btn.onclick = function(e) {
           e.preventDefault();
           e.stopPropagation();
-          console.log('🔧 Quick button clicked:', buttonConfig.text);
           handleQuickButtonClick(buttonConfig.message);
         };
         quickButtonsWrapper.appendChild(btn);
@@ -574,6 +687,13 @@ console.log('PROXE Widget Initializing...');
         e.preventDefault();
         e.stopPropagation();
         handleSearchSend();
+      });
+
+      // Show buttons on searchbar click or input focus
+      searchbar.addEventListener('click', function(e) {
+        if (!isOpen && e.target !== input) {
+          input.focus();
+        }
       });
 
       input.addEventListener('focus', function() {
@@ -804,13 +924,11 @@ console.log('PROXE Widget Initializing...');
           }
         }
       }, 100);
-      manualOpen = false; // Reset for next time
     }
   }
 
   // Robust initialization for all browsers, especially mobile
   function initializeWidget() {
-    console.log('🔧 initializeWidget called');
     loadCSS();
     // Small delay to ensure DOM is ready, especially on mobile
     if (document.body) {
@@ -847,7 +965,9 @@ console.log('PROXE Widget Initializing...');
 
   // Function to format text response into HTML (markdown to HTML conversion)
   function formatTextToHTML(text) {
-    if (!text) return '';
+    if (!text) {
+      return '';
+    }
     
     // If text already contains HTML tags, assume it's already formatted
     if (/<[a-z][\s\S]*>/i.test(text)) {

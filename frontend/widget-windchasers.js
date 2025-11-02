@@ -101,7 +101,9 @@ console.log('Wind Chasers Widget Initializing...');
         textDiv.className = 'proxe-message-text';
 
         if (msg.isLoading) {
-        textDiv.innerHTML = msg.text;
+          // Show infinity symbol typing animation
+          textDiv.className = 'proxe-message-text proxe-typing-infinity';
+          textDiv.innerHTML = '<svg viewBox="0 0 48 24" xmlns="http://www.w3.org/2000/svg"><path class="infinity-path" d="M12 12 C8 6, 4 6, 4 12 C4 18, 8 18, 12 12 M36 12 C40 6, 44 6, 44 12 C44 18, 40 18, 36 12 M12 12 C16 18, 20 18, 24 12 C28 18, 32 18, 36 12" /><path class="infinity-stroke" d="M12 12 C8 6, 4 6, 4 12 C4 18, 8 18, 12 12 M36 12 C40 6, 44 6, 44 12 C44 18, 40 18, 36 12 M12 12 C16 18, 20 18, 24 12 C28 18, 32 18, 36 12" /></svg>';
         } else if (messageType === 'ai' && !msg.hasStreamed) {
           textDiv.innerHTML = '';
         } else {

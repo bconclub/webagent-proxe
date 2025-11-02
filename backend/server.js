@@ -28,7 +28,6 @@ app.use(express.json());
 // IMPORTANT: Define routes BEFORE static middleware to ensure correct routing
 // Serve windchasers-proxe.html page - must be before static middleware
 app.get('/windchasers-proxe', (req, res) => {
-  console.log('📍 Serving Wind Chasers page');
   const windchasersPath = path.join(__dirname, '../frontend/windchasers-proxe.html');
   console.log('   File path:', windchasersPath);
   // Disable caching for HTML files
@@ -132,7 +131,6 @@ if (proxeSupabase) {
 const envPath = path.join(__dirname, '.env');
 const envFileExists = fs.existsSync(envPath);
 
-console.log('🔍 Environment Check:');
 console.log('   .env file path:', envPath);
 console.log('   .env file exists:', envFileExists ? 'Yes' : 'No');
 
@@ -599,13 +597,6 @@ app.post('/api/chat', async (req, res) => {
     // Normalize brand to lowercase
     const normalizedBrand = (brand || 'proxe').toLowerCase();
     
-    console.log(`\n🔍 [${normalizedBrand.toUpperCase()}] Request received:`);
-    console.log(`   Brand: ${normalizedBrand} (from frontend: ${brand})`);
-    console.log(`   Message: ${message}`);
-    console.log(`   Conversation state: ${conversationState}`);
-    console.log(`   User name: ${userName || 'none'}`);
-    console.log(`   User phone: ${userPhone || 'none'}`);
-    console.log(`   Pain point: ${painPoint || 'none'}`);
 
     // Search knowledge base - uses appropriate Supabase based on brand
     // Skip knowledge base search for state updates (empty messages with user info)
@@ -634,8 +625,10 @@ app.post('/api/chat', async (req, res) => {
     let systemPrompt;
     
     if (normalizedBrand === 'proxe') {
-      systemPrompt = getProxeSystemPrompt(context, conversationState, userName, userPhone, painPoint, messageCount);
+      // PROXe: No state management - just respond based on message and context
+      systemPrompt = getProxeSystemPrompt(context);
     } else {
+      // Wind Chasers: Still uses state management
       systemPrompt = getWindChasersSystemPrompt(context, conversationState, userName, userPhone, painPoint);
     }
 
@@ -645,14 +638,119 @@ app.post('/api/chat', async (req, res) => {
     }
     
     console.log('Generating response from Claude...');
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: `${message}
+    console.log('🔵 Brand check - normalizedBrand:', normalizedBrand, 'Should be proxe:', normalizedBrand === 'proxe');
+    
+    // Use streaming for PROXe, regular response for Wind Chasers
+    let rawResponse = '';
+    
+    if (normalizedBrand === 'proxe') {
+      console.log('🔵 Entering PROXe streaming block');
+      // Streaming for PROXe
+      console.log('🔵 Starting PROXe streaming...');
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      
+      try {
+        console.log('🔵 Creating Anthropic stream...');
+        const stream = await anthropic.messages.stream({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: [
+            {
+              role: 'user',
+              content: `${message}
+
+[REMINDER: Answer their question directly. Use the knowledge base context. Be concise. If they want more details, they'll ask.]`
+            },
+          ],
+        });
+        console.log('🔵 Stream created successfully');
+        
+        // Stream chunks to client (raw text, will be formatted as markdown on frontend)
+        console.log('🔵 Starting to iterate stream...');
+        let chunkCount = 0;
+        for await (const chunk of stream) {
+          console.log('🔵 Received stream chunk:', {
+            type: chunk.type,
+            deltaType: chunk.delta?.type,
+            text: chunk.delta?.text?.substring(0, 30)
+          });
+          
+          if (chunk.type === 'content_block_delta' && chunk.delta && chunk.delta.type === 'text_delta') {
+            const text = chunk.delta.text;
+            rawResponse += text;
+            chunkCount++;
+            const sseData = `data: ${JSON.stringify({ type: 'chunk', text: text })}\n\n`;
+            res.write(sseData);
+            console.log(`🔵 Sent chunk ${chunkCount} (${text.length} chars):`, text.substring(0, 50));
+          } else {
+            console.log('🔵 Other chunk type/structure:', JSON.stringify(chunk).substring(0, 200));
+          }
+        }
+        console.log(`🔵 Finished streaming. Total chunks: ${chunkCount}, Total text length: ${rawResponse.length}`);
+      
+      // Clean the full response
+      let cleanedResponse = rawResponse
+        .replace(/^(Hi there!|Hello!|Hey!|Hi!)\s*/gi, '')
+        .replace(/^(Hi|Hello|Hey),?\s*/gi, '')
+        .replace(/I'd recommend visiting (our|the) website at.*?for/gi, "I'd recommend reaching out to our team directly for")
+        .replace(/visit(ing)? (our|the) website at.*?(\.|<)/gi, 'contact our team directly$3')
+        .replace(/https?:\/\/windchasers\.in\/?/gi, '')
+        .replace(/at https?:\/\/[^\s<]+/gi, '')
+        .replace(/\(https?:\/\/[^)]+\)/gi, '')
+        .replace(/check (our|the) website/gi, 'reach out to our team')
+        .replace(/on (our|the) website/gi, 'with our team')
+        .trim();
+      
+      // Generate follow-ups
+      const lowerMessage = message.toLowerCase();
+      const isFirstMessage = messageCount === 1 || messageCount === 0;
+      const isWhatIsProxe = lowerMessage.includes('what is proxe') || lowerMessage.includes('what\'s proxe') || lowerMessage.includes('tell me about proxe');
+      
+      let followUpsArray = [];
+      if (isFirstMessage || isWhatIsProxe) {
+        followUpsArray = [
+          'Deploy PROXe',
+          'PROXe Pricing',
+          'Book a Call'
+        ];
+      } else {
+        const followUpSuggestion = await generateFollowUpSuggestion(
+          message, 
+          cleanedResponse, 
+          messageCount,
+          normalizedBrand
+        );
+        if (followUpSuggestion && followUpSuggestion.toLowerCase() !== 'skip') {
+          followUpsArray = [followUpSuggestion];
+        }
+      }
+      
+      // Send follow-ups and done signal
+      console.log('🔵 Sending followUps:', followUpsArray);
+      res.write(`data: ${JSON.stringify({ type: 'followUps', followUps: followUpsArray })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+      res.end();
+      console.log('🔵 Stream closed');
+      return; // Don't continue with non-streaming code
+      } catch (streamError) {
+        console.error('❌ Stream error:', streamError);
+        res.write(`data: ${JSON.stringify({ type: 'error', error: streamError.message })}\n\n`);
+        res.end();
+        return;
+      }
+    } else {
+      // Non-streaming for Wind Chasers
+      const response = await anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: `${message}
 
 [SYSTEM REMINDER: 
 - Current state: ${conversationState}
@@ -661,11 +759,12 @@ app.post('/api/chat', async (req, res) => {
 - Use one of the two pillars (Trenches OR Human × AI) in your response
 - Never tell them to visit a website - they're already here
 - If they're ready, suggest a 15-minute demo call]`
-        },
-      ],
-    });
-
-    const rawResponse = response.content[0].type === 'text' ? response.content[0].text : 'Unable to generate response';
+          },
+        ],
+      });
+      
+      rawResponse = response.content[0].type === 'text' ? response.content[0].text : 'Unable to generate response';
+    }
     
     // Remove any greetings and website referrals that slipped through
     let cleanedResponse = rawResponse
@@ -689,29 +788,67 @@ app.post('/api/chat', async (req, res) => {
     );
 
     console.log('Response generated successfully');
+    console.log('🔵 After streaming - normalizedBrand:', normalizedBrand, 'Should NOT execute non-streaming for PROXe');
 
-    // Detect if we should collect name/phone
-    const shouldCollectName = conversationState === 'cold' && !userName && messageCount >= 1;
-    const shouldCollectPhone = conversationState === 'cold' && userName && !userPhone;
-    
-    // Detect buying signals
-    const buyingSignals = [
-      'how do we start', 'what\'s next', 'i want to try', 'can you set up', 'when can we get started',
-      'how do i sign up', 'let\'s do this', 'sounds good', 'i\'m ready', 'book a call', 'schedule a call',
-      'when can we', 'how do we', 'i\'d like to'
-    ];
-    const detectedBuyingSignal = buyingSignals.some(signal => message.toLowerCase().includes(signal));
-    const newState = detectedBuyingSignal ? 'ready_to_book' : (userName && userPhone ? 'qualified' : conversationState);
+    // PROXe: No state management - just return response
+    // NOTE: This should NOT execute if streaming worked (should have returned at line 738)
+    if (normalizedBrand === 'proxe') {
+      console.warn('WARNING: PROXe non-streaming code executing! This should not happen if streaming worked.');
+      // For PROXe, return follow-ups as an array
+      // For first message or "What is PROXe?" questions, return the 4 main options
+      const lowerMessage = message.toLowerCase();
+      const isFirstMessage = messageCount === 1 || messageCount === 0;
+      const isWhatIsProxe = lowerMessage.includes('what is proxe') || lowerMessage.includes('what\'s proxe') || lowerMessage.includes('tell me about proxe');
+      
+      let followUpsArray = [];
+      
+      if (isFirstMessage || isWhatIsProxe) {
+        // Return the main PROXe action buttons
+        followUpsArray = [
+          'Deploy PROXe',
+          'PROXe Pricing',
+          'Book a Call'
+        ];
+      } else if (followUpSuggestion && followUpSuggestion.toLowerCase() !== 'skip') {
+        // For other messages, return the single AI-generated follow-up
+        followUpsArray = [followUpSuggestion];
+      }
+      
+      res.json({
+        response: cleanedResponse,
+        sources: relevantDocs.length > 0 ? relevantDocs.length : 0,
+        followUps: followUpsArray, // Array for PROXe
+        followUp: followUpSuggestion, // Keep for backward compatibility
+        shouldCollectName: false,
+        shouldCollectPhone: false,
+        conversationState: 'cold',
+        suggestBooking: false,
+      });
+    } else {
+      // Wind Chasers: Still uses state management
+      // Detect if we should collect name/phone
+      const shouldCollectName = conversationState === 'cold' && !userName && messageCount >= 1;
+      const shouldCollectPhone = conversationState === 'cold' && userName && !userPhone;
+      
+      // Detect buying signals
+      const buyingSignals = [
+        'how do we start', 'what\'s next', 'i want to try', 'can you set up', 'when can we get started',
+        'how do i sign up', 'let\'s do this', 'sounds good', 'i\'m ready', 'book a call', 'schedule a call',
+        'when can we', 'how do we', 'i\'d like to'
+      ];
+      const detectedBuyingSignal = buyingSignals.some(signal => message.toLowerCase().includes(signal));
+      const newState = detectedBuyingSignal ? 'ready_to_book' : (userName && userPhone ? 'qualified' : conversationState);
 
-    res.json({
-      response: cleanedResponse,
-      sources: relevantDocs.length > 0 ? relevantDocs.length : 0,
-      followUp: followUpSuggestion,
-      shouldCollectName: shouldCollectName,
-      shouldCollectPhone: shouldCollectPhone,
-      conversationState: newState,
-      suggestBooking: detectedBuyingSignal || (messageCount >= 3 && conversationState === 'qualified'),
-    });
+      res.json({
+        response: cleanedResponse,
+        sources: relevantDocs.length > 0 ? relevantDocs.length : 0,
+        followUp: followUpSuggestion,
+        shouldCollectName: shouldCollectName,
+        shouldCollectPhone: shouldCollectPhone,
+        conversationState: newState,
+        suggestBooking: detectedBuyingSignal || (messageCount >= 3 && conversationState === 'qualified'),
+      });
+    }
 
   } catch (error) {
     console.error('\n❌ Chat endpoint error:', error);
@@ -761,7 +898,6 @@ app.get('*', (req, res) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/windchasers-proxe')) {
     return;
   }
-  console.log('📍 Serving PROXe page:', req.path);
   const indexPath = path.join(__dirname, '../frontend/index.html');
   console.log('   File path:', indexPath);
   // Disable caching for HTML files
@@ -772,10 +908,11 @@ app.get('*', (req, res) => {
 });
 
 // Start server
+// Run on port 3000 - Next.js will proxy API requests to this port
+// In production, use PORT from environment or default to 3000
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 PROXe Chatbot API running on port ${PORT}`);
-  console.log(`📍 Local: http://localhost:${PORT}`);
-  console.log(`📍 Network: http://192.168.1.4:${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
   console.log(`✅ Health check: http://localhost:${PORT}/api/health`);
 });
