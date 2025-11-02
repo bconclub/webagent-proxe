@@ -446,12 +446,15 @@ console.log('PROXE Widget Initializing...');
   }
 
   function handleQuickButtonClick(message) {
+    console.log('🔧 handleQuickButtonClick called with message:', message);
     // Open chat if not already open
     if (!isOpen) {
+      console.log('🔧 Opening chat and sending message');
       isOpen = true;
       createWidget();
       // Wait for chatbox to be created before sending message
       setTimeout(function() {
+        console.log('🔧 Sending message after delay');
         sendMessage(message);
       }, 300);
       return;
