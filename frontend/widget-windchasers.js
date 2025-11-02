@@ -798,7 +798,7 @@ console.log('Wind Chasers Widget Initializing...');
 
   // Centralized handler for quick button clicks
   function handleQuickButtonClick(promptText) {
-    console.log('Quick button clicked:', promptText);
+    console.log('🔧 Wind Chasers: Quick button clicked:', promptText);
     
     manualOpen = false; // Don't open keyboard when clicking quick/follow-up buttons
     
@@ -923,6 +923,7 @@ console.log('Wind Chasers Widget Initializing...');
   }
 
   function createWidget() {
+    console.log('🔧 Wind Chasers: createWidget called');
     let container = document.getElementById('proxe-widget-container');
     
     if (!container) {
@@ -1408,6 +1409,7 @@ console.log('Wind Chasers Widget Initializing...');
 
   // Robust initialization for all browsers, especially mobile
   function initializeWidget() {
+    console.log('🔧 Wind Chasers: initializeWidget called');
     loadCSS();
     // Small delay to ensure DOM is ready, especially on mobile
     if (document.body) {
