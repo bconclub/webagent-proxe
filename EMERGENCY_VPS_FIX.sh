@@ -8,10 +8,19 @@ echo ""
 echo "🛑 Stopping all processes..."
 pm2 stop all
 pm2 delete all
+pkill -9 node 2>/dev/null
 pkill -f "node.*server.js" 2>/dev/null
 
+# Check and kill any process on port 3000
+if command -v fuser &> /dev/null; then
+    fuser -k 3000/tcp 2>/dev/null || true
+fi
+if command -v lsof &> /dev/null; then
+    lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+fi
+
 # Wait a moment
-sleep 2
+sleep 3
 
 # Navigate to project (adjust path if different)
 cd /home/webagent || cd /root/webagent-backend || { echo "❌ Could not find project directory"; exit 1; }
