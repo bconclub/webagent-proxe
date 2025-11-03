@@ -1,9 +1,29 @@
 node_modules/
 .env
 .env.local
+.env*.local
 google-creds.json
 dist/
 *.log
 .DS_Store
 backend/.env
 n8n/
+
+# Next.js
+.next/
+out/
+build/
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

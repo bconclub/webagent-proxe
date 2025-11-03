@@ -58,9 +58,8 @@ export function useChatStream({ brand, apiUrl, onMessageComplete }: UseChatStrea
     abortControllerRef.current = controller;
 
     try {
-      // In development, use relative URL which Next.js will proxy to backend
-      // In production, use explicit API URL if provided
-      const apiBaseUrl = apiUrl || '';
+      // Use explicit API URL if provided, otherwise check environment variable, fallback to relative path
+      const apiBaseUrl = apiUrl || process.env.NEXT_PUBLIC_API_URL || '';
       const apiEndpoint = apiBaseUrl ? `${apiBaseUrl}/api/chat` : '/api/chat';
       
       console.log('Sending message to:', apiEndpoint, { message, brand, messageCount });
