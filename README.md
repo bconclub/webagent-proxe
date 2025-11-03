@@ -47,11 +47,20 @@ npm install
 
 ### 2. Set Environment Variables
 
-Create `.env.local`:
+Create `.env.local` (copy from `.env.local.example`):
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:3000
+# Required: Claude API Key for chat functionality
+CLAUDE_API_KEY=sk-ant-api03-your-key-here
+
+# Optional: Use external API server instead of Next.js API route
+# NEXT_PUBLIC_API_URL=http://localhost:3000
 ```
+
+**Get your Claude API Key:**
+- Visit [Anthropic Console](https://console.anthropic.com/)
+- Create an API key
+- Add it to `.env.local` as `CLAUDE_API_KEY`
 
 ### 3. Start API Server
 
@@ -100,9 +109,13 @@ Vercel automatically detects Next.js and provides zero-configuration deployment 
 3. **Configure Environment Variables**
    
    In Vercel Dashboard → Project Settings → Environment Variables:
-   - `NEXT_PUBLIC_API_URL`: Your API server URL (e.g., `https://your-api.railway.app`)
    
-   **Note**: Replace with your actual API server deployment URL.
+   **Required:**
+   - `CLAUDE_API_KEY`: Your Anthropic Claude API key (get from [console.anthropic.com](https://console.anthropic.com/))
+   
+   **Optional (if using external API server):**
+   - `NEXT_PUBLIC_API_URL`: Your API server URL (e.g., `https://your-api.railway.app`)
+   - If not set, the app will use the built-in Next.js API route at `/api/chat`
 
 4. **Deploy**
    - Vercel will automatically deploy on every push to main
@@ -131,12 +144,14 @@ Make sure to:
 
 ## Environment Variables
 
-### Frontend (Vercel)
+### Frontend (Vercel/Local)
 
-- `NEXT_PUBLIC_API_URL` - API server URL (required in production)
+- `CLAUDE_API_KEY` - **Required**: Anthropic Claude API key (get from [console.anthropic.com](https://console.anthropic.com/))
+- `NEXT_PUBLIC_API_URL` - Optional: External API server URL (if not set, uses built-in Next.js API route)
 
-### API Server (Separate Deployment)
+### API Server (Separate Deployment - Optional)
 
+If deploying API server separately (not recommended, as Next.js API route works fine):
 - `CLAUDE_API_KEY` - Anthropic Claude API key (required)
 - `PROXE_SUPABASE_URL` - PROXe Supabase URL (optional)
 - `PROXE_SUPABASE_ANON_KEY` - PROXe Supabase key (optional)

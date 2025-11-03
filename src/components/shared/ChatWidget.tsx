@@ -74,8 +74,13 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [showQuickButtons, setShowQuickButtons] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const quickButtonsRef = useRef<HTMLDivElement>(null);
+  const dragStartX = useRef<number>(0);
+  const dragStartScrollLeft = useRef<number>(0);
+  const hasDraggedRef = useRef<boolean>(false);
 
   const { messages, isLoading, sendMessage, handleQuickButton, clearMessages } = useChat({
     brand,
@@ -118,6 +123,110 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       window.removeEventListener('message-updated', handleMessageUpdate);
     };
   }, [isOpen]);
+
+  // Enable horizontal scrolling with mouse wheel and drag on desktop
+  useEffect(() => {
+    const quickButtonsElement = quickButtonsRef.current;
+    if (!quickButtonsElement) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // Only handle wheel events if the element is scrollable horizontally
+      if (quickButtonsElement.scrollWidth > quickButtonsElement.clientWidth) {
+        // Check if scrolling horizontally (shift + wheel) or convert vertical to horizontal
+        const isHorizontalScroll = e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY);
+        
+        if (isHorizontalScroll || Math.abs(e.deltaX) > 0) {
+          // Horizontal scroll - allow default behavior
+          return;
+        }
+        
+        // Convert vertical scroll to horizontal
+        e.preventDefault();
+        quickButtonsElement.scrollBy({
+          left: e.deltaY,
+          behavior: 'auto'
+        });
+      }
+    };
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (quickButtonsElement.scrollWidth > quickButtonsElement.clientWidth) {
+        setIsDragging(true);
+        hasDraggedRef.current = false;
+        dragStartX.current = e.pageX - quickButtonsElement.offsetLeft;
+        dragStartScrollLeft.current = quickButtonsElement.scrollLeft;
+        quickButtonsElement.style.cursor = 'grabbing';
+        quickButtonsElement.style.userSelect = 'none';
+        document.body.style.cursor = 'grabbing';
+        document.body.style.userSelect = 'none';
+        // Don't prevent default yet - wait to see if user drags
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      
+      const x = e.pageX - quickButtonsElement.offsetLeft;
+      const deltaX = Math.abs(x - dragStartX.current);
+      
+      // Only prevent default and scroll if user has moved more than 5px (to distinguish from clicks)
+      if (deltaX > 5) {
+        hasDraggedRef.current = true;
+        e.preventDefault();
+        const walk = (x - dragStartX.current) * 2; // Scroll speed multiplier
+        quickButtonsElement.scrollLeft = dragStartScrollLeft.current - walk;
+      }
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      if (isDragging) {
+        setIsDragging(false);
+        quickButtonsElement.style.cursor = '';
+        quickButtonsElement.style.userSelect = '';
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        
+        // If user dragged, prevent click event on buttons
+        if (hasDraggedRef.current) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        hasDraggedRef.current = false;
+      }
+    };
+
+    const handleMouseLeave = () => {
+      if (isDragging) {
+        setIsDragging(false);
+        quickButtonsElement.style.cursor = '';
+        quickButtonsElement.style.userSelect = '';
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+
+    // Only enable drag on desktop (not touch devices)
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    
+    quickButtonsElement.addEventListener('wheel', handleWheel, { passive: false });
+    
+    if (!isTouchDevice) {
+      quickButtonsElement.addEventListener('mousedown', handleMouseDown);
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      quickButtonsElement.addEventListener('mouseleave', handleMouseLeave);
+    }
+    
+    return () => {
+      quickButtonsElement.removeEventListener('wheel', handleWheel);
+      if (!isTouchDevice) {
+        quickButtonsElement.removeEventListener('mousedown', handleMouseDown);
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        quickButtonsElement.removeEventListener('mouseleave', handleMouseLeave);
+      }
+    };
+  }, [isExpanded, showQuickButtons, isDragging]);
 
   const handleSend = () => {
     if (!inputValue.trim() || isLoading) return;
@@ -185,15 +294,16 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     return (
       <div className={styles.searchbarWrapper}>
         {isExpanded && showQuickButtons && config?.quickButtons && config.quickButtons.length > 0 && (
-          <div className={styles.quickButtons}>
+          <div ref={quickButtonsRef} className={styles.quickButtons}>
             {config.quickButtons.map((buttonText, index) => (
               <button
                 key={index}
                 className={styles.quickBtn}
-                onClick={(e) => handleQuickButtonClick(buttonText, e)}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
+                onClick={(e) => {
+                  // Only handle click if we didn't drag
+                  if (!hasDraggedRef.current) {
+                    handleQuickButtonClick(buttonText, e);
+                  }
                 }}
               >
                 {buttonText}

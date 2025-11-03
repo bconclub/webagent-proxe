@@ -18,16 +18,33 @@
   gap: 6px;
   padding: 6px 8px;
   overflow-x: auto;
+  overflow-y: hidden;
   width: 400px;
   max-width: 90vw;
   justify-content: flex-start;
   background: transparent;
   border-radius: 12px;
   animation: slideDown 0.3s ease;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+/* Show grab cursor on desktop when hovering over quick buttons container */
+@media (hover: hover) and (pointer: fine) {
+  .quickButtons {
+    cursor: grab;
+  }
+  
+  .quickButtons:active {
+    cursor: grabbing;
+  }
 }
 
 .quickButtons::-webkit-scrollbar {
-  display: none;
+  display: none; /* Chrome, Safari, Opera */
+  width: 0;
+  height: 0;
 }
 
 @keyframes slideDown {
@@ -169,7 +186,7 @@
   width: 36px;
   height: 36px;
   padding: 0;
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-vibrant) 100%);
+  background: linear-gradient(135deg, #ff3350 0%, #580DC0 100%);
   color: var(--text-primary);
   border: none;
   border-radius: 50%;
@@ -181,7 +198,7 @@
   flex-shrink: 0;
   box-shadow: 
     0 0 16px var(--primary-color),
-    0 2px 8px rgba(0, 0, 0, 0.2);
+    0 2px 8px rgba(255, 3, 3, 0.2);
 }
 
 .sendBtn:hover {
@@ -323,15 +340,15 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #580DC0 50%, #ff3350 100%);
+  background: linear-gradient(135deg, #ff3350 0%, #580DC0 100%);
   color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid var(--border-accent);
+  border: 0.5px solid var(--border-accent);
   box-shadow: 
-    0 0 12px var(--primary-color),
-    0 2px 8px rgba(0, 0, 0, 0.2);
+    0 0 7px var(--primary-color),
+    0 2px 8px rgba(0, 0, 0, 0.055);
 }
 
 .avatar svg {

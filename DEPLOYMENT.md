@@ -45,11 +45,19 @@ Vercel should auto-detect:
 
 In Vercel Dashboard → Project Settings → Environment Variables:
 
-| Variable | Value | Description |
-|---------|-------|-------------|
-| `NEXT_PUBLIC_API_URL` | `https://your-api-url.com` | Your API server URL |
+| Variable | Value | Description | Required |
+|---------|-------|-------------|----------|
+| `CLAUDE_API_KEY` | `sk-ant-api03-...` | Anthropic Claude API key | ✅ **Yes** |
+| `NEXT_PUBLIC_API_URL` | `https://your-api-url.com` | External API server URL (optional) | No |
 
-**Important**: Replace `https://your-api-url.com` with your actual API server deployment URL.
+**Required Setup:**
+1. Get your Claude API key from [Anthropic Console](https://console.anthropic.com/)
+2. Add `CLAUDE_API_KEY` to Vercel environment variables
+3. The app will use the built-in Next.js API route at `/api/chat`
+
+**Optional (External API Server):**
+- Only set `NEXT_PUBLIC_API_URL` if you want to use a separate API server deployment
+- If not set, the built-in Next.js API route will be used (recommended for simplicity)
 
 #### 5. Deploy
 
@@ -113,13 +121,19 @@ The API server (`api/` folder) must be deployed separately since Vercel is optim
 
 ## Environment Variables
 
-### Frontend (Vercel)
+### Frontend (Vercel) - Recommended Approach
 
 ```env
-NEXT_PUBLIC_API_URL=https://your-api-url.com
+# Required - Get from https://console.anthropic.com/
+CLAUDE_API_KEY=sk-ant-api03-your-key-here
+
+# Optional - Only if using external API server
+# NEXT_PUBLIC_API_URL=https://your-api-url.com
 ```
 
-### API Server (Railway/Render/etc.)
+### API Server (Railway/Render/etc.) - Only if Deploying Separately
+
+If you choose to deploy the Express API server separately instead of using the Next.js API route:
 
 ```env
 CLAUDE_API_KEY=sk-ant-api03-your-key-here
@@ -128,6 +142,8 @@ PROXE_SUPABASE_ANON_KEY=your-proxe-key
 SUPABASE_URL=your-windchasers-supabase-url
 SUPABASE_ANON_KEY=your-windchasers-key
 ```
+
+**Note:** It's recommended to use the built-in Next.js API route (no separate deployment needed).
 
 ## CORS Configuration
 
@@ -182,9 +198,15 @@ app.use(cors({
 
 ### API calls return 500 errors
 
-- Check API server logs
-- Verify `CLAUDE_API_KEY` is set in API server
-- Check API server deployment status
+- **If using Next.js API route (recommended):**
+  - Verify `CLAUDE_API_KEY` is set in Vercel environment variables
+  - Check Vercel function logs in dashboard
+  - Redeploy after adding environment variable
+  
+- **If using external API server:**
+  - Check API server logs
+  - Verify `CLAUDE_API_KEY` is set in API server
+  - Check API server deployment status
 
 ## Local Development vs Production
 
