@@ -1,25 +1,34 @@
+# Dependencies
 node_modules/
+api/node_modules/
+
+# Environment variables
 .env
 .env.local
 .env*.local
+.env.production
+api/.env
 google-creds.json
-dist/
-*.log
-.DS_Store
-backend/.env
-n8n/
 
-# Next.js
+# Build outputs
 .next/
 out/
 build/
+dist/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
 
 # Vercel
 .vercel
-
-# TypeScript
-*.tsbuildinfo
-next-env.d.ts
 
 # IDE
 .vscode/
@@ -27,3 +36,10 @@ next-env.d.ts
 *.swp
 *.swo
 *~
+
+# Temporary files
+*.tmp
+.cache/
+
+# Browser extension artifacts (ignore hydration warnings)
+# cz-shortcut-listen and similar attributes are injected by browser extensions

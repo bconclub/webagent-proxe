@@ -13,7 +13,7 @@ if ($portInUse) {
 }
 
 # Check if .env exists
-if (Test-Path "backend\.env") {
+if (Test-Path "api\.env") {
     Write-Host "✅ .env file found" -ForegroundColor Green
 } else {
     Write-Host "⚠️  .env file NOT found - server will use defaults" -ForegroundColor Yellow
@@ -22,17 +22,16 @@ if (Test-Path "backend\.env") {
 
 # Start server
 Write-Host ""
-Write-Host "Starting Node.js server..." -ForegroundColor Cyan
+Write-Host "Starting Node.js API server..." -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Access your pages at:" -ForegroundColor White
-Write-Host "  📄 Main: http://localhost:3000/" -ForegroundColor White
-Write-Host "  🎯 Wind Chasers: http://localhost:3000/windchasers-proxe" -ForegroundColor White
+Write-Host "API endpoints:" -ForegroundColor White
 Write-Host "  ❤️  Health: http://localhost:3000/api/health" -ForegroundColor White
+Write-Host "  💬 Chat: http://localhost:3000/api/chat" -ForegroundColor White
 Write-Host ""
 Write-Host "Press Ctrl+C to stop the server" -ForegroundColor Gray
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-Set-Location backend
+Set-Location api
 node server.js
 

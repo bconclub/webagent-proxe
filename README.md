@@ -14,57 +14,61 @@ A modern, brand-themed chat widget built with Next.js, React, and TypeScript. Su
 
 ```
 /
-├── frontend/          # Next.js application
-│   ├── app/          # Next.js App Router pages
-│   ├── src/          # React components, hooks, styles
-│   ├── public/       # Static assets
-│   └── package.json
-├── backend/          # Express API server (deploy separately)
+├── src/                    # React components, hooks, styles
+│   ├── components/         # React components
+│   ├── hooks/             # Custom React hooks
+│   ├── configs/           # Brand configurations
+│   └── styles/            # CSS and themes
+├── app/                    # Next.js App Router pages
+│   ├── page.tsx           # PROXe brand homepage
+│   └── windchasers/       # Wind Chasers brand page
+├── public/                 # Static assets
+├── api/                    # Express API server (deploy separately)
 │   ├── server.js
 │   └── package.json
-└── README.md
+├── package.json            # Frontend dependencies
+├── next.config.js          # Next.js configuration
+└── tsconfig.json           # TypeScript configuration
 ```
 
 ## Prerequisites
 
 - Node.js 18+ 
 - npm or yarn
-- Backend API server (deployed separately)
+- API server (deployed separately)
 
 ## Local Development
 
 ### 1. Install Dependencies
 
 ```bash
-cd frontend
 npm install
 ```
 
 ### 2. Set Environment Variables
 
-Create `frontend/.env.local`:
+Create `.env.local`:
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3000
 ```
 
-### 3. Start Backend Server
+### 3. Start API Server
 
 In a separate terminal:
 
 ```bash
-cd backend
+cd api
 npm install
-# Create backend/.env with CLAUDE_API_KEY
-node server.js
+# Create api/.env with CLAUDE_API_KEY
+npm run dev
 ```
 
-Backend should be running on `http://localhost:3000`
+API server should be running on `http://localhost:3000`
 
 ### 4. Start Frontend Dev Server
 
 ```bash
-cd frontend
 npm run dev
 ```
 
@@ -77,28 +81,28 @@ Frontend will be available at `http://localhost:3002`
 
 ## Deployment to Vercel
 
-Vercel automatically detects Next.js and provides zero-configuration deployment when connected to your Git repository.
+Vercel automatically detects Next.js and provides zero-configuration deployment when connected to your Git repository. No Root Directory configuration needed!
 
 ### Steps
 
 1. **Push to GitHub**
    ```bash
    git add .
-   git commit -m "Prepare for Vercel deployment"
+   git commit -m "Ready for deployment"
    git push origin main
    ```
 
 2. **Connect to Vercel**
    - Go to [vercel.com](https://vercel.com)
    - Import your Git repository
-   - Vercel will auto-detect Next.js
+   - Vercel will auto-detect Next.js (package.json is at root)
 
 3. **Configure Environment Variables**
    
    In Vercel Dashboard → Project Settings → Environment Variables:
-   - `NEXT_PUBLIC_API_URL`: Your backend API URL (e.g., `https://your-backend.railway.app`)
+   - `NEXT_PUBLIC_API_URL`: Your API server URL (e.g., `https://your-api.railway.app`)
    
-   **Note**: Replace `https://your-backend.railway.app` with your actual backend deployment URL.
+   **Note**: Replace with your actual API server deployment URL.
 
 4. **Deploy**
    - Vercel will automatically deploy on every push to main
@@ -106,14 +110,15 @@ Vercel automatically detects Next.js and provides zero-configuration deployment 
 
 ### Vercel Configuration
 
-The project is configured for Vercel:
-- `output: 'standalone'` in `next.config.js` for optimized builds
+The project uses standard Next.js structure:
+- `package.json` at root (Vercel auto-detects)
+- `next.config.js` for configuration
 - Environment variable support for API URL
 - Automatic routing via Next.js App Router
 
-### Backend Deployment
+### API Server Deployment
 
-The backend (`backend/` folder) needs to be deployed separately:
+The API server (`api/` folder) needs to be deployed separately:
 - **Railway**: [railway.app](https://railway.app)
 - **Render**: [render.com](https://render.com)
 - **Heroku**: [heroku.com](https://heroku.com)
@@ -122,15 +127,15 @@ The backend (`backend/` folder) needs to be deployed separately:
 Make sure to:
 1. Set CORS to allow requests from your Vercel domain
 2. Set all required environment variables (CLAUDE_API_KEY, etc.)
-3. Update `NEXT_PUBLIC_API_URL` in Vercel with your backend URL
+3. Update `NEXT_PUBLIC_API_URL` in Vercel with your API server URL
 
 ## Environment Variables
 
 ### Frontend (Vercel)
 
-- `NEXT_PUBLIC_API_URL` - Backend API URL (required in production)
+- `NEXT_PUBLIC_API_URL` - API server URL (required in production)
 
-### Backend (Separate Deployment)
+### API Server (Separate Deployment)
 
 - `CLAUDE_API_KEY` - Anthropic Claude API key (required)
 - `PROXE_SUPABASE_URL` - PROXe Supabase URL (optional)
@@ -147,19 +152,21 @@ Make sure to:
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 
-### Backend
+### API Server
 
-- `npm run dev` - Start development server (port 3000)
-- `npm start` - Start production server
+```bash
+cd api
+npm run dev    # Start development server (port 3000)
+npm start      # Start production server
+```
 
 ## Tech Stack
 
 - **Frontend**: Next.js 14, React 18, TypeScript
 - **Styling**: CSS Modules, CSS Variables
-- **Backend**: Express.js, Anthropic Claude API
+- **API**: Express.js, Anthropic Claude API
 - **Database**: Supabase (optional, for knowledge base)
 
 ## License
 
 MIT
-

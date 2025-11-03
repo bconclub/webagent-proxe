@@ -1,0 +1,58 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  /* Dark background */
+  background: #0F0D0F;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Removed gradient animations and overlays - using dark background with blob accents */
+
+main {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* Blur entire screen when chat is open - using backdrop filter overlay */
+body.chat-open::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 9998;
+  pointer-events: none;
+  transition: backdrop-filter 0.3s ease;
+}
+
+/* Also blur the background container directly for extra effect */
+body.chat-open .blobContainer {
+  filter: blur(20px);
+  -webkit-filter: blur(20px);
+  opacity: 0.8;
+  transition: filter 0.3s ease, opacity 0.3s ease;
+}
+
+body.chat-open .blobContainer .videoBackground {
+  filter: blur(20px);
+  -webkit-filter: blur(20px);
+  transition: filter 0.3s ease;
+}
+

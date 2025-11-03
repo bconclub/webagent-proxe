@@ -1,0 +1,26 @@
+{
+  "name": "proxe",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "build:proxe": "NEXT_PUBLIC_BRAND=proxe next build",
+    "build:windchasers": "NEXT_PUBLIC_BRAND=windchasers next build",
+    "build:all": "npm run build:proxe && npm run build:windchasers"
+  },
+  "dependencies": {
+    "lottie-react": "^2.4.1",
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.5.0"
+  }
+}

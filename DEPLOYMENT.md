@@ -1,11 +1,11 @@
 # Deployment Guide
 
-This guide covers deploying the PROXe Chat Widget application to Vercel (frontend) and separate backend hosting.
+This guide covers deploying the PROXe Chat Widget application to Vercel (frontend) and separate API server hosting.
 
 ## Architecture
 
 - **Frontend**: Next.js application deployed on Vercel
-- **Backend**: Express API server deployed separately (Railway, Render, etc.)
+- **API Server**: Express API server deployed separately (Railway, Render, etc.)
 
 ## Frontend Deployment - Vercel
 
@@ -31,15 +31,15 @@ git push origin main
 1. Go to [vercel.com](https://vercel.com) and sign in
 2. Click "Add New Project"
 3. Import your GitHub repository
-4. Vercel will auto-detect Next.js
+4. Vercel will auto-detect Next.js (package.json is at root - no Root Directory needed!)
 
 #### 3. Configure Build Settings
 
-Vercel should auto-detect, but verify:
+Vercel should auto-detect:
 - **Framework Preset**: Next.js
-- **Root Directory**: `frontend` (if repository root contains both frontend and backend)
-- **Build Command**: `npm run build` (runs in frontend directory)
-- **Output Directory**: `.next` (default)
+- **Root Directory**: (leave blank - not needed!)
+- **Build Command**: `npm run build` (auto-detected)
+- **Output Directory**: `.next` (auto-detected)
 
 #### 4. Set Environment Variables
 
@@ -47,9 +47,9 @@ In Vercel Dashboard → Project Settings → Environment Variables:
 
 | Variable | Value | Description |
 |---------|-------|-------------|
-| `NEXT_PUBLIC_API_URL` | `https://your-backend-url.com` | Your backend API URL |
+| `NEXT_PUBLIC_API_URL` | `https://your-api-url.com` | Your API server URL |
 
-**Important**: Replace `https://your-backend-url.com` with your actual backend deployment URL.
+**Important**: Replace `https://your-api-url.com` with your actual API server deployment URL.
 
 #### 5. Deploy
 
@@ -63,23 +63,16 @@ In Vercel Dashboard → Project Settings → Environment Variables:
 - Preview deployments are created for pull requests
 - Configure custom domains in Project Settings → Domains
 
-### Vercel Configuration
+## API Server Deployment
 
-The project includes `vercel.json` with optimized settings:
-- Next.js framework detection
-- Build and install commands
-- Environment variable support
-
-## Backend Deployment
-
-The backend (`backend/` folder) must be deployed separately since Vercel is optimized for frontend/serverless functions.
+The API server (`api/` folder) must be deployed separately since Vercel is optimized for frontend/serverless functions.
 
 ### Option 1: Railway
 
 1. Go to [railway.app](https://railway.app)
 2. Create new project → Deploy from GitHub
 3. Select your repository
-4. Set root directory to `backend`
+4. Set root directory to `api`
 5. Add environment variables:
    - `CLAUDE_API_KEY` (required)
    - `PROXE_SUPABASE_URL` (optional)
@@ -87,7 +80,7 @@ The backend (`backend/` folder) must be deployed separately since Vercel is opti
    - `SUPABASE_URL` (optional)
    - `SUPABASE_ANON_KEY` (optional)
 6. Railway will auto-detect Node.js and deploy
-7. Get your backend URL (e.g., `https://your-app.railway.app`)
+7. Get your API URL (e.g., `https://your-app.railway.app`)
 8. Update `NEXT_PUBLIC_API_URL` in Vercel with this URL
 
 ### Option 2: Render
@@ -96,7 +89,7 @@ The backend (`backend/` folder) must be deployed separately since Vercel is opti
 2. Create new Web Service
 3. Connect GitHub repository
 4. Configure:
-   - **Root Directory**: `backend`
+   - **Root Directory**: `api`
    - **Build Command**: `npm install`
    - **Start Command**: `node server.js`
 5. Add environment variables (same as Railway)
@@ -123,10 +116,10 @@ The backend (`backend/` folder) must be deployed separately since Vercel is opti
 ### Frontend (Vercel)
 
 ```env
-NEXT_PUBLIC_API_URL=https://your-backend-url.com
+NEXT_PUBLIC_API_URL=https://your-api-url.com
 ```
 
-### Backend (Railway/Render/etc.)
+### API Server (Railway/Render/etc.)
 
 ```env
 CLAUDE_API_KEY=sk-ant-api03-your-key-here
@@ -138,9 +131,9 @@ SUPABASE_ANON_KEY=your-windchasers-key
 
 ## CORS Configuration
 
-Make sure your backend accepts requests from your Vercel domain:
+Make sure your API server accepts requests from your Vercel domain:
 
-In `backend/server.js`, the CORS configuration should allow your Vercel domain:
+In `api/server.js`, the CORS configuration should allow your Vercel domain:
 
 ```javascript
 app.use(cors({
@@ -165,20 +158,20 @@ app.use(cors({
 ## Post-Deployment Checklist
 
 - [ ] Frontend deployed on Vercel
-- [ ] Backend deployed separately
-- [ ] `NEXT_PUBLIC_API_URL` set in Vercel with backend URL
-- [ ] Backend CORS allows Vercel domain
+- [ ] API server deployed separately
+- [ ] `NEXT_PUBLIC_API_URL` set in Vercel with API server URL
+- [ ] API server CORS allows Vercel domain
 - [ ] Test chat functionality on deployed frontend
 - [ ] Custom domain configured (optional)
 - [ ] SSL certificates active (automatic on Vercel)
 
 ## Troubleshooting
 
-### Frontend can't connect to backend
+### Frontend can't connect to API server
 
 - Verify `NEXT_PUBLIC_API_URL` is set correctly in Vercel
-- Check backend CORS settings
-- Verify backend is running and accessible
+- Check API server CORS settings
+- Verify API server is running and accessible
 - Check browser console for CORS errors
 
 ### Build fails on Vercel
@@ -189,24 +182,24 @@ app.use(cors({
 
 ### API calls return 500 errors
 
-- Check backend logs
-- Verify `CLAUDE_API_KEY` is set in backend
-- Check backend deployment status
+- Check API server logs
+- Verify `CLAUDE_API_KEY` is set in API server
+- Check API server deployment status
 
 ## Local Development vs Production
 
 ### Development
 - Frontend: `http://localhost:3002`
-- Backend: `http://localhost:3000`
+- API Server: `http://localhost:3000`
 - Uses Next.js rewrites to proxy `/api/*` to localhost:3000
 
 ### Production
 - Frontend: `https://your-project.vercel.app`
-- Backend: `https://your-backend-url.com`
+- API Server: `https://your-api-url.com`
 - Uses `NEXT_PUBLIC_API_URL` environment variable
 
 ## Monitoring
 
 - **Vercel Analytics**: Built-in analytics and monitoring
-- **Backend Logs**: Check your hosting provider's logs
+- **API Server Logs**: Check your hosting provider's logs
 - **Error Tracking**: Consider adding Sentry or similar
