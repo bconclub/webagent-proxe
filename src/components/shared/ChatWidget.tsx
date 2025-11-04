@@ -26,6 +26,11 @@ const InfinitySymbol = () => (
   </svg>
 );
 
+// Wind Chasers Icon component - uses the SVG file
+const WindChasersIcon = () => (
+  <img src="/assets/icons/WC-Icon.svg" alt="Wind Chasers" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+);
+
 const ICONS = {
   search: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
@@ -58,10 +63,26 @@ const ICONS = {
       <path d="M12 14c-6 0-8 3-8 3v7h16v-7s-2-3-8-3z"/>
     </svg>
   ),
-  ai: (brand: string) => {
-    // Use PROXE logo for PROXe brand, infinity symbol for others
+  ai: (brand: string, config?: BrandConfig) => {
+    // Use brand config avatar if available
+    if (config?.chatStructure?.avatar) {
+      const avatarType = config.chatStructure.avatar.type;
+      if (avatarType === 'logo' && brand === 'proxe') {
+        return <PROXELogo />;
+      }
+      if (avatarType === 'icon' && brand === 'windchasers') {
+        return <WindChasersIcon />;
+      }
+      if (avatarType === 'image' && config.chatStructure.avatar.source) {
+        return <img src={config.chatStructure.avatar.source} alt={config.name} style={{ width: '100%', height: '100%' }} />;
+      }
+    }
+    // Fallback: Use PROXE logo for PROXe brand, Wind Chasers icon for windchasers, infinity symbol for others
     if (brand === 'proxe') {
       return <PROXELogo />;
+    }
+    if (brand === 'windchasers') {
+      return <WindChasersIcon />;
     }
     return <InfinitySymbol />;
   },
@@ -371,7 +392,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       <div className={styles.chatHeader}>
         <div className={styles.brandName}>
           <div className={styles.avatar}>
-            {brand === 'proxe' ? <PROXELogo /> : ICONS.user}
+            {brand === 'proxe' ? <PROXELogo /> : ICONS.ai(brand, config)}
           </div>
           <span>{config.name}</span>
         </div>
@@ -411,7 +432,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                     {/* Header with avatar and name inside the bubble */}
                     <div className={styles.bubbleHeader}>
                       <div className={styles.bubbleAvatar}>
-                        {message.type === 'ai' ? ICONS.ai(brand) : ICONS.user}
+                        {message.type === 'ai' ? ICONS.ai(brand, config) : ICONS.user}
                       </div>
                       <span className={styles.bubbleName}>
                         {message.type === 'ai' ? config.name : 'You'}

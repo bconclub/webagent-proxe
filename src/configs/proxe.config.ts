@@ -6,6 +6,26 @@ export interface BrandConfig {
     url?: string;
     anonKey?: string;
   };
+  // System prompt configuration
+  systemPrompt?: {
+    path?: string; // Path to system prompt file (e.g., '@/src/api/prompts/proxe-prompt')
+    getPrompt?: (context: string, state?: string) => string; // Function to generate prompt
+  };
+  // CSS/styling configuration
+  styles?: {
+    themePath?: string; // Path to theme CSS file (e.g., '@/src/styles/themes/proxe.css')
+    customStyles?: string; // Inline custom styles if needed
+  };
+  // Chat structure customization
+  chatStructure?: {
+    showQuickButtons?: boolean;
+    showFollowUpButtons?: boolean;
+    maxFollowUps?: number;
+    avatar?: {
+      type: 'logo' | 'icon' | 'image';
+      source?: string; // Path to SVG or image
+    };
+  };
   colors: {
     primary: string;
     primaryLight: string;
@@ -54,12 +74,26 @@ export interface BrandConfig {
     buttonActive: string;
   };
   quickButtons: string[];
-  followUpButtons: string[];
+  followUpButtons: string[]; // Default follow-up buttons for first message
 }
 
 export const proxeConfig: BrandConfig = {
   name: 'PROXe',
   brand: 'proxe',
+  systemPrompt: {
+    path: '@/src/api/prompts/proxe-prompt',
+  },
+  styles: {
+    themePath: '@/src/styles/themes/proxe.css',
+  },
+  chatStructure: {
+    showQuickButtons: true,
+    showFollowUpButtons: true,
+    maxFollowUps: 3,
+    avatar: {
+      type: 'logo',
+    },
+  },
   colors: {
     primary: '#E8A153',
     primaryLight: '#FDFEFD',

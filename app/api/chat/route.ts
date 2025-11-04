@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { getProxeSystemPrompt } from '@/src/api/prompts/proxe-prompt';
 import { getWindChasersSystemPrompt } from '@/src/api/prompts/windchasers-prompt';
+import { getBrandConfig } from '@/src/configs';
 
 export const runtime = 'nodejs'; // Use Node.js runtime for streaming support
 
@@ -247,71 +248,82 @@ export async function POST(request: NextRequest) {
       : getWindChasersSystemPrompt(context, 'cold');
 
     // Use streaming for all brands
-      const encoder = new TextEncoder();
-      const stream = new ReadableStream({
-        async start(controller) {
-          try {
-            const anthropicStream = await anthropic.messages.stream({
-              model: 'claude-sonnet-4-20250514',
-              max_tokens: 1024,
-              system: systemPrompt,
-              messages: [{
-                role: 'user',
-                content: `${message}\n\n[REMINDER: Answer their question directly. Use the knowledge base context. Be concise. If they want more details, they'll ask.]`
-              }],
-            });
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const anthropicStream = await anthropic.messages.stream({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1024,
+            system: systemPrompt,
+            messages: [{
+              role: 'user',
+              content: `${message}\n\n[REMINDER: Answer their question directly. Use the knowledge base context. Be concise. If they want more details, they'll ask.]`
+            }],
+          });
 
-            let rawResponse = '';
+          let rawResponse = '';
 
-            for await (const chunk of anthropicStream) {
-              if (chunk.type === 'content_block_delta' && chunk.delta && chunk.delta.type === 'text_delta') {
-                const text = chunk.delta.text;
-                rawResponse += text;
-                const sseData = `data: ${JSON.stringify({ type: 'chunk', text: text })}\n\n`;
-                controller.enqueue(encoder.encode(sseData));
-              }
+          for await (const chunk of anthropicStream) {
+            if (chunk.type === 'content_block_delta' && chunk.delta && chunk.delta.type === 'text_delta') {
+              const text = chunk.delta.text;
+              rawResponse += text;
+              const sseData = `data: ${JSON.stringify({ type: 'chunk', text: text })}\n\n`;
+              controller.enqueue(encoder.encode(sseData));
             }
-
-            // Clean response
-            let cleanedResponse = rawResponse
-              .replace(/^(Hi there!|Hello!|Hey!|Hi!)\s*/gi, '')
-              .replace(/^(Hi|Hello|Hey),?\s*/gi, '')
-              .trim();
-
-            // Generate follow-ups
-            const lowerMessage = message.toLowerCase();
-            const isFirstMessage = messageCount === 1 || messageCount === 0;
-            const isWhatIsProxe = lowerMessage.includes('what is proxe') || lowerMessage.includes('what\'s proxe') || lowerMessage.includes('tell me about proxe');
-
-            let followUpsArray: string[] = [];
-            if (isFirstMessage || isWhatIsProxe) {
-              followUpsArray = ['Deploy PROXe', 'PROXe Pricing', 'Book a Call'];
-            } else {
-              const followUpSuggestion = await generateFollowUpSuggestion(message, cleanedResponse, messageCount, normalizedBrand);
-              if (followUpSuggestion && followUpSuggestion.toLowerCase() !== 'skip') {
-                followUpsArray = [followUpSuggestion];
-              }
-            }
-
-            // Send follow-ups and done
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'followUps', followUps: followUpsArray })}\n\n`));
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`));
-            controller.close();
-          } catch (error: any) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', error: error.message })}\n\n`));
-            controller.close();
           }
+
+          // Clean response
+          let cleanedResponse = rawResponse
+            .replace(/^(Hi there!|Hello!|Hey!|Hi!)\s*/gi, '')
+            .replace(/^(Hi|Hello|Hey),?\s*/gi, '')
+            .trim();
+
+          // Generate follow-ups based on brand
+          const lowerMessage = message.toLowerCase();
+          const isFirstMessage = messageCount === 1 || messageCount === 0;
+          
+          // Get brand config for follow-up buttons
+          const brandConfig = getBrandConfig(normalizedBrand);
+          const defaultFollowUps = brandConfig.followUpButtons || [];
+          
+          let followUpsArray: string[] = [];
+          
+          // Check if this is a "what is" question for the brand
+          const brandName = brandConfig.name.toLowerCase();
+          const isWhatIsBrand = lowerMessage.includes(`what is ${brandName}`) || 
+                                lowerMessage.includes(`what's ${brandName}`) || 
+                                lowerMessage.includes(`tell me about ${brandName}`);
+          
+          if (isFirstMessage || isWhatIsBrand) {
+            // Use default follow-up buttons from config
+            followUpsArray = defaultFollowUps;
+          } else {
+            // Generate dynamic follow-up suggestion
+            const followUpSuggestion = await generateFollowUpSuggestion(message, cleanedResponse, messageCount, normalizedBrand);
+            if (followUpSuggestion && followUpSuggestion.toLowerCase() !== 'skip') {
+              followUpsArray = [followUpSuggestion];
+            }
+          }
+
+          // Send follow-ups and done
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'followUps', followUps: followUpsArray })}\n\n`));
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`));
+          controller.close();
+        } catch (error: any) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', error: error.message })}\n\n`));
+          controller.close();
         }
-      });
+      }
+    });
 
-      return new Response(stream, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-        },
-      });
-
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
 
   } catch (error: any) {
     console.error('API route error:', error);

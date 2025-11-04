@@ -83,7 +83,68 @@
   display: none;
 }
 
-/* Default/Purple Theme Blobs (Wind Chasers) */
+/* Wind Chasers Blobs - Brown/Gold Theme */
+[data-brand="windchasers"] .blob1 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle at center, #8B6B4A 0%, rgba(139, 107, 74, 0.6) 30%, rgba(139, 107, 74, 0.3) 60%, transparent 100%);
+  top: -150px;
+  left: -150px;
+  animation: blobFloat1 18s ease-in-out infinite;
+  box-shadow: 0 0 100px rgba(139, 107, 74, 0.4);
+}
+
+[data-brand="windchasers"] .blob2 {
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle at center, #C4A574 0%, rgba(196, 165, 116, 0.6) 30%, rgba(196, 165, 116, 0.3) 60%, transparent 100%);
+  top: 50%;
+  right: -200px;
+  animation: blobFloat2 22s ease-in-out infinite;
+  box-shadow: 0 0 120px rgba(196, 165, 116, 0.4);
+}
+
+[data-brand="windchasers"] .blob3 {
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle at center, #5A3828 0%, rgba(90, 56, 40, 0.6) 30%, rgba(90, 56, 40, 0.3) 60%, transparent 100%);
+  bottom: -100px;
+  left: 30%;
+  animation: blobFloat3 20s ease-in-out infinite;
+  box-shadow: 0 0 100px rgba(90, 56, 40, 0.4);
+}
+
+[data-brand="windchasers"] .blob4 {
+  width: 550px;
+  height: 550px;
+  background: radial-gradient(circle at center, #2E2218 0%, rgba(46, 34, 24, 0.6) 30%, rgba(46, 34, 24, 0.3) 60%, transparent 100%);
+  top: 30%;
+  left: 60%;
+  animation: blobFloat4 16s ease-in-out infinite;
+  box-shadow: 0 0 110px rgba(46, 34, 24, 0.3);
+}
+
+[data-brand="windchasers"] .blob5 {
+  width: 480px;
+  height: 480px;
+  background: radial-gradient(circle at center, #8B6B4A 0%, rgba(139, 107, 74, 0.5) 35%, rgba(196, 165, 116, 0.3) 65%, transparent 100%);
+  bottom: -120px;
+  right: 20%;
+  animation: blobFloat5 21s ease-in-out infinite;
+  box-shadow: 0 0 105px rgba(139, 107, 74, 0.35);
+}
+
+[data-brand="windchasers"] .blob6 {
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle at center, #C4A574 0%, rgba(196, 165, 116, 0.5) 35%, rgba(139, 107, 74, 0.3) 65%, transparent 100%);
+  top: -100px;
+  right: 10%;
+  animation: blobFloat6 19s ease-in-out infinite;
+  box-shadow: 0 0 115px rgba(196, 165, 116, 0.35);
+}
+
+/* Default/Purple Theme Blobs (fallback) */
 .blob1 {
   width: 500px;
   height: 500px;
@@ -247,6 +308,12 @@
   [data-brand="proxe"] .blob4,
   [data-brand="proxe"] .blob5,
   [data-brand="proxe"] .blob6,
+  [data-brand="windchasers"] .blob1,
+  [data-brand="windchasers"] .blob2,
+  [data-brand="windchasers"] .blob3,
+  [data-brand="windchasers"] .blob4,
+  [data-brand="windchasers"] .blob5,
+  [data-brand="windchasers"] .blob6,
   .blob1,
   .blob2,
   .blob3,
