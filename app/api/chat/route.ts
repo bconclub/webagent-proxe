@@ -246,8 +246,7 @@ export async function POST(request: NextRequest) {
       ? getProxeSystemPrompt(context)
       : getWindChasersSystemPrompt(context, 'cold');
 
-    // For PROXe, use streaming
-    if (normalizedBrand === 'proxe') {
+    // Use streaming for all brands
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
         async start(controller) {
@@ -312,10 +311,7 @@ export async function POST(request: NextRequest) {
           'Connection': 'keep-alive',
         },
       });
-    }
 
-    // Non-streaming for other brands (fallback)
-    return Response.json({ error: 'Non-PROXe brands not yet fully implemented in API route' }, { status: 501 });
 
   } catch (error: any) {
     console.error('API route error:', error);
