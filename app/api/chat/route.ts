@@ -311,7 +311,27 @@ export async function POST(request: NextRequest) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`));
           controller.close();
         } catch (error: any) {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', error: error.message })}\n\n`));
+          console.error('Streaming error:', error);
+          const errorMessage = error.message || 'Unknown error occurred';
+          const errorType = error.type || error.error?.type || 'unknown_error';
+          
+          // Handle specific error types
+          if (errorType === 'overloaded_error' || errorMessage.includes('overloaded')) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+              type: 'error', 
+              error: 'The service is currently overloaded. Please try again in a moment.' 
+            })}\n\n`));
+          } else if (errorMessage.includes('rate_limit') || errorMessage.includes('rate limit')) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+              type: 'error', 
+              error: 'Rate limit exceeded. Please wait a moment and try again.' 
+            })}\n\n`));
+          } else {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+              type: 'error', 
+              error: errorMessage 
+            })}\n\n`));
+          }
           controller.close();
         }
       }
