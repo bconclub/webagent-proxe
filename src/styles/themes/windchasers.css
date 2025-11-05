@@ -1,0 +1,61 @@
+/* Wind Chasers Theme CSS Variables */
+[data-brand="windchasers"],
+[data-theme="warm-frost"] {
+  /* Primary colors - Gold/Sand (#C4A574) */
+  --primary-color: #C4A574;
+  --primary-light: #D4B88A;
+  --primary-dark: #B89664;
+  --primary-vibrant: #C4A574;
+  /* Gradient colors */
+  --gradient-start: #2E2218; /* Dark Brown (nav bar) */
+  --gradient-mid: #8B6B4A; /* Medium Brown/Tan */
+  --gradient-end: #5A3828; /* Dark Brown (aircraft/shadows) */
+  /* Dark backgrounds */
+  --dark-bg: #000000; /* Very Dark Brown/Black */
+  --dark-card: rgba(90, 56, 40, 0.4); /* Dark Brown with transparency */
+  --dark-surface: rgba(46, 34, 24, 0.5); /* Dark Brown nav bar with transparency */
+  /* Glass effects */
+  --glass-bg: rgba(196, 165, 116, 0.08);
+  --glass-border: rgba(196, 165, 116, 0.15);
+  --glass-shadow: rgba(90, 56, 40, 0.4);
+  /* Text colors */
+  --text-primary: #FFFFFF; /* White for Wind Chasers */
+  --text-secondary: #FFFFFF;
+  --text-tertiary: rgba(196, 165, 116, 0.8);
+  --text-muted: rgba(196, 165, 116, 0.6);
+  --white: #FFFFFF;
+  --text-button: #000000;
+  /* Borders */
+  --border-light: rgba(196, 165, 116, 0.2);
+  --border-medium: rgba(196, 165, 116, 0.3);
+  --border-accent: rgba(196, 165, 116, 0.4);
+  --border-glow: rgba(196, 165, 116, 0.5);
+  --border-color: rgba(90, 56, 40, 0.5);
+  /* Accents */
+  --green-success: #10B981;
+  --gold-accent: #C4A574;
+  --orange-accent: #8B6B4A;
+  --burgundy-accent: #5A3828;
+  /* Backgrounds */
+  --bg-primary: rgba(90, 56, 40, 0.2);
+  --bg-header: rgba(46, 34, 24, 0.9); /* Dark Brown nav bar */
+  --bg-message-area: rgba(46, 34, 24, 0.15);
+  --bg-hover: rgba(196, 165, 116, 0.15);
+  --bg-active: rgba(196, 165, 116, 0.25);
+  /* Chat bubbles */
+  --bubble-user-bg: rgba(196, 165, 116, 0.15);
+  --bubble-user-border: rgba(196, 165, 116, 0.3);
+  --bubble-user-shadow: 0 8px 32px rgba(90, 56, 40, 0.4);
+  --bubble-ai-bg: rgba(46, 34, 24, 0.3);
+  --bubble-ai-border: rgba(139, 107, 74, 0.3);
+  --bubble-ai-shadow: 0 8px 32px rgba(90, 56, 40, 0.3);
+  /* Buttons */
+  --button-bg: #C4A574; /* Gold/Sand */
+  --button-hover: #D4B88A;
+  --button-active: #B89664;
+  /* Blur effects */
+  --blur-sm: blur(8px);
+  --blur-md: blur(12px);
+  --blur-lg: blur(16px);
+  --blur-xl: blur(24px);
+}
