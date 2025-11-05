@@ -38,11 +38,11 @@
   box-shadow: none;
 }
 
-/* PROXe Blobs - Only 3 blobs: #580DC0, #150326, #ff3350 */
+/* PROXe Blobs - Updated to match new theme: #5B1A8C, #2B4A7D, #A03BA8, #6EA5D4 */
 [data-brand="proxe"] .blob1 {
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle at center, #580DC0 0%, #580dc099 30%, #580dc04d 60%, transparent 100%);
+  background: radial-gradient(circle at center, #5B1A8C 0%, rgba(91, 26, 140, 0.6) 30%, rgba(91, 26, 140, 0.3) 60%, transparent 100%);
   bottom: 120px;
   left: 50%;
   top: 50%;
@@ -54,7 +54,7 @@
 [data-brand="proxe"] .blob2 {
   width: 400px;
   height: 400px;
-  background: radial-gradient(circle at center, #ff3350 0%, rgba(255, 51, 80, 0.6) 30%, rgba(255, 51, 80, 0.3) 60%, transparent 100%);
+  background: radial-gradient(circle at center, #A03BA8 0%, rgba(160, 59, 168, 0.6) 30%, rgba(160, 59, 168, 0.3) 60%, transparent 100%);
   top: -30%;
   right: 550px;
   animation: blobFloat2 25s ease-in-out infinite;
@@ -64,7 +64,7 @@
 [data-brand="proxe"] .blob3 {
   width: 550px;
   height: 550px;
-  background: radial-gradient(circle at center, #580DC0 0%, rgba(219, 181, 255, 0.6) 35%, rgba(173, 85, 255, 0.3) 65%, transparent 100%);
+  background: radial-gradient(circle at center, #2B4A7D 0%, rgba(43, 74, 125, 0.6) 35%, rgba(110, 165, 212, 0.3) 65%, transparent 100%);
   bottom: -150px;
   left: 25%;
   animation: blobFloat3 22s ease-in-out infinite;

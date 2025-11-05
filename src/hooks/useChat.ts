@@ -15,8 +15,8 @@ export function useChat({ brand, apiUrl, onMessageComplete }: UseChatOptions) {
   });
 
   const handleQuickButton = useCallback(
-    (buttonText: string, messageCount: number = 0) => {
-      sendMessage(buttonText, messageCount);
+    (buttonText: string, messageCount: number = 0, usedButtons: string[] = []) => {
+      sendMessage(buttonText, messageCount, usedButtons);
     },
     [sendMessage]
   );

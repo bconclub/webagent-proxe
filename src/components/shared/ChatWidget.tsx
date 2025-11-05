@@ -98,6 +98,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [showCalendly, setShowCalendly] = useState<string | null>(null);
   const [pendingCalendar, setPendingCalendar] = useState(false);
+  const [usedButtons, setUsedButtons] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -312,9 +313,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       setIsOpen(true);
       setIsExpanded(false);
       setShowQuickButtons(false);
-      setTimeout(() => sendMessage(message, messageCount + 1), 100);
+      setTimeout(() => sendMessage(message, messageCount + 1, usedButtons), 100);
     } else {
-      sendMessage(message, messageCount + 1);
+      sendMessage(message, messageCount + 1, usedButtons);
     }
   };
 
@@ -327,8 +328,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     // Close any open calendar widget first
     setShowCalendly(null);
     
-    // Check if button text suggests booking a call
-    const bookCallKeywords = ['book call', 'schedule call', 'book a call', 'schedule a call', 'book meeting', 'schedule meeting', 'discovery call', 'book now', 'book appointment'];
+    // Check if button text suggests booking a call or demo
+    const bookCallKeywords = ['book call', 'schedule call', 'book a call', 'schedule a call', 'book meeting', 'schedule meeting', 'discovery call', 'book now', 'book appointment', 'book a demo', 'book demo', 'schedule a demo'];
     const shouldShowCalendar = bookCallKeywords.some(keyword => 
       buttonText.toLowerCase().includes(keyword.toLowerCase())
     );
@@ -337,10 +338,13 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     setIsExpanded(false);
     setShowQuickButtons(false);
     
+    // Track used button
+    setUsedButtons((prev) => [...prev, buttonText]);
+    
     // Always send user message with button text first (this creates user message bubble and starts new AI response)
     const userMessage = buttonText;
     setMessageCount((prev) => prev + 1);
-    sendMessage(userMessage, messageCount + 1);
+    sendMessage(userMessage, messageCount + 1, [...usedButtons, buttonText]);
     
     if (shouldShowCalendar) {
       // Set flag to show calendar after AI response completes (handled in useEffect)
@@ -542,6 +546,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               setIsOpen(false);
               setShowCalendly(null);
               setPendingCalendar(false);
+              setUsedButtons([]);
+              setMessageCount(0);
               clearMessages();
             }}
             title="Reset chat"
@@ -552,6 +558,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             setIsOpen(false);
             setShowCalendly(null);
             setPendingCalendar(false);
+            setUsedButtons([]);
+            setMessageCount(0);
             clearMessages();
           }}>
             {ICONS.close}
@@ -609,8 +617,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                           const buttonAccentIndex = (accentIndex + followUpIndex) % 7;
                           const buttonAccentClass = `accent-${buttonAccentIndex}`;
                           
-                          // Check if button text suggests booking a call
-                          const bookCallKeywords = ['book call', 'schedule call', 'book a call', 'schedule a call', 'book meeting', 'schedule meeting', 'discovery call', 'book now', 'book appointment'];
+                          // Check if button text suggests booking a call or demo
+                          const bookCallKeywords = ['book call', 'schedule call', 'book a call', 'schedule a call', 'book meeting', 'schedule meeting', 'discovery call', 'book now', 'book appointment', 'book a demo', 'book demo', 'schedule a demo'];
                           const shouldShowCalendar = bookCallKeywords.some(keyword => 
                             followUp.toLowerCase().includes(keyword.toLowerCase())
                           );
@@ -623,10 +631,13 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                               // Close any open calendar widget first
                               setShowCalendly(null);
                               
+                              // Track used button
+                              setUsedButtons((prev) => [...prev, followUp]);
+                              
                               // Always send user message with button text first (this creates user message bubble and starts new AI response)
                               const userMessage = followUp;
                               setMessageCount((prev) => prev + 1);
-                              sendMessage(userMessage, messageCount + 1);
+                              sendMessage(userMessage, messageCount + 1, [...usedButtons, followUp]);
                               
                               if (shouldShowCalendar) {
                                 // Set flag to show calendar after AI response completes (handled in useEffect)
@@ -744,6 +755,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         <button className={styles.sendBtn} onClick={handleSend} disabled={!inputValue.trim() || isLoading}>
           {ICONS.send}
         </button>
+      </div>
+      <div className={styles.chatFooter}>
+        Agent Powered By <a href="https://goproxe.com" target="_blank" rel="noopener noreferrer">PROXe</a>
       </div>
     </div>
   );

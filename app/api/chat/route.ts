@@ -221,7 +221,7 @@ IMPORTANT RULES:
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    let { message, messageCount = 0, brand = 'proxe' } = body;
+    let { message, messageCount = 0, brand = 'proxe', usedButtons = [] } = body;
 
     if (!message || message.trim() === '') {
       return Response.json({ error: 'Message is required' }, { status: 400 });
@@ -250,6 +250,9 @@ export async function POST(request: NextRequest) {
       context = 'No specific information found in knowledge base. Provide general helpful response.';
     }
 
+    // Check if this is the third message (before using it)
+    const isThirdMessage = messageCount === 3;
+
     // Get system prompt
     const systemPrompt = normalizedBrand === 'proxe'
       ? getProxeSystemPrompt(context)
@@ -266,7 +269,7 @@ export async function POST(request: NextRequest) {
             system: systemPrompt,
             messages: [{
               role: 'user',
-              content: `${message}\n\n[REMINDER: Answer their question directly. Use the knowledge base context. Be concise. If they want more details, they'll ask.]`
+              content: `${message}\n\n[REMINDER: Answer their question directly. Use the knowledge base context. Be concise (1-3 sentences). If they want more details, they'll ask.${isThirdMessage ? ' IMPORTANT: After 3 messages, suggest booking a call to discuss further.' : ''}]`
             }],
           });
 
@@ -294,44 +297,53 @@ export async function POST(request: NextRequest) {
           // Get brand config for follow-up buttons
           const brandConfig = getBrandConfig(normalizedBrand);
           const defaultFollowUps = brandConfig.followUpButtons || [];
+          const firstMessageButtons = brandConfig.firstMessageButtons || defaultFollowUps.slice(0, 3);
           
           let followUpsArray: string[] = [];
           
-          // Check if this is a "what is" question for the brand
-          const brandName = brandConfig.name.toLowerCase();
-          const isWhatIsBrand = lowerMessage.includes(`what is ${brandName}`) || 
-                                lowerMessage.includes(`what's ${brandName}`) || 
-                                lowerMessage.includes(`tell me about ${brandName}`);
+          // Track used buttons (normalize to lowercase for comparison)
+          const usedButtonsLower = (usedButtons || []).map((b: string) => b.toLowerCase());
           
-          // Always try to generate contextual follow-up first
-          const followUpSuggestion = await generateFollowUpSuggestion(message, cleanedResponse, messageCount, normalizedBrand);
-          
-          if (followUpSuggestion && followUpSuggestion.toLowerCase() !== 'skip') {
-            // Use the generated contextual follow-up
-            followUpsArray = [followUpSuggestion];
-          } else if (isFirstMessage || isWhatIsBrand) {
-            // For first message or "what is" questions, use default follow-up buttons
-            followUpsArray = defaultFollowUps.slice(0, 3); // Limit to 3 for better UX
-          } else {
-            // For other messages without contextual follow-up, use relevant defaults
-            // Filter out any that might have been just discussed
-            const lowerResponse = cleanedResponse.toLowerCase();
-            const relevantDefaults = defaultFollowUps.filter(followUp => {
-              const lowerFollowUp = followUp.toLowerCase();
-              // Simple check: don't include if the follow-up text appears in the response
-              const followUpWords = lowerFollowUp.split(/\s+/).filter(w => w.length > 3);
-              return !followUpWords.some(word => lowerResponse.includes(word));
-            });
+          // After 3 messages, always suggest booking a call
+          if (isThirdMessage) {
+            followUpsArray = ['Schedule a Call'];
+          } 
+          // First message: use specific 3 buttons
+          else if (isFirstMessage) {
+            followUpsArray = firstMessageButtons;
+          } 
+          // Subsequent messages: generate 1 contextual button
+          else {
+            // Generate contextual follow-up
+            const followUpSuggestion = await generateFollowUpSuggestion(message, cleanedResponse, messageCount, normalizedBrand);
             
-            // Use filtered defaults if available, otherwise use first 2-3 defaults
-            followUpsArray = relevantDefaults.slice(0, 3).length > 0 
-              ? relevantDefaults.slice(0, 3) 
-              : defaultFollowUps.slice(0, 3);
+            if (followUpSuggestion && followUpSuggestion.toLowerCase() !== 'skip') {
+              // Check if this suggestion was already used
+              if (!usedButtonsLower.includes(followUpSuggestion.toLowerCase())) {
+                followUpsArray = [followUpSuggestion];
+              } else {
+                // If suggested button was already used, pick from defaults
+                const availableDefaults = defaultFollowUps.filter(followUp => 
+                  !usedButtonsLower.includes(followUp.toLowerCase())
+                );
+                followUpsArray = availableDefaults.length > 0 
+                  ? [availableDefaults[0]] 
+                  : [defaultFollowUps[0]]; // Fallback to first default if all used
+              }
+            } else {
+              // No contextual suggestion, pick from defaults that haven't been used
+              const availableDefaults = defaultFollowUps.filter(followUp => 
+                !usedButtonsLower.includes(followUp.toLowerCase())
+              );
+              followUpsArray = availableDefaults.length > 0 
+                ? [availableDefaults[0]] 
+                : [defaultFollowUps[0]]; // Fallback to first default if all used
+            }
           }
           
-          // Final fallback: ensure we always have at least 2 follow-up buttons
+          // Final fallback: ensure we always have at least 1 follow-up button
           if (followUpsArray.length === 0) {
-            followUpsArray = defaultFollowUps.slice(0, 3);
+            followUpsArray = ['Schedule a Call'];
           }
 
           // Send follow-ups and done

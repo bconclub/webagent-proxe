@@ -74,7 +74,8 @@ export interface BrandConfig {
     buttonActive: string;
   };
   quickButtons: string[];
-  followUpButtons: string[]; // Default follow-up buttons for first message
+  followUpButtons: string[]; // Default follow-up buttons
+  firstMessageButtons?: string[]; // Buttons specifically for first message
 }
 
 export const proxeConfig: BrandConfig = {
@@ -95,19 +96,19 @@ export const proxeConfig: BrandConfig = {
     },
   },
   colors: {
-    primary: '#E8A153',
+    primary: '#5B1A8C', // Main purple theme
     primaryLight: '#FDFEFD',
-    primaryDark: '#994013',
-    primaryVibrant: '#38A5DD',
-    gradientStart: '#994013',
-    gradientMid: '#E8A153',
-    gradientEnd: '#38A5DD',
+    primaryDark: '#2B4A7D', // Darker blue-purple
+    primaryVibrant: '#A03BA8', // Lighter purple accent
+    gradientStart: '#2B4A7D',
+    gradientMid: '#5B1A8C',
+    gradientEnd: '#A03BA8',
     darkBg: '#0A0A0A',
-    darkCard: 'rgba(68, 28, 13, 0.3)',
-    darkSurface: 'rgba(22, 14, 17, 0.4)',
-    glassBg: 'rgba(232, 161, 83, 0.05)',
+    darkCard: 'rgba(91, 26, 140, 0.3)',
+    darkSurface: 'rgba(43, 74, 125, 0.4)',
+    glassBg: 'rgba(91, 26, 140, 0.05)',
     glassBorder: 'rgba(253, 254, 253, 0.1)',
-    glassShadow: 'rgba(153, 64, 19, 0.2)',
+    glassShadow: 'rgba(91, 26, 140, 0.2)',
     textPrimary: '#FDFEFD',
     textSecondary: 'rgba(253, 254, 253, 0.7)',
     textTertiary: 'rgba(253, 254, 253, 0.5)',
@@ -115,29 +116,30 @@ export const proxeConfig: BrandConfig = {
     white: '#FDFEFD',
     borderLight: 'rgba(253, 254, 253, 0.08)',
     borderMedium: 'rgba(253, 254, 253, 0.12)',
-    borderAccent: 'rgba(232, 161, 83, 0.3)',
-    borderGlow: 'rgba(232, 161, 83, 0.4)',
-    borderColor: 'rgba(232, 161, 83, 0.2)',
+    borderAccent: 'rgba(91, 26, 140, 0.3)',
+    borderGlow: 'rgba(91, 26, 140, 0.4)',
+    borderColor: 'rgba(91, 26, 140, 0.2)',
     greenSuccess: '#10B981',
-    cyanAccent: '#38A5DD',
-    orangeAccent: '#E8A153',
-    goldAccent: '#E8A153',
-    bgPrimary: 'rgba(11, 67, 134, 0.05)',
-    bgHeader: 'rgba(12, 29, 57, 0.85)',
-    bgMessageArea: 'rgba(22, 14, 17, 0.03)',
-    bgHover: 'rgba(232, 161, 83, 0.12)',
-    bgActive: 'rgba(232, 161, 83, 0.15)',
-    bubbleUserBg: 'rgba(232, 161, 83, 0.08)',
+    cyanAccent: '#6EA5D4', // Light blue accent
+    orangeAccent: '#A03BA8', // Purple accent
+    goldAccent: '#A03BA8', // Purple accent
+    bgPrimary: 'rgba(43, 74, 125, 0.05)',
+    bgHeader: 'rgba(43, 74, 125, 0.85)',
+    bgMessageArea: 'rgba(91, 26, 140, 0.03)',
+    bgHover: 'rgba(91, 26, 140, 0.12)',
+    bgActive: 'rgba(91, 26, 140, 0.15)',
+    bubbleUserBg: 'rgba(91, 26, 140, 0.08)', // User tint: #5B1A8C
     bubbleUserBorder: 'rgba(253, 254, 253, 0.25)',
-    bubbleUserShadow: '0 8px 32px rgba(232, 161, 83, 0.15)',
-    bubbleAiBg: 'rgba(11, 67, 134, 0.05)',
+    bubbleUserShadow: '0 8px 32px rgba(91, 26, 140, 0.15)',
+    bubbleAiBg: 'rgba(43, 74, 125, 0.05)', // AI tint: #2B4A7D
     bubbleAiBorder: 'rgba(253, 254, 253, 0.1)',
-    bubbleAiShadow: '0 8px 32px rgba(56, 165, 221, 0.1)',
-    buttonBg: 'rgba(232, 161, 83, 0.12)',
-    buttonHover: 'rgba(232, 161, 83, 0.2)',
-    buttonActive: 'rgba(232, 161, 83, 0.3)',
+    bubbleAiShadow: '0 8px 32px rgba(43, 74, 125, 0.1)',
+    buttonBg: 'rgba(91, 26, 140, 0.12)',
+    buttonHover: 'rgba(91, 26, 140, 0.2)',
+    buttonActive: 'rgba(91, 26, 140, 0.3)',
   },
   quickButtons: ['What\'s PROXe', 'Deploy PROXe', 'PROXe Pricing', 'Book a Demo'],
   followUpButtons: ['Deploy PROXe', 'Book PROXe Demo', 'Industries Served', 'Get PROXe Pricing', 'Schedule a Call'],
+  firstMessageButtons: ['Book a Demo', 'PROXe Pricing', 'Industries Served'], // Buttons for first message only
 };
 
