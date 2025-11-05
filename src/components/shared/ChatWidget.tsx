@@ -160,6 +160,13 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     };
   }, [messages, isOpen, pendingCalendar, showCalendly]);
 
+  // Debug: Log when showCalendly changes
+  useEffect(() => {
+    if (showCalendly) {
+      console.log('Calendar widget should be visible, showCalendly:', showCalendly);
+    }
+  }, [showCalendly]);
+
   // Handle mobile keyboard appearance for chat input
   useEffect(() => {
     if (!isOpen || !chatInputRef.current) return;
@@ -718,7 +725,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                   <div style={{ marginTop: '16px', width: '100%' }}>
                     <iframe 
                       src="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0yx4sfGToL6mRp_FmiYiRz-90p2DEM52yBAyAnOUEAd7W53MSiv0oFajnZ7yOhIftdjlY12X3X?gv=true" 
-                      style={{ border: 0, width: '100%', height: '600px' }} 
+                      style={{ border: 0 }} 
+                      width="100%" 
+                      height="600" 
                       frameBorder="0"
                       title="Google Calendar Appointment Scheduling"
                     />
