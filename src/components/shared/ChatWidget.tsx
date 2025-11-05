@@ -314,6 +314,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       e.stopPropagation();
     }
     
+    // Close any open calendar widget first
+    setShowCalendly(null);
+    
     // Check if button text suggests booking a call
     const bookCallKeywords = ['book call', 'schedule call', 'book a call', 'schedule a call', 'book meeting', 'schedule meeting', 'discovery call', 'book now', 'book appointment'];
     const shouldShowCalendar = bookCallKeywords.some(keyword => 
@@ -325,7 +328,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       setIsExpanded(false);
       setShowQuickButtons(false);
       
-      // Send a short message about discovery call first
+      // Send a short message about discovery call first (2-3 sentences max)
       const discoveryMessage = "You'll understand our services, pricing, and how we can help you achieve your goals.";
       setMessageCount((prev) => prev + 1);
       sendMessage(discoveryMessage, messageCount + 1);
@@ -334,7 +337,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       setTimeout(() => {
         const calendarMessageId = `calendar-msg-${Date.now()}`;
         setShowCalendly(calendarMessageId);
-      }, 300);
+      }, 500);
       return;
     }
     
@@ -553,7 +556,13 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           </button>
         </div>
       </div>
-      <div className={styles.messagesArea}>
+      <div 
+        className={styles.messagesArea}
+        onClick={() => {
+          // Close calendar widget when clicking in messages area (clicking away)
+          setShowCalendly(null);
+        }}
+      >
         {messages.map((message, index) => {
           // Rotate through accent colors (0-6 for 7 colors)
           const accentIndex = index % 7;
@@ -613,8 +622,11 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                             key={followUpIndex}
                             className={`${styles.followUpBtn} ${styles[buttonAccentClass]}`}
                             onClick={() => {
+                              // Close any open calendar widget first
+                              setShowCalendly(null);
+                              
                               if (shouldShowCalendar) {
-                                // Send a short message about discovery call first
+                                // Send a short message about discovery call first (2-3 sentences max)
                                 const discoveryMessage = "You'll understand our services, pricing, and how we can help you achieve your goals.";
                                 setMessageCount((prev) => prev + 1);
                                 sendMessage(discoveryMessage, messageCount + 1);
@@ -623,7 +635,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                                 setTimeout(() => {
                                   const messageId = `calendar-${message.id}-${Date.now()}`;
                                   setShowCalendly(messageId);
-                                }, 300);
+                                }, 500);
                               } else {
                                 setMessageCount((prev) => prev + 1);
                                 sendMessage(followUp, messageCount + 1);
@@ -643,6 +655,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                        (message.type === 'ai' && messages.length > 0 && message.id === messages[messages.length - 1]?.id && showCalendly.startsWith('calendar-msg-'))) && (
                         <div 
                           style={{ marginTop: '16px' }}
+                          onClick={(e) => e.stopPropagation()}
                           ref={(el) => {
                             // Scroll widget into view when it appears
                             if (el) {
