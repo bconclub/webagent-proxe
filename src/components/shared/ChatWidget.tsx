@@ -132,10 +132,26 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     // Check if we should show calendar widget after AI response completes
     if (pendingCalendar && messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
-      if (lastMessage && lastMessage.type === 'ai' && lastMessage.hasStreamed && !lastMessage.isStreaming && !showCalendly) {
-        setPendingCalendar(false);
-        const calendarMessageId = `calendar-${Date.now()}`;
-        setShowCalendly(calendarMessageId);
+      console.log('Checking calendar display:', {
+        pendingCalendar,
+        lastMessageType: lastMessage?.type,
+        hasStreamed: lastMessage?.hasStreamed,
+        isStreaming: lastMessage?.isStreaming,
+        showCalendly
+      });
+      
+      // Wait for AI message to be fully streamed and not currently streaming
+      if (lastMessage && lastMessage.type === 'ai' && lastMessage.hasStreamed && !lastMessage.isStreaming) {
+        console.log('AI message complete, showing calendar widget');
+        // Use setTimeout to ensure state updates properly
+        const timer = setTimeout(() => {
+          setPendingCalendar(false);
+          const calendarMessageId = `calendar-${Date.now()}`;
+          setShowCalendly(calendarMessageId);
+          console.log('Calendar widget shown with ID:', calendarMessageId);
+        }, 300);
+        
+        return () => clearTimeout(timer);
       }
     }
     
@@ -329,10 +345,17 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     setShowCalendly(null);
     
     // Check if button text suggests booking a call or demo
-    const bookCallKeywords = ['book call', 'schedule call', 'book a call', 'schedule a call', 'book meeting', 'schedule meeting', 'discovery call', 'book now', 'book appointment', 'book a demo', 'book demo', 'schedule a demo'];
-    const shouldShowCalendar = bookCallKeywords.some(keyword => 
-      buttonText.toLowerCase().includes(keyword.toLowerCase())
-    );
+    const bookCallKeywords = ['book call', 'schedule call', 'schedule a call', 'book a call', 'book meeting', 'schedule meeting', 'discovery call', 'book now', 'book appointment', 'book a demo', 'book demo', 'schedule a demo'];
+    const lowerButtonText = buttonText.toLowerCase();
+    const shouldShowCalendar = bookCallKeywords.some(keyword => {
+      const lowerKeyword = keyword.toLowerCase();
+      return lowerButtonText.includes(lowerKeyword) || lowerKeyword.includes(lowerButtonText);
+    });
+    
+    // Debug log
+    if (shouldShowCalendar) {
+      console.log('Calendar should show for button:', buttonText);
+    }
     
     setIsOpen(true);
     setIsExpanded(false);
@@ -618,10 +641,12 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                           const buttonAccentClass = `accent-${buttonAccentIndex}`;
                           
                           // Check if button text suggests booking a call or demo
-                          const bookCallKeywords = ['book call', 'schedule call', 'book a call', 'schedule a call', 'book meeting', 'schedule meeting', 'discovery call', 'book now', 'book appointment', 'book a demo', 'book demo', 'schedule a demo'];
-                          const shouldShowCalendar = bookCallKeywords.some(keyword => 
-                            followUp.toLowerCase().includes(keyword.toLowerCase())
-                          );
+                          const bookCallKeywords = ['book call', 'schedule call', 'schedule a call', 'book a call', 'book meeting', 'schedule meeting', 'discovery call', 'book now', 'book appointment', 'book a demo', 'book demo', 'schedule a demo'];
+                          const lowerFollowUp = followUp.toLowerCase();
+                          const shouldShowCalendar = bookCallKeywords.some(keyword => {
+                            const lowerKeyword = keyword.toLowerCase();
+                            return lowerFollowUp.includes(lowerKeyword) || lowerKeyword.includes(lowerFollowUp);
+                          });
                           
                           return (
                           <button
@@ -641,6 +666,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                               
                               if (shouldShowCalendar) {
                                 // Set flag to show calendar after AI response completes (handled in useEffect)
+                                console.log('Setting pendingCalendar to true for:', followUp);
                                 setPendingCalendar(true);
                               }
                             }}

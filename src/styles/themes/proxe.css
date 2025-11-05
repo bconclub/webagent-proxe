@@ -1,64 +1,68 @@
 /* PROXe Theme CSS Variables - New Purple Palette */
 [data-brand="proxe"],
 [data-theme="purple-frost"] {
-  /* Main Colors */
+  /* Main Colors - Updated to match new theme */
   --chatbox-bg: #0F0D0F;
-  --accent-1: #531BE7; /* Bright Purple/Blue */
-  --accent-2: #310DA6; /* Deep Blue/Purple */
-  --accent-3: #2A0C63; /* Dark Purple */
-  --accent-4: #6E1097; /* Magenta/Purple */
-  --accent-5: #9F49E2; /* Bright Violet */
-  --accent-6: #D4C6E3; /* Light Lavender/White */
-  --accent-7: #A68B74; /* Tan/Beige accent */
+  --accent-1: #5B1A8C; /* Main Purple */
+  --accent-2: #2B4A7D; /* Blue-Purple */
+  --accent-3: #A03BA8; /* Lighter Purple */
+  --accent-4: #6EA5D4; /* Light Blue */
+  --accent-5: #5B1A8C; /* Main Purple */
+  --accent-6: #A03BA8; /* Lighter Purple */
+  --accent-7: #6EA5D4; /* Light Blue */
   
-  /* Theme Colors */
-  --primary-color: #531BE7;
-  --primary-light: #D4C6E3;
-  --primary-dark: #2A0C63;
-  --primary-vibrant: #9F49E2;
+  /* Theme Colors - Updated to new purple scheme */
+  --primary-color: #5B1A8C;
+  --primary-light: #FDFEFD;
+  --primary-dark: #2B4A7D;
+  --primary-vibrant: #A03BA8;
   
   /* Backgrounds */
   --dark-bg: #0F0D0F;
-  --dark-card: rgba(83, 27, 231, 0.15);
-  --dark-surface: rgba(49, 13, 166, 0.1);
-  --glass-bg: rgba(15, 13, 15, 0.85);
-  --glass-border: rgba(212, 198, 227, 0.15);
-  --glass-shadow: rgba(83, 27, 231, 0.2);
+  --dark-card: rgba(91, 26, 140, 0.3);
+  --dark-surface: rgba(43, 74, 125, 0.4);
+  --glass-bg: rgba(91, 26, 140, 0.05);
+  --glass-border: rgba(253, 254, 253, 0.1);
+  --glass-shadow: rgba(91, 26, 140, 0.2);
   
   /* Text */
-  --text-primary: #D4C6E3;
-  --text-secondary: rgba(212, 198, 227, 0.8);
-  --text-tertiary: rgba(212, 198, 227, 0.6);
-  --text-muted: rgba(212, 198, 227, 0.4);
-  --white: #D4C6E3;
+  --text-primary: #FDFEFD;
+  --text-secondary: rgba(253, 254, 253, 0.7);
+  --text-tertiary: rgba(253, 254, 253, 0.5);
+  --text-muted: rgba(253, 254, 253, 0.4);
+  --white: #FDFEFD;
   
   /* Borders */
-  --border-light: rgba(212, 198, 227, 0.1);
-  --border-medium: rgba(212, 198, 227, 0.2);
-  --border-accent: rgba(83, 27, 231, 0.4);
-  --border-glow: rgba(159, 73, 226, 0.5);
-  --border-color: rgba(83, 27, 231, 0.3);
+  --border-light: rgba(253, 254, 253, 0.08);
+  --border-medium: rgba(253, 254, 253, 0.12);
+  --border-accent: rgba(91, 26, 140, 0.3);
+  --border-glow: rgba(91, 26, 140, 0.4);
+  --border-color: rgba(91, 26, 140, 0.2);
   
   /* Other */
   --green-success: #10B981;
-  --cyan-accent: #531BE7;
-  --bg-header: rgba(15, 13, 15, 0.95);
-  --bg-message-area: transparent;
-  --bg-hover: rgba(83, 27, 231, 0.2);
-  --bg-active: rgba(83, 27, 231, 0.3);
+  --cyan-accent: #6EA5D4;
+  --bg-header: rgba(43, 74, 125, 0.85);
+  --bg-message-area: rgba(91, 26, 140, 0.03);
+  --bg-primary: rgba(43, 74, 125, 0.05);
+  --bg-hover: rgba(91, 26, 140, 0.12);
+  --bg-active: rgba(91, 26, 140, 0.15);
   
-  /* Bubble backgrounds (will be overridden by accent classes) */
-  --bubble-user-bg: rgba(83, 27, 231, 0.2);
-  --bubble-user-border: rgba(212, 198, 227, 0.3);
-  --bubble-user-shadow: 0 8px 32px rgba(83, 27, 231, 0.3);
-  --bubble-ai-bg: rgba(49, 13, 166, 0.15);
-  --bubble-ai-border: rgba(212, 198, 227, 0.2);
-  --bubble-ai-shadow: 0 8px 32px rgba(49, 13, 166, 0.2);
+  /* Bubble backgrounds - Differentiated tints with higher opacity for visibility */
+  /* User bubble: Purple tint (#5B1A8C) - more visible */
+  --bubble-user-bg: rgba(91, 26, 140, 0.25);
+  --bubble-user-border: rgba(91, 26, 140, 0.4);
+  --bubble-user-shadow: 0 8px 32px rgba(91, 26, 140, 0.25);
+  
+  /* AI bubble: Blue-purple tint (#2B4A7D) - more visible */
+  --bubble-ai-bg: rgba(43, 74, 125, 0.3);
+  --bubble-ai-border: rgba(43, 74, 125, 0.4);
+  --bubble-ai-shadow: 0 8px 32px rgba(43, 74, 125, 0.25);
   
   /* Buttons */
-  --button-bg: rgba(83, 27, 231, 0.2);
-  --button-hover: rgba(83, 27, 231, 0.35);
-  --button-active: rgba(83, 27, 231, 0.45);
+  --button-bg: rgba(91, 26, 140, 0.12);
+  --button-hover: rgba(91, 26, 140, 0.2);
+  --button-active: rgba(91, 26, 140, 0.3);
   
   /* Blur */
   --blur-sm: blur(8px);

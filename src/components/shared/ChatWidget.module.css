@@ -620,46 +620,16 @@
   margin-left: auto; /* Align to the right */
 }
 
-/* Accent variations for user bubbles using brand colors */
-.message.user.accent-0 .bubble {
-  background: var(--bubble-user-bg);
-  border-color: var(--bubble-user-border);
-  box-shadow: var(--bubble-user-shadow);
-}
-
-.message.user.accent-1 .bubble {
-  background: var(--bg-hover);
-  border-color: var(--border-medium);
-  box-shadow: var(--bubble-user-shadow);
-}
-
-.message.user.accent-2 .bubble {
-  background: var(--bg-active);
-  border-color: var(--border-accent);
-  box-shadow: var(--bubble-user-shadow);
-}
-
-.message.user.accent-3 .bubble {
-  background: var(--bubble-user-bg);
-  border-color: var(--border-glow);
-  box-shadow: var(--bubble-user-shadow);
-}
-
-.message.user.accent-4 .bubble {
-  background: var(--bg-hover);
-  border-color: var(--border-medium);
-  box-shadow: var(--bubble-user-shadow);
-}
-
-.message.user.accent-5 .bubble {
-  background: var(--bg-active);
-  border-color: var(--border-accent);
-  box-shadow: var(--bubble-user-shadow);
-}
-
+/* Accent variations for user bubbles - all use consistent user bubble colors */
+.message.user.accent-0 .bubble,
+.message.user.accent-1 .bubble,
+.message.user.accent-2 .bubble,
+.message.user.accent-3 .bubble,
+.message.user.accent-4 .bubble,
+.message.user.accent-5 .bubble,
 .message.user.accent-6 .bubble {
   background: var(--bubble-user-bg);
-  border-color: var(--border-glow);
+  border-color: var(--bubble-user-border);
   box-shadow: var(--bubble-user-shadow);
 }
 
@@ -673,43 +643,13 @@
   box-shadow: var(--bubble-ai-shadow);
 }
 
-/* Accent variations for AI bubbles using brand colors */
-.message.ai.accent-0 .bubble {
-  background: var(--bubble-ai-bg);
-  border-color: var(--bubble-ai-border);
-  box-shadow: var(--bubble-ai-shadow);
-}
-
-.message.ai.accent-1 .bubble {
-  background: var(--bg-primary);
-  border-color: var(--border-medium);
-  box-shadow: var(--bubble-ai-shadow);
-}
-
-.message.ai.accent-2 .bubble {
-  background: var(--bg-message-area);
-  border-color: var(--border-light);
-  box-shadow: var(--bubble-ai-shadow);
-}
-
-.message.ai.accent-3 .bubble {
-  background: var(--bubble-ai-bg);
-  border-color: var(--bubble-ai-border);
-  box-shadow: var(--bubble-ai-shadow);
-}
-
-.message.ai.accent-4 .bubble {
-  background: var(--bg-primary);
-  border-color: var(--border-medium);
-  box-shadow: var(--bubble-ai-shadow);
-}
-
-.message.ai.accent-5 .bubble {
-  background: var(--bg-message-area);
-  border-color: var(--border-light);
-  box-shadow: var(--bubble-ai-shadow);
-}
-
+/* Accent variations for AI bubbles - all use consistent AI bubble colors */
+.message.ai.accent-0 .bubble,
+.message.ai.accent-1 .bubble,
+.message.ai.accent-2 .bubble,
+.message.ai.accent-3 .bubble,
+.message.ai.accent-4 .bubble,
+.message.ai.accent-5 .bubble,
 .message.ai.accent-6 .bubble {
   background: var(--bubble-ai-bg);
   border-color: var(--bubble-ai-border);

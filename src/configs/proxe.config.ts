@@ -128,12 +128,12 @@ export const proxeConfig: BrandConfig = {
     bgMessageArea: 'rgba(91, 26, 140, 0.03)',
     bgHover: 'rgba(91, 26, 140, 0.12)',
     bgActive: 'rgba(91, 26, 140, 0.15)',
-    bubbleUserBg: 'rgba(91, 26, 140, 0.08)', // User tint: #5B1A8C
-    bubbleUserBorder: 'rgba(253, 254, 253, 0.25)',
-    bubbleUserShadow: '0 8px 32px rgba(91, 26, 140, 0.15)',
-    bubbleAiBg: 'rgba(43, 74, 125, 0.05)', // AI tint: #2B4A7D
-    bubbleAiBorder: 'rgba(253, 254, 253, 0.1)',
-    bubbleAiShadow: '0 8px 32px rgba(43, 74, 125, 0.1)',
+    bubbleUserBg: 'rgba(91, 26, 140, 0.25)', // User tint: #5B1A8C - more visible
+    bubbleUserBorder: 'rgba(91, 26, 140, 0.4)',
+    bubbleUserShadow: '0 8px 32px rgba(91, 26, 140, 0.25)',
+    bubbleAiBg: 'rgba(43, 74, 125, 0.3)', // AI tint: #2B4A7D - more visible
+    bubbleAiBorder: 'rgba(43, 74, 125, 0.4)',
+    bubbleAiShadow: '0 8px 32px rgba(43, 74, 125, 0.25)',
     buttonBg: 'rgba(91, 26, 140, 0.12)',
     buttonHover: 'rgba(91, 26, 140, 0.2)',
     buttonActive: 'rgba(91, 26, 140, 0.3)',
