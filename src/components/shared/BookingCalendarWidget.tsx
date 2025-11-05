@@ -1,11 +1,14 @@
 'use client'
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './BookingCalendarWidget.module.css';
+import type { BrandConfig } from '@/src/configs';
 
 interface BookingCalendarWidgetProps {
   onClose?: () => void;
   onBookingComplete?: (bookingData: BookingData) => void;
+  brand?: string;
+  config?: BrandConfig;
 }
 
 interface BookingData {
@@ -16,13 +19,32 @@ interface BookingData {
   phone: string;
 }
 
-export function BookingCalendarWidget({ onClose, onBookingComplete }: BookingCalendarWidgetProps) {
-  const [view, setView] = useState<'weekly' | 'monthly'>('weekly');
+interface TimeSlot {
+  time: string;
+  displayTime: string;
+  available: boolean;
+}
+
+// Available time slots: 11:00 AM, 1:00 PM, 3:00 PM, 4:00 PM, 5:00 PM, 6:00 PM
+const AVAILABLE_SLOTS = [
+  '11:00 AM',
+  '1:00 PM',
+  '3:00 PM',
+  '4:00 PM',
+  '5:00 PM',
+  '6:00 PM',
+];
+
+export function BookingCalendarWidget({ onClose, onBookingComplete, brand, config }: BookingCalendarWidgetProps) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [showTimeSlots, setShowTimeSlots] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+  const [isWarning, setIsWarning] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -32,29 +54,186 @@ export function BookingCalendarWidget({ onClose, onBookingComplete }: BookingCal
   const today = new Date();
   const [currentDate, setCurrentDate] = useState(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
 
-  // Generate time slots from 12 PM to 4 PM (4 slots: 12 PM, 1 PM, 2 PM, 3 PM)
-  const timeSlots = [];
-  for (let hour = 12; hour <= 15; hour++) {
-    const timeString = hour === 12 
-      ? '12:00 PM' 
-      : `${hour - 12}:00 PM`;
-    timeSlots.push(timeString);
-  }
+  const formatDateForAPI = (date: Date): string => {
+    // Format date as YYYY-MM-DD using local timezone to avoid timezone conversion issues
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
-  // Get days of current week
-  const getWeekDays = () => {
-    const days = [];
-    const startOfWeek = new Date(currentDate);
-    const day = startOfWeek.getDay();
-    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
-    startOfWeek.setDate(diff);
-
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(startOfWeek);
-      date.setDate(startOfWeek.getDate() + i);
-      days.push(date);
+  // Check availability when date is selected
+  useEffect(() => {
+    if (selectedDate && !showForm && !showConfirmation) {
+      checkAvailability();
     }
-    return days;
+  }, [selectedDate]);
+
+  const checkAvailability = async () => {
+    if (!selectedDate) return;
+
+    setLoadingAvailability(true);
+    setBookingError(null);
+    setIsWarning(false);
+
+    try {
+      const dateStr = formatDateForAPI(selectedDate);
+      console.log('Checking availability for date:', dateStr, '(selected date:', selectedDate, ')');
+      
+      const response = await fetch('/api/calendar/availability', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ date: dateStr }),
+      });
+
+      const data = await response.json().catch(() => ({ error: 'Failed to parse response' }));
+      
+      if (!response.ok) {
+        const errorMsg = data.error || 'Failed to check availability';
+        const detailsMsg = data.details ? `: ${data.details}` : '';
+        const suggestionMsg = data.suggestion ? ` ${data.suggestion}` : '';
+        throw new Error(`${errorMsg}${detailsMsg}${suggestionMsg}`);
+      }
+      
+      // Show warning if credentials are not configured
+      if (data.warning) {
+        console.warn(data.warning);
+        setBookingError(data.warning);
+        setIsWarning(true);
+      } else {
+        setIsWarning(false);
+      }
+      
+      // Map API response to our time slots
+      const slots: TimeSlot[] = AVAILABLE_SLOTS.map((slot) => {
+        // Find matching slot from API response (API returns displayTime format)
+        const apiSlot = data.slots.find((s: any) => {
+          const apiTime = s.time || s.displayTime || '';
+          return apiTime.trim() === slot;
+        });
+        
+        return {
+          time: slot,
+          displayTime: slot,
+          available: apiSlot ? apiSlot.available : true, // Default to available if not found
+        };
+      });
+
+      setTimeSlots(slots);
+      setShowTimeSlots(true);
+    } catch (error: any) {
+      console.error('Error checking availability:', error);
+      const errorMessage = error.message || 'Failed to check availability. Please check your Google Calendar configuration.';
+      setBookingError(errorMessage);
+      setIsWarning(false);
+      // Default to all slots available if API fails
+      setTimeSlots(AVAILABLE_SLOTS.map(slot => ({
+        time: slot,
+        displayTime: slot,
+        available: true,
+      })));
+      setShowTimeSlots(true);
+    } finally {
+      setLoadingAvailability(false);
+    }
+  };
+
+  const handleDateClick = (date: Date) => {
+    // Check if it's Sunday (0 = Sunday)
+    const dayOfWeek = date.getDay();
+    if (dayOfWeek === 0) {
+      return; // Don't allow Sunday selection
+    }
+
+    // Only allow future dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const clickedDate = new Date(date);
+    clickedDate.setHours(0, 0, 0, 0);
+
+    if (clickedDate >= today) {
+      setSelectedDate(date);
+      setSelectedTime(null);
+      setShowForm(false);
+      setShowConfirmation(false);
+    }
+  };
+
+  const handleTimeClick = (time: string) => {
+    const slot = timeSlots.find(s => s.time === time);
+    if (slot && slot.available) {
+      setSelectedTime(time);
+      setShowForm(true);
+    }
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.name || !formData.email || !formData.phone || !selectedDate || !selectedTime) {
+      return;
+    }
+
+    setBookingError(null);
+    setIsWarning(false);
+
+    try {
+      const dateStr = formatDateForAPI(selectedDate);
+      console.log('Booking for date:', dateStr, '(selected date:', selectedDate, ')');
+      
+      const response = await fetch('/api/calendar/book', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          date: dateStr,
+          time: selectedTime,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to create booking' }));
+        const errorMessage = errorData.error || `Failed to create booking (${response.status})`;
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+
+      const bookingData: BookingData = {
+        date: selectedDate.toLocaleDateString('en-US', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        }),
+        time: selectedTime!,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+      };
+
+      setShowConfirmation(true);
+      
+      if (onBookingComplete) {
+        onBookingComplete(bookingData);
+      }
+    } catch (error: any) {
+      console.error('Error creating booking:', error);
+      setBookingError(error.message || 'Failed to create booking. Please try again.');
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
   };
 
   // Get days of current month
@@ -75,81 +254,125 @@ export function BookingCalendarWidget({ onClose, onBookingComplete }: BookingCal
     return days;
   };
 
-  const handleDateClick = (date: Date) => {
-    // Check if it's Sunday (0 = Sunday)
-    const dayOfWeek = date.getDay();
-    if (dayOfWeek === 0) {
-      return; // Don't allow Sunday selection
-    }
-
-    // Only allow future dates
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const clickedDate = new Date(date);
-    clickedDate.setHours(0, 0, 0, 0);
-
-    if (clickedDate >= today) {
-      setSelectedDate(date);
-      setShowTimeSlots(true);
-      setSelectedTime(null);
-      setShowForm(false);
-    }
-  };
-
-  const handleTimeClick = (time: string) => {
-    setSelectedTime(time);
-    setShowForm(true);
-  };
-
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.name || !formData.email || !formData.phone) {
-      return;
-    }
-
-    const bookingData: BookingData = {
-      date: selectedDate!.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      }),
-      time: selectedTime!,
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-    };
-
-    setShowConfirmation(true);
-    
-    if (onBookingComplete) {
-      onBookingComplete(bookingData);
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const weekDays = getWeekDays();
   const monthDays = getMonthDays();
   const currentMonth = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const currentDay = currentDate.getDate();
-
-  const navigateWeek = (direction: 'prev' | 'next') => {
-    const newDate = new Date(currentDate);
-    newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
-    setCurrentDate(newDate);
-  };
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     const newDate = new Date(currentDate);
     newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1));
     setCurrentDate(newDate);
+  };
+
+  // Calculate end time for display
+  const getEndTime = (time: string): string => {
+    const [timePart, period] = time.split(' ');
+    const [hour] = timePart.split(':');
+    let hourNum = parseInt(hour);
+    if (period === 'PM' && hourNum !== 12) hourNum += 12;
+    if (period === 'AM' && hourNum === 12) hourNum = 0;
+    const endHour = hourNum + 1;
+    const endHour12 = endHour > 12 ? endHour - 12 : endHour === 0 ? 12 : endHour;
+    const endPeriod = endHour >= 12 ? 'PM' : 'AM';
+    return `${endHour12}:00 ${endPeriod}`;
+  };
+
+  // Generate Google Calendar link
+  const generateGoogleCalendarLink = (): string => {
+    if (!selectedDate || !selectedTime) return '';
+    
+    const dateStr = formatDateForAPI(selectedDate);
+    const [timePart, period] = selectedTime.split(' ');
+    const [hour, minute] = timePart.split(':');
+    let hourNum = parseInt(hour);
+    if (period === 'PM' && hourNum !== 12) hourNum += 12;
+    if (period === 'AM' && hourNum === 12) hourNum = 0;
+    
+    const startDate = new Date(`${dateStr}T${hourNum.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00+05:30`);
+    const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // Add 1 hour
+    
+    const formatGoogleDate = (date: Date): string => {
+      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+    
+    const startStr = formatGoogleDate(startDate);
+    const endStr = formatGoogleDate(endDate);
+    
+    const title = encodeURIComponent('PROXe Demo');
+    const details = encodeURIComponent(`Meeting Booking\n\nName: ${formData.name}\nEmail: ${formData.email}\nPhone: ${formData.phone}\n\nContact: ${formData.email}`);
+    const location = encodeURIComponent('Online Meeting');
+    
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startStr}/${endStr}&details=${details}&location=${location}`;
+  };
+
+  // Generate ICS file content
+  const generateICSFile = (): string => {
+    if (!selectedDate || !selectedTime) return '';
+    
+    const dateStr = formatDateForAPI(selectedDate);
+    const [timePart, period] = selectedTime.split(' ');
+    const [hour, minute] = timePart.split(':');
+    let hourNum = parseInt(hour);
+    if (period === 'PM' && hourNum !== 12) hourNum += 12;
+    if (period === 'AM' && hourNum === 12) hourNum = 0;
+    
+    const startDate = new Date(`${dateStr}T${hourNum.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00+05:30`);
+    const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // Add 1 hour
+    
+    const formatICSDate = (date: Date): string => {
+      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+    
+    const startStr = formatICSDate(startDate);
+    const endStr = formatICSDate(endDate);
+    const nowStr = formatICSDate(new Date());
+    
+    const icsContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//PROXe//Booking Calendar//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      `UID:${Date.now()}@proxe.com`,
+      `DTSTAMP:${nowStr}`,
+      `DTSTART:${startStr}`,
+      `DTEND:${endStr}`,
+      `SUMMARY:PROXe Demo`,
+      `DESCRIPTION:Meeting Booking\\n\\nName: ${formData.name}\\nEmail: ${formData.email}\\nPhone: ${formData.phone}\\n\\nContact: ${formData.email}`,
+      `LOCATION:Online Meeting`,
+      'STATUS:CONFIRMED',
+      'SEQUENCE:0',
+      'BEGIN:VALARM',
+      'TRIGGER:-PT30M',
+      'ACTION:DISPLAY',
+      'DESCRIPTION:Reminder: PROXe Demo',
+      'END:VALARM',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\r\n');
+    
+    return icsContent;
+  };
+
+  // Handle download ICS file
+  const handleDownloadICS = () => {
+    const icsContent = generateICSFile();
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `proxe-demo-${formatDateForAPI(selectedDate!)}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  };
+
+  // Handle open Google Calendar
+  const handleOpenGoogleCalendar = () => {
+    const googleLink = generateGoogleCalendarLink();
+    if (googleLink) {
+      window.open(googleLink, '_blank');
+    }
   };
 
   if (showConfirmation) {
@@ -158,28 +381,28 @@ export function BookingCalendarWidget({ onClose, onBookingComplete }: BookingCal
         <div className={styles.confirmationContainer}>
           <div className={styles.confirmationIcon}>✓</div>
           <h2 className={styles.confirmationTitle}>Booking Confirmed!</h2>
-          <p className={styles.confirmationText}>
-            Your appointment is scheduled for<br />
+          <div className={styles.confirmationText}>
+            <span>Your demo is scheduled for</span>
             <strong>{selectedDate?.toLocaleDateString('en-US', { 
               weekday: 'long', 
               month: 'long', 
               day: 'numeric' 
-            })} at {selectedTime} - {(() => {
-              // Calculate end time (1 hour after start time)
-              const [time, period] = selectedTime!.split(' ');
-              const [hour] = time.split(':');
-              let hourNum = parseInt(hour);
-              if (period === 'PM' && hourNum !== 12) hourNum += 12;
-              if (period === 'AM' && hourNum === 12) hourNum = 0;
-              const endHour = hourNum + 1;
-              const endHour12 = endHour > 12 ? endHour - 12 : endHour === 0 ? 12 : endHour;
-              const endPeriod = endHour >= 12 ? 'PM' : 'AM';
-              return `${endHour12}:00 ${endPeriod}`;
-            })()}</strong>
-          </p>
-          <p className={styles.confirmationDetails}>
-            We'll send a confirmation email to {formData.email}
-          </p>
+            })} at {selectedTime} - {getEndTime(selectedTime!)}</strong>
+          </div>
+          <div className={styles.calendarActions}>
+            <button 
+              onClick={handleOpenGoogleCalendar}
+              className={styles.addToCalendarButton}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              Add to Calendar
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -195,19 +418,12 @@ export function BookingCalendarWidget({ onClose, onBookingComplete }: BookingCal
               weekday: 'long', 
               month: 'long', 
               day: 'numeric' 
-            })} at {selectedTime} - {(() => {
-              // Calculate end time (1 hour after start time)
-              const [time, period] = selectedTime!.split(' ');
-              const [hour] = time.split(':');
-              let hourNum = parseInt(hour);
-              if (period === 'PM' && hourNum !== 12) hourNum += 12;
-              if (period === 'AM' && hourNum === 12) hourNum = 0;
-              const endHour = hourNum + 1;
-              const endHour12 = endHour > 12 ? endHour - 12 : endHour === 0 ? 12 : endHour;
-              const endPeriod = endHour >= 12 ? 'PM' : 'AM';
-              return `${endHour12}:00 ${endPeriod}`;
-            })()}
+            })} at {selectedTime} - {getEndTime(selectedTime!)}
           </p>
+          
+          {bookingError && (
+            <div className={isWarning ? styles.warningMessage : styles.errorMessage}>{bookingError}</div>
+          )}
           
           <form onSubmit={handleFormSubmit} className={styles.bookingForm}>
             <div className={styles.formGroup}>
@@ -253,6 +469,7 @@ export function BookingCalendarWidget({ onClose, onBookingComplete }: BookingCal
                 onClick={() => {
                   setShowForm(false);
                   setSelectedTime(null);
+                  setBookingError(null);
                 }}
               >
                 Back
@@ -267,49 +484,8 @@ export function BookingCalendarWidget({ onClose, onBookingComplete }: BookingCal
     );
   }
 
-  if (showTimeSlots) {
-    return (
-      <div className={styles.calendarContainer} data-view="timeslots">
-        <div className={styles.timeSlotsContainer}>
-          <h2 className={styles.timeSlotsTitle}>
-            Select a Time Slot
-          </h2>
-          <p className={styles.timeSlotsDate}>
-            {selectedDate?.toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
-          </p>
-          
-          <div className={styles.timeSlotsGrid}>
-            {timeSlots.map((time) => (
-              <button
-                key={time}
-                className={`${styles.timeSlot} ${selectedTime === time ? styles.timeSlotSelected : ''}`}
-                onClick={() => handleTimeClick(time)}
-              >
-                {time}
-              </button>
-            ))}
-          </div>
-
-          <button
-            className={styles.backButton}
-            onClick={() => {
-              setShowTimeSlots(false);
-              setSelectedDate(null);
-            }}
-          >
-            Back to Calendar
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className={styles.calendarContainer}>
+    <div className={styles.calendarContainer} data-brand={brand || 'proxe'}>
       {onClose && (
         <button className={styles.closeButton} onClick={onClose} aria-label="Close calendar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -319,81 +495,16 @@ export function BookingCalendarWidget({ onClose, onBookingComplete }: BookingCal
         </button>
       )}
 
-      <div className={styles.calendarHeader}>
-        <div className={styles.viewToggle}>
-          <button
-            className={`${styles.toggleButton} ${view === 'weekly' ? styles.toggleActive : ''}`}
-            onClick={() => setView('weekly')}
-          >
-            Weekly
-          </button>
-          <button
-            className={`${styles.toggleButton} ${view === 'monthly' ? styles.toggleActive : ''}`}
-            onClick={() => setView('monthly')}
-          >
-            Monthly
-          </button>
+      {bookingError && !showForm && (
+        <div className={isWarning ? styles.warningMessage : styles.errorMessage} style={{ marginBottom: '16px' }}>
+          {bookingError}
         </div>
-        <button className={styles.settingsButton} aria-label="Settings">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3"></path>
-          </svg>
-        </button>
-      </div>
+      )}
 
-      <div className={styles.calendarDateHeader}>
-        <span className={styles.monthName}>{currentMonth.split(' ')[0]}</span>
-        <span className={styles.dayNumber}>{currentDay}</span>
-      </div>
-
-      {view === 'weekly' ? (
-        <>
-          <div className={styles.navigationButtons}>
-            <button onClick={() => navigateWeek('prev')} className={styles.navButton}>
-              ←
-            </button>
-            <button onClick={() => navigateWeek('next')} className={styles.navButton}>
-              →
-            </button>
-          </div>
-          
-          <div className={styles.weekDaysContainer}>
-            <div className={styles.weekDaysHeader}>
-              {weekDays.map((day) => (
-                <div key={day.toString()} className={styles.weekDayHeader}>
-                  <span className={styles.weekDayName}>
-                    {day.toLocaleDateString('en-US', { weekday: 'short' })}
-                  </span>
-                  <span className={styles.weekDayNumber}>{day.getDate()}</span>
-                </div>
-              ))}
-            </div>
-            <div className={styles.weekDaysGrid}>
-              {weekDays.map((day) => {
-                const isToday = day.toDateString() === new Date().toDateString();
-                const isSelected = selectedDate?.toDateString() === day.toDateString();
-                const isPast = day < new Date(new Date().setHours(0, 0, 0, 0));
-                const isSunday = day.getDay() === 0;
-                
-                return (
-                  <button
-                    key={day.toString()}
-                    className={`${styles.dateButton} ${isToday ? styles.dateToday : ''} ${isSelected ? styles.dateSelected : ''} ${isPast || isSunday ? styles.datePast : ''}`}
-                    onClick={() => handleDateClick(day)}
-                    disabled={isPast || isSunday}
-                    title={isSunday ? 'Sundays are unavailable' : ''}
-                  >
-                    {day.getDate()}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className={styles.navigationButtons}>
+      <div className={styles.calendarLayout}>
+        {/* Calendar Section */}
+        <div className={styles.calendarSection}>
+          <div className={styles.calendarHeader}>
             <button onClick={() => navigateMonth('prev')} className={styles.navButton}>
               ←
             </button>
@@ -405,7 +516,7 @@ export function BookingCalendarWidget({ onClose, onBookingComplete }: BookingCal
 
           <div className={styles.monthGrid}>
             <div className={styles.monthDaysHeader}>
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+              {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((day) => (
                 <div key={day} className={styles.monthDayHeader}>{day}</div>
               ))}
             </div>
@@ -431,9 +542,34 @@ export function BookingCalendarWidget({ onClose, onBookingComplete }: BookingCal
               })}
             </div>
           </div>
-        </>
-      )}
+        </div>
+
+        {/* Time Slots Section */}
+        <div className={styles.timeSlotsSection}>
+          <h3 className={styles.timeSlotsTitle}>Time</h3>
+          {loadingAvailability ? (
+            <div className={styles.loadingText}>Checking availability...</div>
+          ) : selectedDate ? (
+            <div className={styles.timeSlotsList}>
+              {timeSlots.map((slot) => (
+                <button
+                  key={slot.time}
+                  className={`${styles.timeSlot} ${selectedTime === slot.time ? styles.timeSlotSelected : ''} ${!slot.available ? styles.timeSlotUnavailable : ''}`}
+                  onClick={() => handleTimeClick(slot.time)}
+                  disabled={!slot.available}
+                  title={!slot.available ? 'This slot is already booked' : ''}
+                >
+                  {slot.displayTime}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.timeSlotsPlaceholder}>
+              Select a date to see available times
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
-

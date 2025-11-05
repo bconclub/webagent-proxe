@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '@/src/hooks/useChat';
 import { InfinityLoader } from './InfinityLoader';
+import { BookingCalendarWidget } from './BookingCalendarWidget';
 import type { BrandConfig } from '@/src/configs';
 import styles from './ChatWidget.module.css';
 
@@ -166,132 +167,12 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     };
   }, [messages, isOpen, pendingCalendar, showCalendly, bookingCompleted]);
 
-  // Debug: Log when showCalendly changes and initialize Cal.com inline embed
-  useEffect(() => {
-    if (showCalendly) {
-      console.log('Calendar widget should be visible, showCalendly:', showCalendly);
-      
-      // Detect mobile device
-      const isMobile = window.innerWidth <= 768;
-      const layout = isMobile ? "week_view" : "month_view";
-      
-      // Clear any existing calendar initialization
-      const calendarElement = document.getElementById("my-cal-inline-proxe");
-      if (calendarElement) {
-        calendarElement.innerHTML = ''; // Clear any existing content
-      }
-      
-      // Wait for DOM element to be ready with retry logic
-      let retryCount = 0;
-      const maxRetries = 50; // 5 seconds max wait
-      
-      const initCalendar = () => {
-        const calendarElement = document.getElementById("my-cal-inline-proxe");
-        if (!calendarElement) {
-          retryCount++;
-          if (retryCount < maxRetries) {
-            console.log(`Calendar element not found, retrying... (${retryCount}/${maxRetries})`);
-            setTimeout(initCalendar, 100);
-            return;
-          } else {
-            console.error('Calendar element not found after max retries');
-            return;
-          }
-        }
-
-        console.log('Calendar element found, initializing Cal.com...');
-
-        // Initialize Cal.com inline embed
-        (function (C: any, A: string, L: string) {
-          let p = function (a: any, ar: any) { a.q.push(ar); };
-          let d = C.document;
-          C.Cal = C.Cal || function () {
-            let cal = C.Cal;
-            let ar = arguments;
-            if (!cal.loaded) {
-              cal.ns = {};
-              cal.q = cal.q || [];
-              const script = d.createElement("script");
-              script.src = A;
-              script.async = true;
-              script.onload = () => {
-                console.log('Cal.com script loaded');
-              };
-              script.onerror = () => {
-                console.error('Cal.com script failed to load');
-              };
-              d.head.appendChild(script);
-              cal.loaded = true;
-            }
-            if (ar[0] === L) {
-              const api: any = function () { p(api, arguments); };
-              api.q = api.q || [];
-              const namespace = ar[1];
-              if (typeof namespace === "string") {
-                cal.ns[namespace] = cal.ns[namespace] || api;
-                p(cal.ns[namespace], ar);
-                p(cal, ["initNamespace", namespace]);
-              } else {
-                p(cal, ar);
-              }
-              return;
-            }
-            p(cal, ar);
-          };
-        })(window, "https://app.cal.com/embed/embed.js", "init");
-
-        // Initialize Cal with namespace "proxe"
-        (window as any).Cal("init", "proxe", { origin: "https://app.cal.com" });
-
-        // Set up inline embed with retry logic
-        let setupRetryCount = 0;
-        const maxSetupRetries = 100; // 10 seconds max wait
-        
-        const setupEmbed = () => {
-          if ((window as any).Cal && (window as any).Cal.ns && (window as any).Cal.ns.proxe) {
-            try {
-              console.log('Setting up Cal.com inline embed...');
-              // Don't try to destroy - just initialize fresh
-              // The destroy method may not exist in all Cal.com versions
-              
-              (window as any).Cal.ns.proxe("inline", {
-                elementOrSelector: "#my-cal-inline-proxe",
-                config: { "layout": layout },
-                calLink: "bcon-club-idsfgs/proxe",
-              });
-
-              (window as any).Cal.ns.proxe("ui", { 
-                "hideEventTypeDetails": false, 
-                "layout": layout 
-              });
-              console.log(`Cal.com inline embed initialized with ${layout} layout`);
-            } catch (error) {
-              console.error('Error setting up Cal.com embed:', error);
-            }
-          } else {
-            setupRetryCount++;
-            if (setupRetryCount < maxSetupRetries) {
-              setTimeout(setupEmbed, 100);
-            } else {
-              console.error('Cal.com API not available after max retries');
-            }
-          }
-        };
-
-        // Start setup after a delay to ensure script is loaded
-        setTimeout(setupEmbed, 500);
-      };
-
-      // Start initialization after a small delay to ensure DOM is ready
-      setTimeout(initCalendar, 200);
-    } else {
-      // Clean up when calendar is hidden
-      const calendarElement = document.getElementById("my-cal-inline-proxe");
-      if (calendarElement) {
-        calendarElement.innerHTML = '';
-      }
-    }
-  }, [showCalendly]);
+  // Handle booking completion
+  const handleBookingComplete = (bookingData: any) => {
+    console.log('Booking completed:', bookingData);
+    setBookingCompleted(true);
+    // Optionally send a message to the chat about the booking
+  };
 
   // Handle mobile keyboard appearance for chat input
   useEffect(() => {
@@ -917,15 +798,12 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                     </span>
                   </div>
                   
-                  {/* Calendar widget - Cal.com inline embed */}
-                  <div className={styles.calendarContainer}>
-                    <div 
-                      key={showCalendly} // Force re-render when showCalendly changes
-                      id="my-cal-inline-proxe" 
-                      className={styles.calendarEmbed}
-                      style={{ minHeight: '500px', width: '100%' }}
-                    />
-                  </div>
+                  {/* Custom Google Calendar widget */}
+                  <BookingCalendarWidget
+                    brand={brand}
+                    config={config}
+                    onBookingComplete={handleBookingComplete}
+                  />
                 </div>
               </div>
             </div>

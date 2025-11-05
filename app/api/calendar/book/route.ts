@@ -1,0 +1,263 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { google } from 'googleapis';
+
+const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || 'bconclubx@gmail.com';
+const TIMEZONE = process.env.GOOGLE_CALENDAR_TIMEZONE || 'Asia/Kolkata';
+
+async function getAuthClient() {
+  const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+  if (!serviceAccountEmail || !privateKey) {
+    throw new Error('Google Calendar credentials not configured');
+  }
+
+  const auth = new google.auth.JWT({
+    email: serviceAccountEmail,
+    key: privateKey,
+    scopes: ['https://www.googleapis.com/auth/calendar'],
+  });
+
+  return auth;
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { date, time, name, email, phone } = await request.json();
+
+    if (!date || !time || !name || !email || !phone) {
+      return NextResponse.json(
+        { error: 'Missing required fields: date, time, name, email, phone' },
+        { status: 400 }
+      );
+    }
+
+    // Check if credentials are configured
+    const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+    
+    if (!serviceAccountEmail || !privateKey) {
+      return NextResponse.json(
+        { 
+          error: 'Google Calendar credentials not configured. Please set up GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY environment variables.',
+          details: 'See GOOGLE_CALENDAR_SETUP.md for setup instructions.'
+        },
+        { status: 503 } // Service Unavailable
+      );
+    }
+
+    const auth = await getAuthClient();
+    const calendar = google.calendar({ version: 'v3', auth });
+
+    // Parse date - use the date string directly to avoid timezone conversion issues
+    // date should be in format "YYYY-MM-DD"
+    const dateStr = date.split('T')[0]; // Extract YYYY-MM-DD if time is included
+    console.log('Booking date received:', date, '-> Parsed as:', dateStr);
+
+    // Parse time (format: "HH:MM" or "HH:MM AM/PM")
+    let hour: number, minute: number;
+    
+    if (time.includes('AM') || time.includes('PM')) {
+      // Format: "11:00 AM"
+      const [timePart, period] = time.split(' ');
+      const [h, m] = timePart.split(':').map(Number);
+      hour = period === 'PM' && h !== 12 ? h + 12 : period === 'AM' && h === 12 ? 0 : h;
+      minute = m;
+    } else {
+      // Format: "11:00" (24-hour)
+      [hour, minute] = time.split(':').map(Number);
+    }
+
+    // Create event start/end times in Asia/Kolkata timezone format
+    const eventStart = `${dateStr}T${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00+05:30`;
+    const endHour = hour + 1;
+    const eventEnd = `${dateStr}T${endHour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00+05:30`;
+
+    // Format display time
+    const displayTime = formatTimeForDisplay(`${hour}:${minute.toString().padStart(2, '0')}`);
+
+    // Create event
+    // Note: Service accounts cannot invite attendees without Domain-Wide Delegation
+    // However, we'll try to add them and handle the error gracefully
+    const event = {
+      summary: 'PROXe Demo',
+      description: `Meeting Booking\n\nName: ${name}\nEmail: ${email}\nPhone: ${phone}\n\nContact: ${email}`,
+      start: {
+        dateTime: eventStart,
+        timeZone: TIMEZONE,
+      },
+      end: {
+        dateTime: eventEnd,
+        timeZone: TIMEZONE,
+      },
+      attendees: [
+        { email: email, displayName: name },
+      ],
+      reminders: {
+        useDefault: false,
+        overrides: [
+          { method: 'email', minutes: 24 * 60 }, // 1 day before
+          { method: 'popup', minutes: 30 }, // 30 minutes before
+        ],
+      },
+    };
+
+    console.log('Creating event:', {
+      calendarId: CALENDAR_ID,
+      summary: event.summary,
+      start: event.start.dateTime,
+      end: event.end.dateTime,
+      timeZone: TIMEZONE
+    });
+
+    let createdEvent;
+    let hasAttendees = false;
+    
+    try {
+      createdEvent = await calendar.events.insert({
+        calendarId: CALENDAR_ID,
+        requestBody: event,
+      });
+      
+      hasAttendees = true;
+      
+      console.log('Event created successfully:', {
+        eventId: createdEvent.data.id,
+        htmlLink: createdEvent.data.htmlLink,
+        start: createdEvent.data.start?.dateTime,
+        end: createdEvent.data.end?.dateTime,
+        calendarId: CALENDAR_ID,
+        organizer: createdEvent.data.organizer?.email,
+        creator: createdEvent.data.creator?.email,
+        attendees: createdEvent.data.attendees?.map((a: any) => a.email)
+      });
+      
+      // Verify the event was created in the correct calendar
+      if (createdEvent.data.organizer?.email && createdEvent.data.organizer.email !== CALENDAR_ID) {
+        console.warn(`WARNING: Event organizer is ${createdEvent.data.organizer.email}, but expected ${CALENDAR_ID}`);
+      }
+      
+      // Check if attendees were added
+      if (createdEvent.data.attendees && createdEvent.data.attendees.length > 0) {
+        console.log('Attendees added successfully:', createdEvent.data.attendees.map((a: any) => a.email));
+      } else {
+        console.warn('No attendees in created event - may require Domain-Wide Delegation');
+      }
+    } catch (calendarError: any) {
+      console.error('Calendar API error:', calendarError);
+      console.error('Calendar ID:', CALENDAR_ID);
+      console.error('Service Account Email:', serviceAccountEmail);
+      
+      let errorMessage = 'Failed to create calendar event';
+      let details = calendarError.message || 'Unknown error';
+      let suggestion = '';
+      
+      // Handle specific Google Calendar API errors
+      if (calendarError.code === 404 || details.includes('Not Found')) {
+        errorMessage = 'Calendar not found or access denied';
+        details = `The calendar "${CALENDAR_ID}" was not found or the service account doesn't have access.`;
+        suggestion = `Please share the calendar "${CALENDAR_ID}" with the service account email "${serviceAccountEmail}" and give it "Make changes to events" permission.`;
+      } else if (calendarError.code === 403 || details.includes('Forbidden')) {
+        if (details.includes('Domain-Wide Delegation') || details.includes('attendees')) {
+          // Try creating event without attendees as fallback
+          console.warn('Cannot add attendees, creating event without attendees...');
+          try {
+            const eventWithoutAttendees = { ...event };
+            delete eventWithoutAttendees.attendees;
+            
+            createdEvent = await calendar.events.insert({
+              calendarId: CALENDAR_ID,
+              requestBody: eventWithoutAttendees,
+            });
+            
+            hasAttendees = false;
+            
+            console.log('Event created without attendees:', {
+              eventId: createdEvent.data.id,
+              htmlLink: createdEvent.data.htmlLink
+            });
+            
+            // Continue to return success response below
+          } catch (fallbackError: any) {
+            console.error('Failed to create event even without attendees:', fallbackError);
+            return NextResponse.json(
+              { 
+                error: 'Failed to create calendar event',
+                details: fallbackError.message || 'Could not create event with or without attendees',
+                suggestion: 'Check calendar permissions and service account configuration.',
+                calendarId: CALENDAR_ID,
+                serviceAccountEmail: serviceAccountEmail
+              },
+              { status: 503 }
+            );
+          }
+        } else {
+          errorMessage = 'Access denied to calendar';
+          details = `The service account "${serviceAccountEmail}" doesn't have permission to create events in the calendar "${CALENDAR_ID}".`;
+          suggestion = `Share the calendar "${CALENDAR_ID}" with "${serviceAccountEmail}" and give it "Make changes to events" permission.`;
+          
+          return NextResponse.json(
+            { 
+              error: errorMessage,
+              details: details,
+              suggestion: suggestion,
+              calendarId: CALENDAR_ID,
+              serviceAccountEmail: serviceAccountEmail
+            },
+            { status: 503 }
+          );
+        }
+      } else {
+        // Other errors - return error response
+        return NextResponse.json(
+          { 
+            error: errorMessage,
+            details: details,
+            suggestion: suggestion,
+            calendarId: CALENDAR_ID,
+            serviceAccountEmail: serviceAccountEmail
+          },
+          { status: 503 }
+        );
+      }
+    }
+
+    // Return success response
+    return NextResponse.json({
+      success: true,
+      eventId: createdEvent.data.id,
+      eventLink: createdEvent.data.htmlLink,
+      message: `Booking confirmed for ${formatDate(date)} at ${displayTime}`,
+      ...(hasAttendees ? {} : { warning: 'Attendee email added to description. Domain-Wide Delegation required to add attendees automatically.' })
+    });
+  } catch (error: any) {
+    console.error('Error creating calendar event:', error);
+    console.error('Error stack:', error.stack);
+    return NextResponse.json(
+      { 
+        error: error.message || 'Failed to create booking',
+        details: error.details || 'Unknown error occurred',
+        type: error.name || 'Error'
+      },
+      { status: 500 }
+    );
+  }
+}
+
+function formatTimeForDisplay(time24: string): string {
+  const [hour, minute] = time24.split(':').map(Number);
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+  return `${hour12}:${minute.toString().padStart(2, '0')} ${period}`;
+}
+
+function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
