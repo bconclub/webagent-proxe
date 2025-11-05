@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '@/src/hooks/useChat';
 import { InfinityLoader } from './InfinityLoader';
+import { CalendlyWidget } from './CalendlyWidget';
 import type { BrandConfig } from '@/src/configs';
 import styles from './ChatWidget.module.css';
 
@@ -96,6 +97,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [showCalendly, setShowCalendly] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -103,6 +105,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const dragStartX = useRef<number>(0);
   const dragStartScrollLeft = useRef<number>(0);
   const hasDraggedRef = useRef<boolean>(false);
+
+  // Calendly URL
+  const CALENDLY_URL = 'https://calendly.com/bconclub/discovery-call?hide_event_type_details=1&hide_gdpr_banner=1';
 
   const { messages, isLoading, sendMessage, handleQuickButton, clearMessages } = useChat({
     brand,
@@ -308,6 +313,23 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       e.preventDefault();
       e.stopPropagation();
     }
+    
+    // Check if button text suggests booking a call
+    const bookCallKeywords = ['book call', 'schedule call', 'book a call', 'schedule a call', 'book meeting', 'schedule meeting', 'discovery call'];
+    const shouldShowCalendly = bookCallKeywords.some(keyword => 
+      buttonText.toLowerCase().includes(keyword.toLowerCase())
+    );
+    
+    if (shouldShowCalendly) {
+      setIsOpen(true);
+      setIsExpanded(false);
+      setShowQuickButtons(false);
+      // Show Calendly widget by creating a unique ID for this message
+      const messageId = `calendly-${Date.now()}`;
+      setShowCalendly(messageId);
+      return;
+    }
+    
     setIsOpen(true);
     setIsExpanded(false);
     setShowQuickButtons(false);
@@ -356,8 +378,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       }
     };
     
-    // Delay to account for keyboard animation
-    setTimeout(scrollInputIntoView, 300);
+    // Quick delay to account for keyboard animation start
+    setTimeout(scrollInputIntoView, 50);
   };
 
   const handleInputBlur = (e: React.FocusEvent) => {
@@ -464,7 +486,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                   }
                 }
               };
-              setTimeout(scrollInputIntoView, 300);
+              setTimeout(scrollInputIntoView, 50);
             }}
             onBlur={handleInputBlur}
             onKeyPress={(e) => {
@@ -503,6 +525,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             className={styles.resetBtn} 
             onClick={() => {
               setIsOpen(false);
+              setShowCalendly(null);
               clearMessages();
             }}
             title="Reset chat"
@@ -511,6 +534,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           </button>
           <button className={styles.closeBtn} onClick={() => {
             setIsOpen(false);
+            setShowCalendly(null);
             clearMessages();
           }}>
             {ICONS.close}
@@ -566,19 +590,51 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                           const buttonAccentIndex = (accentIndex + followUpIndex) % 7;
                           const buttonAccentClass = `accent-${buttonAccentIndex}`;
                           
+                          // Check if button text suggests booking a call
+                          const bookCallKeywords = ['book call', 'schedule call', 'book a call', 'schedule a call', 'book meeting', 'schedule meeting', 'discovery call'];
+                          const shouldShowCalendly = bookCallKeywords.some(keyword => 
+                            followUp.toLowerCase().includes(keyword.toLowerCase())
+                          );
+                          
                           return (
                           <button
                             key={followUpIndex}
                             className={`${styles.followUpBtn} ${styles[buttonAccentClass]}`}
                             onClick={() => {
-                              setMessageCount((prev) => prev + 1);
-                              sendMessage(followUp, messageCount + 1);
+                              if (shouldShowCalendly) {
+                                // Show Calendly widget
+                                const messageId = `calendly-${message.id}-${Date.now()}`;
+                                setShowCalendly(messageId);
+                              } else {
+                                setMessageCount((prev) => prev + 1);
+                                sendMessage(followUp, messageCount + 1);
+                              }
                             }}
                           >
                             {followUp}
                           </button>
                           );
                         })}
+                      </div>
+                    )}
+                    
+                    {/* Calendly widget for this message */}
+                    {showCalendly && showCalendly.startsWith(`calendly-${message.id}`) && (
+                      <div 
+                        style={{ marginTop: '16px' }}
+                        ref={(el) => {
+                          // Scroll widget into view when it appears
+                          if (el) {
+                            setTimeout(() => {
+                              el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            }, 100);
+                          }
+                        }}
+                      >
+                        <CalendlyWidget 
+                          url={CALENDLY_URL}
+                          onClose={() => setShowCalendly(null)}
+                        />
                       </div>
                     )}
                   </div>
@@ -626,7 +682,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                   }
                 }
               };
-              setTimeout(scrollInputIntoView, 300);
+              setTimeout(scrollInputIntoView, 50);
             }}
             onKeyPress={(e) => {
               if (e.key === 'Enter' && inputValue.trim()) {
