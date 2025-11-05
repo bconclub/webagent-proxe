@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '@/src/hooks/useChat';
 import { InfinityLoader } from './InfinityLoader';
-import { BookingCalendarWidget } from './BookingCalendarWidget';
 import type { BrandConfig } from '@/src/configs';
 import styles from './ChatWidget.module.css';
 
@@ -98,6 +97,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [messageCount, setMessageCount] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [showCalendly, setShowCalendly] = useState<string | null>(null);
+  const [pendingCalendar, setPendingCalendar] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -128,10 +128,20 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       document.body.classList.remove('chat-open');
     }
     
+    // Check if we should show calendar widget after AI response completes
+    if (pendingCalendar && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.type === 'ai' && lastMessage.hasStreamed && !lastMessage.isStreaming && !showCalendly) {
+        setPendingCalendar(false);
+        const calendarMessageId = `calendar-${Date.now()}`;
+        setShowCalendly(calendarMessageId);
+      }
+    }
+    
     return () => {
       document.body.classList.remove('chat-open');
     };
-  }, [messages, isOpen]);
+  }, [messages, isOpen, pendingCalendar, showCalendly]);
 
   // Handle mobile keyboard appearance for chat input
   useEffect(() => {
@@ -323,44 +333,19 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       buttonText.toLowerCase().includes(keyword.toLowerCase())
     );
     
-    if (shouldShowCalendar) {
-      setIsOpen(true);
-      setIsExpanded(false);
-      setShowQuickButtons(false);
-      
-      // Send user message with button text first
-      const userMessage = buttonText;
-      setMessageCount((prev) => prev + 1);
-      sendMessage(userMessage, messageCount);
-      
-      // Wait for AI response to complete streaming before showing calendar
-      // Use useEffect to monitor messages and show calendar when streaming completes
-      setTimeout(() => {
-        const checkMessageComplete = setInterval(() => {
-          const lastMessage = messages[messages.length - 1];
-          if (lastMessage && lastMessage.type === 'ai' && lastMessage.hasStreamed && !lastMessage.isStreaming) {
-            clearInterval(checkMessageComplete);
-            const calendarMessageId = `calendar-msg-${Date.now()}`;
-            setShowCalendly(calendarMessageId);
-          }
-        }, 100);
-        
-        // Fallback timeout after 5 seconds
-        setTimeout(() => {
-          clearInterval(checkMessageComplete);
-          const calendarMessageId = `calendar-msg-${Date.now()}`;
-          setShowCalendly(calendarMessageId);
-        }, 5000);
-      }, 500);
-      
-      return;
-    }
-    
     setIsOpen(true);
     setIsExpanded(false);
     setShowQuickButtons(false);
+    
+    // Always send user message with button text first (this creates user message bubble and starts new AI response)
+    const userMessage = buttonText;
     setMessageCount((prev) => prev + 1);
-    setTimeout(() => handleQuickButton(buttonText, messageCount + 1), 300);
+    sendMessage(userMessage, messageCount + 1);
+    
+    if (shouldShowCalendar) {
+      // Set flag to show calendar after AI response completes (handled in useEffect)
+      setPendingCalendar(true);
+    }
   };
 
   const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -556,6 +541,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             onClick={() => {
               setIsOpen(false);
               setShowCalendly(null);
+              setPendingCalendar(false);
               clearMessages();
             }}
             title="Reset chat"
@@ -565,6 +551,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           <button className={styles.closeBtn} onClick={() => {
             setIsOpen(false);
             setShowCalendly(null);
+            setPendingCalendar(false);
             clearMessages();
           }}>
             {ICONS.close}
@@ -576,6 +563,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         onClick={() => {
           // Close calendar widget when clicking in messages area (clicking away)
           setShowCalendly(null);
+          setPendingCalendar(false);
         }}
       >
         {messages.map((message, index) => {
@@ -635,33 +623,14 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                               // Close any open calendar widget first
                               setShowCalendly(null);
                               
+                              // Always send user message with button text first (this creates user message bubble and starts new AI response)
+                              const userMessage = followUp;
+                              setMessageCount((prev) => prev + 1);
+                              sendMessage(userMessage, messageCount + 1);
+                              
                               if (shouldShowCalendar) {
-                                // Send user message with button text first
-                                const userMessage = followUp;
-                                setMessageCount((prev) => prev + 1);
-                                sendMessage(userMessage, messageCount);
-                                
-                                // Wait for AI response to complete streaming before showing calendar
-                                setTimeout(() => {
-                                  const checkMessageComplete = setInterval(() => {
-                                    const lastMessage = messages[messages.length - 1];
-                                    if (lastMessage && lastMessage.type === 'ai' && lastMessage.hasStreamed && !lastMessage.isStreaming) {
-                                      clearInterval(checkMessageComplete);
-                                      const messageId = `calendar-${message.id}-${Date.now()}`;
-                                      setShowCalendly(messageId);
-                                    }
-                                  }, 100);
-                                  
-                                  // Fallback timeout after 5 seconds
-                                  setTimeout(() => {
-                                    clearInterval(checkMessageComplete);
-                                    const messageId = `calendar-${message.id}-${Date.now()}`;
-                                    setShowCalendly(messageId);
-                                  }, 5000);
-                                }, 500);
-                              } else {
-                                setMessageCount((prev) => prev + 1);
-                                sendMessage(followUp, messageCount + 1);
+                                // Set flag to show calendar after AI response completes (handled in useEffect)
+                                setPendingCalendar(true);
                               }
                             }}
                           >
@@ -671,36 +640,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                         })}
                       </div>
                     )}
-                    
-                    {/* Google Calendar widget - show after AI message streaming is complete */}
-                    {showCalendly && (
-                      (showCalendly.startsWith(`calendar-${message.id}`) || 
-                       (message.type === 'ai' && messages.length > 0 && message.id === messages[messages.length - 1]?.id && showCalendly.startsWith('calendar-msg-'))) && 
-                      !message.isStreaming && message.hasStreamed && (
-                        <div 
-                          style={{ marginTop: '16px' }}
-                          onClick={(e) => e.stopPropagation()}
-                          ref={(el) => {
-                            // Scroll widget into view when it appears
-                            if (el) {
-                              requestAnimationFrame(() => {
-                                setTimeout(() => {
-                                  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                                }, 100);
-                              });
-                            }
-                          }}
-                        >
-                        <BookingCalendarWidget 
-                          onClose={() => setShowCalendly(null)}
-                          onBookingComplete={(bookingData) => {
-                            console.log('Booking completed:', bookingData);
-                            // You can add API call here to save the booking
-                          }}
-                        />
-                        </div>
-                      )
-                    )}
                   </div>
                 )}
               </div>
@@ -708,6 +647,51 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           </div>
           );
         })}
+        
+        {/* Google Calendar widget - always render in a separate bubble after messages */}
+        {showCalendly && (
+          <div 
+            className={`${styles.message} ${styles.ai} ${styles['accent-0']}`}
+            onClick={(e) => e.stopPropagation()}
+            ref={(el) => {
+              // Scroll widget into view when it appears
+              if (el) {
+                requestAnimationFrame(() => {
+                  setTimeout(() => {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                  }, 100);
+                });
+              }
+            }}
+          >
+            <div className={styles.messageContent}>
+              <div className={styles.bubble}>
+                <div className={styles.bubbleContent}>
+                  {/* Header with avatar and name inside the bubble */}
+                  <div className={styles.bubbleHeader}>
+                    <div className={styles.bubbleAvatar}>
+                      {ICONS.ai(brand, config)}
+                    </div>
+                    <span className={styles.bubbleName}>
+                      {config.name}
+                    </span>
+                  </div>
+                  
+                  {/* Calendar widget */}
+                  <div style={{ marginTop: '16px', width: '100%' }}>
+                    <iframe 
+                      src="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0yx4sfGToL6mRp_FmiYiRz-90p2DEM52yBAyAnOUEAd7W53MSiv0oFajnZ7yOhIftdjlY12X3X?gv=true" 
+                      style={{ border: 0, width: '100%', height: '600px' }} 
+                      frameBorder="0"
+                      title="Google Calendar Appointment Scheduling"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div ref={messagesEndRef} />
       </div>
       <div className={styles.inputArea}>

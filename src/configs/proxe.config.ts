@@ -137,7 +137,7 @@ export const proxeConfig: BrandConfig = {
     buttonHover: 'rgba(232, 161, 83, 0.2)',
     buttonActive: 'rgba(232, 161, 83, 0.3)',
   },
-  quickButtons: ['What is PROXe', 'PROXe Demo', 'Deploy PROXe', 'Book a Call'],
-  followUpButtons: ['Deploy PROXe', 'PROXe Pricing', 'Book a Call'],
+  quickButtons: ['What\'s PROXe', 'Deploy PROXe', 'PROXe Pricing', 'Book a Demo'],
+  followUpButtons: ['Deploy PROXe', 'Book PROXe Demo', 'Industries Served', 'Get PROXe Pricing', 'Schedule a Call'],
 };
 

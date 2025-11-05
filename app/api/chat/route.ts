@@ -157,6 +157,13 @@ async function generateFollowUpSuggestion(userMessage: string, assistantMessage:
 
 PROXe is an AI Operating System for business. It automates 24/7 customer interactions (WhatsApp, website, calls, content, dashboard). Users are Indian SMB owners (₹1-10Cr revenue) drowning in repetitive work.
 
+AVAILABLE ACTIONS (you can reference these or create contextual variations):
+- Deploy PROXe
+- Book PROXe Demo
+- Industries Served
+- Get PROXe Pricing
+- Schedule a Call
+
 TONE & STYLE:
 - Direct. No corporate speak. Real talk.
 - Built from trenches. "I've lived this problem" energy.
@@ -165,6 +172,7 @@ TONE & STYLE:
 
 IMPORTANT RULES:
 - 3-7 words. Title case. Optional emoji (use sparingly, only if it adds clarity).
+- Prefer to align with the available actions above, but adapt wording to context
 - NEVER repeat what was just explained
 - NEVER suggest something they already understood
 - NEVER use: "Learn more", "Explore", "Discover", "Innovative", "Revolutionary"
@@ -279,7 +287,7 @@ export async function POST(request: NextRequest) {
             .replace(/^(Hi|Hello|Hey),?\s*/gi, '')
             .trim();
 
-          // Generate follow-ups based on brand
+          // Generate follow-ups based on brand - ALWAYS ensure every message has follow-up buttons
           const lowerMessage = message.toLowerCase();
           const isFirstMessage = messageCount === 1 || messageCount === 0;
           
@@ -295,15 +303,35 @@ export async function POST(request: NextRequest) {
                                 lowerMessage.includes(`what's ${brandName}`) || 
                                 lowerMessage.includes(`tell me about ${brandName}`);
           
-          if (isFirstMessage || isWhatIsBrand) {
-            // Use default follow-up buttons from config
-            followUpsArray = defaultFollowUps;
+          // Always try to generate contextual follow-up first
+          const followUpSuggestion = await generateFollowUpSuggestion(message, cleanedResponse, messageCount, normalizedBrand);
+          
+          if (followUpSuggestion && followUpSuggestion.toLowerCase() !== 'skip') {
+            // Use the generated contextual follow-up
+            followUpsArray = [followUpSuggestion];
+          } else if (isFirstMessage || isWhatIsBrand) {
+            // For first message or "what is" questions, use default follow-up buttons
+            followUpsArray = defaultFollowUps.slice(0, 3); // Limit to 3 for better UX
           } else {
-            // Generate dynamic follow-up suggestion
-            const followUpSuggestion = await generateFollowUpSuggestion(message, cleanedResponse, messageCount, normalizedBrand);
-            if (followUpSuggestion && followUpSuggestion.toLowerCase() !== 'skip') {
-              followUpsArray = [followUpSuggestion];
-            }
+            // For other messages without contextual follow-up, use relevant defaults
+            // Filter out any that might have been just discussed
+            const lowerResponse = cleanedResponse.toLowerCase();
+            const relevantDefaults = defaultFollowUps.filter(followUp => {
+              const lowerFollowUp = followUp.toLowerCase();
+              // Simple check: don't include if the follow-up text appears in the response
+              const followUpWords = lowerFollowUp.split(/\s+/).filter(w => w.length > 3);
+              return !followUpWords.some(word => lowerResponse.includes(word));
+            });
+            
+            // Use filtered defaults if available, otherwise use first 2-3 defaults
+            followUpsArray = relevantDefaults.slice(0, 3).length > 0 
+              ? relevantDefaults.slice(0, 3) 
+              : defaultFollowUps.slice(0, 3);
+          }
+          
+          // Final fallback: ensure we always have at least 2 follow-up buttons
+          if (followUpsArray.length === 0) {
+            followUpsArray = defaultFollowUps.slice(0, 3);
           }
 
           // Send follow-ups and done
