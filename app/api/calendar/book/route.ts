@@ -162,8 +162,7 @@ export async function POST(request: NextRequest) {
           // Try creating event without attendees as fallback
           console.warn('Cannot add attendees, creating event without attendees...');
           try {
-            const eventWithoutAttendees = { ...event };
-            delete eventWithoutAttendees.attendees;
+            const { attendees, ...eventWithoutAttendees } = event;
             
             createdEvent = await calendar.events.insert({
               calendarId: CALENDAR_ID,
@@ -223,6 +222,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Return success response
+    if (!createdEvent) {
+      return NextResponse.json(
+        { 
+          error: 'Failed to create calendar event',
+          details: 'Event creation failed unexpectedly',
+          suggestion: 'Please try again or contact support.'
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
       eventId: createdEvent.data.id,
