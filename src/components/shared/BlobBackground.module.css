@@ -9,6 +9,7 @@
   z-index: -1;
   pointer-events: none;
   background: transparent;
+  opacity: 0.3; /* Reduce opacity so background image shows through */
 }
 
 /* Video background for PROXe */

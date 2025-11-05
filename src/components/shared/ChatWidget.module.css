@@ -312,20 +312,20 @@
 
 .chatHeader {
   padding: 16px 24px;
-  /* Dark purple header with frosted blur */
-  background: rgba(91, 26, 140, 0.4);
+  /* Black header with frosted blur */
+  background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(80px) saturate(200%);
   -webkit-backdrop-filter: blur(80px) saturate(200%);
   color: var(--text-primary);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid rgba(91, 26, 140, 0.3);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.3);
   border-top-left-radius: 22px;
   border-top-right-radius: 22px;
   position: relative;
   z-index: 10;
-  box-shadow: 0 4px 20px rgba(91, 26, 140, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .brandName {
@@ -774,29 +774,29 @@
   display: flex;
   gap: 8px;
   align-items: center;
-  /* Dark purple footer with frosted blur */
-  border-top: 1px solid rgba(91, 26, 140, 0.3);
-  background: rgba(91, 26, 140, 0.4);
+  /* Black footer with frosted blur */
+  border-top: 1px solid rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(80px) saturate(200%);
   -webkit-backdrop-filter: blur(80px) saturate(200%);
   position: relative;
   z-index: 10;
   border-radius: 0;
-  box-shadow: 0 -4px 20px rgba(91, 26, 140, 0.2);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .chatFooter {
   padding: 8px 16px;
-  background: rgba(91, 26, 140, 0.4);
+  background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(80px) saturate(200%);
   -webkit-backdrop-filter: blur(80px) saturate(200%);
-  border-top: 1px solid rgba(91, 26, 140, 0.3);
+  border-top: 1px solid rgba(0, 0, 0, 0.3);
   color: var(--text-muted);
   font-size: 12px;
   text-align: center;
   border-bottom-left-radius: 22px;
   border-bottom-right-radius: 22px;
-  box-shadow: 0 -4px 20px rgba(91, 26, 140, 0.2);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .chatFooter a {
@@ -849,6 +849,24 @@
 
 .chatInput::placeholder {
   color: rgba(255, 255, 255, 0.5);
+}
+
+/* Calendar container styles */
+.calendarContainer {
+  margin-top: 16px;
+  width: 100%;
+  min-height: 600px;
+  max-height: 800px;
+  overflow: hidden;
+  position: relative;
+}
+
+.calendarEmbed {
+  width: 100%;
+  height: 100%;
+  min-height: 600px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
 /* Mobile styles */
@@ -933,6 +951,34 @@
     /* Use dynamic viewport height to account for keyboard */
     max-height: 100dvh !important;
     height: 100dvh !important;
+  }
+
+  /* Calendar mobile styles */
+  .calendarContainer {
+    margin-top: 12px;
+    min-height: 500px;
+    max-height: calc(100dvh - 300px);
+    overflow: hidden;
+  }
+
+  .calendarEmbed {
+    min-height: 500px;
+    max-height: calc(100dvh - 300px);
+    overflow-x: auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Ensure calendar is visible and scrollable on mobile */
+    position: relative;
+    width: 100%;
+  }
+
+  /* Fix for Cal.com iframe rendering on mobile */
+  .calendarEmbed iframe {
+    width: 100% !important;
+    min-height: 500px !important;
+    max-height: calc(100dvh - 300px) !important;
+    border: none !important;
+    overflow: auto !important;
   }
 }
 

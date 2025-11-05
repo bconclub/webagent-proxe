@@ -98,6 +98,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [showCalendly, setShowCalendly] = useState<string | null>(null);
   const [pendingCalendar, setPendingCalendar] = useState(false);
+  const [bookingCompleted, setBookingCompleted] = useState(false);
   const [usedButtons, setUsedButtons] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -130,10 +131,11 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     }
     
     // Check if we should show calendar widget after AI response completes
-    if (pendingCalendar && messages.length > 0) {
+    if (pendingCalendar && messages.length > 0 && !bookingCompleted) {
       const lastMessage = messages[messages.length - 1];
       console.log('Checking calendar display:', {
         pendingCalendar,
+        bookingCompleted,
         lastMessageType: lastMessage?.type,
         hasStreamed: lastMessage?.hasStreamed,
         isStreaming: lastMessage?.isStreaming,
@@ -149,6 +151,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         // Use setTimeout to ensure state updates properly
         const timer = setTimeout(() => {
           setPendingCalendar(false);
+          setBookingCompleted(true); // Mark booking as completed
           const calendarMessageId = `calendar-${Date.now()}`;
           setShowCalendly(calendarMessageId);
           console.log('Calendar widget shown with ID:', calendarMessageId);
@@ -161,76 +164,131 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     return () => {
       document.body.classList.remove('chat-open');
     };
-  }, [messages, isOpen, pendingCalendar, showCalendly]);
+  }, [messages, isOpen, pendingCalendar, showCalendly, bookingCompleted]);
 
   // Debug: Log when showCalendly changes and initialize Cal.com inline embed
   useEffect(() => {
     if (showCalendly) {
       console.log('Calendar widget should be visible, showCalendly:', showCalendly);
       
-      // Initialize Cal.com inline embed
-      (function (C: any, A: string, L: string) {
-        let p = function (a: any, ar: any) { a.q.push(ar); };
-        let d = C.document;
-        C.Cal = C.Cal || function () {
-          let cal = C.Cal;
-          let ar = arguments;
-          if (!cal.loaded) {
-            cal.ns = {};
-            cal.q = cal.q || [];
-            const script = d.createElement("script");
-            script.src = A;
-            d.head.appendChild(script);
-            cal.loaded = true;
-          }
-          if (ar[0] === L) {
-            const api: any = function () { p(api, arguments); };
-            api.q = api.q || [];
-            const namespace = ar[1];
-            if (typeof namespace === "string") {
-              cal.ns[namespace] = cal.ns[namespace] || api;
-              p(cal.ns[namespace], ar);
-              p(cal, ["initNamespace", namespace]);
-            } else {
-              p(cal, ar);
-            }
+      // Detect mobile device
+      const isMobile = window.innerWidth <= 768;
+      const layout = isMobile ? "week_view" : "month_view";
+      
+      // Clear any existing calendar initialization
+      const calendarElement = document.getElementById("my-cal-inline-proxe");
+      if (calendarElement) {
+        calendarElement.innerHTML = ''; // Clear any existing content
+      }
+      
+      // Wait for DOM element to be ready with retry logic
+      let retryCount = 0;
+      const maxRetries = 50; // 5 seconds max wait
+      
+      const initCalendar = () => {
+        const calendarElement = document.getElementById("my-cal-inline-proxe");
+        if (!calendarElement) {
+          retryCount++;
+          if (retryCount < maxRetries) {
+            console.log(`Calendar element not found, retrying... (${retryCount}/${maxRetries})`);
+            setTimeout(initCalendar, 100);
+            return;
+          } else {
+            console.error('Calendar element not found after max retries');
             return;
           }
-          p(cal, ar);
-        };
-      })(window, "https://app.cal.com/embed/embed.js", "init");
+        }
 
-      // Initialize Cal with namespace "proxe"
-      (window as any).Cal("init", "proxe", { origin: "https://app.cal.com" });
+        console.log('Calendar element found, initializing Cal.com...');
 
-      // Set up inline embed
-      if ((window as any).Cal && (window as any).Cal.ns && (window as any).Cal.ns.proxe) {
-        (window as any).Cal.ns.proxe("inline", {
-          elementOrSelector: "#my-cal-inline-proxe",
-          config: { "layout": "month_view" },
-          calLink: "bcon-club-idsfgs/proxe",
-        });
+        // Initialize Cal.com inline embed
+        (function (C: any, A: string, L: string) {
+          let p = function (a: any, ar: any) { a.q.push(ar); };
+          let d = C.document;
+          C.Cal = C.Cal || function () {
+            let cal = C.Cal;
+            let ar = arguments;
+            if (!cal.loaded) {
+              cal.ns = {};
+              cal.q = cal.q || [];
+              const script = d.createElement("script");
+              script.src = A;
+              script.async = true;
+              script.onload = () => {
+                console.log('Cal.com script loaded');
+              };
+              script.onerror = () => {
+                console.error('Cal.com script failed to load');
+              };
+              d.head.appendChild(script);
+              cal.loaded = true;
+            }
+            if (ar[0] === L) {
+              const api: any = function () { p(api, arguments); };
+              api.q = api.q || [];
+              const namespace = ar[1];
+              if (typeof namespace === "string") {
+                cal.ns[namespace] = cal.ns[namespace] || api;
+                p(cal.ns[namespace], ar);
+                p(cal, ["initNamespace", namespace]);
+              } else {
+                p(cal, ar);
+              }
+              return;
+            }
+            p(cal, ar);
+          };
+        })(window, "https://app.cal.com/embed/embed.js", "init");
 
-        (window as any).Cal.ns.proxe("ui", { "hideEventTypeDetails": false, "layout": "month_view" });
-        console.log('Cal.com inline embed initialized');
-      } else {
-        // Wait for Cal to load
-        const checkCal = setInterval(() => {
+        // Initialize Cal with namespace "proxe"
+        (window as any).Cal("init", "proxe", { origin: "https://app.cal.com" });
+
+        // Set up inline embed with retry logic
+        let setupRetryCount = 0;
+        const maxSetupRetries = 100; // 10 seconds max wait
+        
+        const setupEmbed = () => {
           if ((window as any).Cal && (window as any).Cal.ns && (window as any).Cal.ns.proxe) {
-            (window as any).Cal.ns.proxe("inline", {
-              elementOrSelector: "#my-cal-inline-proxe",
-              config: { "layout": "month_view" },
-              calLink: "bcon-club-idsfgs/proxe",
-            });
+            try {
+              console.log('Setting up Cal.com inline embed...');
+              // Don't try to destroy - just initialize fresh
+              // The destroy method may not exist in all Cal.com versions
+              
+              (window as any).Cal.ns.proxe("inline", {
+                elementOrSelector: "#my-cal-inline-proxe",
+                config: { "layout": layout },
+                calLink: "bcon-club-idsfgs/proxe",
+              });
 
-            (window as any).Cal.ns.proxe("ui", { "hideEventTypeDetails": false, "layout": "month_view" });
-            console.log('Cal.com inline embed initialized');
-            clearInterval(checkCal);
+              (window as any).Cal.ns.proxe("ui", { 
+                "hideEventTypeDetails": false, 
+                "layout": layout 
+              });
+              console.log(`Cal.com inline embed initialized with ${layout} layout`);
+            } catch (error) {
+              console.error('Error setting up Cal.com embed:', error);
+            }
+          } else {
+            setupRetryCount++;
+            if (setupRetryCount < maxSetupRetries) {
+              setTimeout(setupEmbed, 100);
+            } else {
+              console.error('Cal.com API not available after max retries');
+            }
           }
-        }, 100);
+        };
 
-        // Clear interval after 5 seconds
-        setTimeout(() => clearInterval(checkCal), 5000);
+        // Start setup after a delay to ensure script is loaded
+        setTimeout(setupEmbed, 500);
+      };
+
+      // Start initialization after a small delay to ensure DOM is ready
+      setTimeout(initCalendar, 200);
+    } else {
+      // Clean up when calendar is hidden
+      const calendarElement = document.getElementById("my-cal-inline-proxe");
+      if (calendarElement) {
+        calendarElement.innerHTML = '';
       }
     }
   }, [showCalendly]);
@@ -394,11 +452,47 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     };
   }, [isExpanded, showQuickButtons, isDragging]);
 
+  // Helper function to check if text contains booking keywords (call or demo)
+  const containsBookingKeywords = (text: string): boolean => {
+    const lowerText = text.toLowerCase().trim();
+    // Check for booking-related keywords
+    return lowerText.includes('call') || 
+           lowerText.includes('demo') || 
+           lowerText.includes('book') ||
+           lowerText.includes('schedule') ||
+           lowerText.includes('meeting') ||
+           lowerText.includes('appointment');
+  };
+
   const handleSend = () => {
     if (!inputValue.trim() || isLoading) return;
     const message = inputValue.trim();
+    
+    // Check if user is trying to book again and booking is already completed
+    if (bookingCompleted && containsBookingKeywords(message)) {
+      // Prepend context to let API know booking is already done
+      const contextualMessage = `[Booking already scheduled] ${message}`;
+      setInputValue('');
+      setMessageCount((prev) => prev + 1);
+      
+      if (!isOpen) {
+        setIsOpen(true);
+        setIsExpanded(false);
+        setShowQuickButtons(false);
+        setTimeout(() => sendMessage(contextualMessage, messageCount + 1, usedButtons), 100);
+      } else {
+        sendMessage(contextualMessage, messageCount + 1, usedButtons);
+      }
+      return;
+    }
+    
     setInputValue('');
     setMessageCount((prev) => prev + 1);
+    
+    // Check if message contains booking keywords
+    if (containsBookingKeywords(message) && !bookingCompleted) {
+      setPendingCalendar(true);
+    }
     
     if (!isOpen) {
       setIsOpen(true);
@@ -416,21 +510,37 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       e.stopPropagation();
     }
     
+    console.log('Quick button clicked:', buttonText);
+    console.log('Booking completed:', bookingCompleted);
+    
+    // Check if booking is already completed
+    if (bookingCompleted && containsBookingKeywords(buttonText)) {
+      console.log('Booking already completed, skipping calendar');
+      // Don't trigger calendar again, just send the message
+      setIsOpen(true);
+      setIsExpanded(false);
+      setShowQuickButtons(false);
+      setUsedButtons((prev) => [...prev, buttonText]);
+      const userMessage = buttonText;
+      setMessageCount((prev) => prev + 1);
+      sendMessage(userMessage, messageCount + 1, [...usedButtons, buttonText]);
+      return;
+    }
+    
     // Close any open calendar widget first
     setShowCalendly(null);
     
-    // Check if button text suggests booking a call or demo
-    const bookCallKeywords = ['book call', 'schedule call', 'schedule a call', 'book a call', 'book meeting', 'schedule meeting', 'discovery call', 'book now', 'book appointment', 'book a demo', 'book demo', 'schedule a demo'];
-    const lowerButtonText = buttonText.toLowerCase();
-    const shouldShowCalendar = bookCallKeywords.some(keyword => {
-      const lowerKeyword = keyword.toLowerCase();
-      return lowerButtonText.includes(lowerKeyword) || lowerKeyword.includes(lowerButtonText);
-    });
+    // Simple check: if button contains "call" or "demo", show calendar
+    const shouldShowCalendar = containsBookingKeywords(buttonText);
     
-    // Debug log
-    if (shouldShowCalendar) {
-      console.log('Calendar should show for button:', buttonText);
-    }
+    console.log('Should show calendar:', shouldShowCalendar, 'for button:', buttonText);
+    console.log('Booking keywords check:', {
+      buttonText,
+      containsCall: buttonText.toLowerCase().includes('call'),
+      containsDemo: buttonText.toLowerCase().includes('demo'),
+      containsBook: buttonText.toLowerCase().includes('book'),
+      containsSchedule: buttonText.toLowerCase().includes('schedule'),
+    });
     
     setIsOpen(true);
     setIsExpanded(false);
@@ -444,9 +554,12 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     setMessageCount((prev) => prev + 1);
     sendMessage(userMessage, messageCount + 1, [...usedButtons, buttonText]);
     
-    if (shouldShowCalendar) {
+    if (shouldShowCalendar && !bookingCompleted) {
+      console.log('Setting pendingCalendar to true for quick button:', buttonText);
       // Set flag to show calendar after AI response completes (handled in useEffect)
       setPendingCalendar(true);
+    } else {
+      console.log('NOT setting pendingCalendar:', { shouldShowCalendar, bookingCompleted });
     }
   };
 
@@ -644,6 +757,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               setIsOpen(false);
               setShowCalendly(null);
               setPendingCalendar(false);
+              setBookingCompleted(false);
               setUsedButtons([]);
               setMessageCount(0);
               clearMessages();
@@ -656,6 +770,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             setIsOpen(false);
             setShowCalendly(null);
             setPendingCalendar(false);
+            setBookingCompleted(false);
             setUsedButtons([]);
             setMessageCount(0);
             clearMessages();
@@ -666,10 +781,18 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       </div>
       <div 
         className={styles.messagesArea}
-        onClick={() => {
-          // Close calendar widget when clicking in messages area (clicking away)
-          setShowCalendly(null);
-          setPendingCalendar(false);
+        onClick={(e) => {
+          // Only close calendar if clicking directly on the messages area, not on messages or buttons
+          const target = e.target as HTMLElement;
+          const isClickOnMessage = target.closest(`.${styles.message}`);
+          const isClickOnButton = target.closest(`.${styles.quickBtn}`) || target.closest(`.${styles.followUpBtn}`);
+          const isClickOnCalendar = target.closest(`.${styles.calendarContainer}`);
+          
+          if (!isClickOnMessage && !isClickOnButton && !isClickOnCalendar) {
+            // Close calendar widget when clicking in empty messages area (clicking away)
+            setShowCalendly(null);
+            setPendingCalendar(false);
+          }
         }}
       >
         {messages.map((message, index) => {
@@ -708,26 +831,31 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                     </div>
                     
                     {/* Follow-up buttons inside the bubble for AI messages */}
-                    {message.type === 'ai' && message.followUps && message.followUps.length > 0 && !message.isStreaming && message.hasStreamed === true && (
+                    {message.type === 'ai' && message.followUps && message.followUps.length > 0 && !message.isStreaming && message.hasStreamed === true && !showCalendly && (
                       <div className={styles.followUpButtons}>
                         {message.followUps.map((followUp, followUpIndex) => {
                           // Rotate through accent colors for follow-up buttons
                           const buttonAccentIndex = (accentIndex + followUpIndex) % 7;
                           const buttonAccentClass = `accent-${buttonAccentIndex}`;
                           
-                          // Check if button text suggests booking a call or demo
-                          const bookCallKeywords = ['book call', 'schedule call', 'schedule a call', 'book a call', 'book meeting', 'schedule meeting', 'discovery call', 'book now', 'book appointment', 'book a demo', 'book demo', 'schedule a demo'];
-                          const lowerFollowUp = followUp.toLowerCase();
-                          const shouldShowCalendar = bookCallKeywords.some(keyword => {
-                            const lowerKeyword = keyword.toLowerCase();
-                            return lowerFollowUp.includes(lowerKeyword) || lowerKeyword.includes(lowerFollowUp);
-                          });
+                          // Simple check: if button contains "call" or "demo", show calendar
+                          const shouldShowCalendar = containsBookingKeywords(followUp);
                           
                           return (
                           <button
                             key={followUpIndex}
                             className={`${styles.followUpBtn} ${styles[buttonAccentClass]}`}
                             onClick={() => {
+                              // Check if booking is already completed
+                              if (bookingCompleted && shouldShowCalendar) {
+                                // Don't trigger calendar again, just send the message
+                                setUsedButtons((prev) => [...prev, followUp]);
+                                const userMessage = followUp;
+                                setMessageCount((prev) => prev + 1);
+                                sendMessage(userMessage, messageCount + 1, [...usedButtons, followUp]);
+                                return;
+                              }
+                              
                               // Close any open calendar widget first
                               setShowCalendly(null);
                               
@@ -739,7 +867,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                               setMessageCount((prev) => prev + 1);
                               sendMessage(userMessage, messageCount + 1, [...usedButtons, followUp]);
                               
-                              if (shouldShowCalendar) {
+                              if (shouldShowCalendar && !bookingCompleted) {
                                 // Set flag to show calendar after AI response completes (handled in useEffect)
                                 console.log('Setting pendingCalendar to true for:', followUp);
                                 setPendingCalendar(true);
@@ -790,10 +918,12 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                   </div>
                   
                   {/* Calendar widget - Cal.com inline embed */}
-                  <div style={{ marginTop: '16px', width: '100%', minHeight: '600px' }}>
+                  <div className={styles.calendarContainer}>
                     <div 
+                      key={showCalendly} // Force re-render when showCalendly changes
                       id="my-cal-inline-proxe" 
-                      style={{width:"100%",height:"100%",overflow:"scroll"}}
+                      className={styles.calendarEmbed}
+                      style={{ minHeight: '500px', width: '100%' }}
                     />
                   </div>
                 </div>

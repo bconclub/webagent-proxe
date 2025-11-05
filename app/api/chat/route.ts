@@ -218,6 +218,41 @@ IMPORTANT RULES:
   }
 }
 
+// Helper function to check if two buttons are similar (e.g., "Book a Call" vs "Schedule a Call")
+function areSimilarBookingButtons(button1: string, button2: string): boolean {
+  const lower1 = button1.toLowerCase().trim();
+  const lower2 = button2.toLowerCase().trim();
+  
+  // Exact match
+  if (lower1 === lower2) return true;
+  
+  // Check if both contain booking-related keywords
+  const bookingKeywords = ['call', 'demo', 'book', 'schedule', 'meeting', 'appointment'];
+  const hasBooking1 = bookingKeywords.some(keyword => lower1.includes(keyword));
+  const hasBooking2 = bookingKeywords.some(keyword => lower2.includes(keyword));
+  
+  // If both are booking-related, they're similar
+  if (hasBooking1 && hasBooking2) {
+    // Check if they have the same core action (call or demo)
+    const hasCall1 = lower1.includes('call');
+    const hasCall2 = lower2.includes('call');
+    const hasDemo1 = lower1.includes('demo');
+    const hasDemo2 = lower2.includes('demo');
+    
+    // If both mention "call" or both mention "demo", they're similar
+    if ((hasCall1 && hasCall2) || (hasDemo1 && hasDemo2)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// Helper function to check if a button is similar to any in a list
+function isSimilarToAny(newButton: string, existingButtons: string[]): boolean {
+  return existingButtons.some(existing => areSimilarBookingButtons(newButton, existing));
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -225,6 +260,13 @@ export async function POST(request: NextRequest) {
 
     if (!message || message.trim() === '') {
       return Response.json({ error: 'Message is required' }, { status: 400 });
+    }
+
+    // Check if booking is already scheduled
+    const isBookingAlreadyScheduled = message.includes('[Booking already scheduled]');
+    if (isBookingAlreadyScheduled) {
+      // Remove the prefix for processing
+      message = message.replace('[Booking already scheduled]', '').trim();
     }
 
     if (!anthropic) {
@@ -269,7 +311,7 @@ export async function POST(request: NextRequest) {
             system: systemPrompt,
             messages: [{
               role: 'user',
-              content: `${message}\n\n[REMINDER: Answer their question directly. Use the knowledge base context. Be concise (1-3 sentences). If they want more details, they'll ask.${isThirdMessage ? ' IMPORTANT: After 3 messages, suggest booking a call to discuss further.' : ''}]`
+              content: `${message}\n\n[REMINDER: Answer their question directly. Use the knowledge base context. Be concise (1-3 sentences). If they want more details, they'll ask.${isThirdMessage ? ' IMPORTANT: After 3 messages, suggest booking a call to discuss further.' : ''}${isBookingAlreadyScheduled ? ' IMPORTANT: The user is trying to book again, but a booking is already scheduled. Politely inform them that their booking is already scheduled and they can check the calendar above to view or modify their appointment.' : ''}]`
             }],
           });
 
@@ -318,23 +360,32 @@ export async function POST(request: NextRequest) {
             const followUpSuggestion = await generateFollowUpSuggestion(message, cleanedResponse, messageCount, normalizedBrand);
             
             if (followUpSuggestion && followUpSuggestion.toLowerCase() !== 'skip') {
-              // Check if this suggestion was already used
-              if (!usedButtonsLower.includes(followUpSuggestion.toLowerCase())) {
+              // Check if this suggestion was already used or is similar to a used button
+              const isUsed = usedButtonsLower.includes(followUpSuggestion.toLowerCase());
+              const isSimilar = isSimilarToAny(followUpSuggestion, usedButtons);
+              
+              if (!isUsed && !isSimilar) {
                 followUpsArray = [followUpSuggestion];
               } else {
-                // If suggested button was already used, pick from defaults
-                const availableDefaults = defaultFollowUps.filter(followUp => 
-                  !usedButtonsLower.includes(followUp.toLowerCase())
-                );
+                // If suggested button was already used or similar, pick from defaults
+                const availableDefaults = defaultFollowUps.filter(followUp => {
+                  const lowerFollowUp = followUp.toLowerCase();
+                  const isFollowUpUsed = usedButtonsLower.includes(lowerFollowUp);
+                  const isFollowUpSimilar = isSimilarToAny(followUp, usedButtons);
+                  return !isFollowUpUsed && !isFollowUpSimilar;
+                });
                 followUpsArray = availableDefaults.length > 0 
                   ? [availableDefaults[0]] 
                   : [defaultFollowUps[0]]; // Fallback to first default if all used
               }
             } else {
               // No contextual suggestion, pick from defaults that haven't been used
-              const availableDefaults = defaultFollowUps.filter(followUp => 
-                !usedButtonsLower.includes(followUp.toLowerCase())
-              );
+              const availableDefaults = defaultFollowUps.filter(followUp => {
+                const lowerFollowUp = followUp.toLowerCase();
+                const isFollowUpUsed = usedButtonsLower.includes(lowerFollowUp);
+                const isFollowUpSimilar = isSimilarToAny(followUp, usedButtons);
+                return !isFollowUpUsed && !isFollowUpSimilar;
+              });
               followUpsArray = availableDefaults.length > 0 
                 ? [availableDefaults[0]] 
                 : [defaultFollowUps[0]]; // Fallback to first default if all used
