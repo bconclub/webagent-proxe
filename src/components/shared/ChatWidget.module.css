@@ -613,7 +613,7 @@
   backdrop-filter: blur(35px) saturate(100%);
   -webkit-backdrop-filter: blur(35px) saturate(100%);
   color: var(--text-primary);
-  border: 1px solid var(--bubble-user-border);
+  border: 2px solid var(--bubble-user-border);
   box-shadow: var(--bubble-user-shadow);
   width: 70%;
   max-width: 70%;
@@ -639,7 +639,7 @@
   backdrop-filter: blur(35px) saturate(100%);
   -webkit-backdrop-filter: blur(35px) saturate(100%);
   color: var(--text-primary);
-  border: 1px solid var(--bubble-ai-border);
+  border: 2px solid var(--bubble-ai-border);
   box-shadow: var(--bubble-ai-shadow);
 }
 

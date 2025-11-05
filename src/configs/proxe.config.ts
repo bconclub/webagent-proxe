@@ -129,10 +129,10 @@ export const proxeConfig: BrandConfig = {
     bgHover: 'rgba(91, 26, 140, 0.12)',
     bgActive: 'rgba(91, 26, 140, 0.15)',
     bubbleUserBg: 'rgba(91, 26, 140, 0.25)', // User tint: #5B1A8C - more visible
-    bubbleUserBorder: 'rgba(91, 26, 140, 0.4)',
+    bubbleUserBorder: 'rgba(91, 26, 140, 0.7)', // Definitive border
     bubbleUserShadow: '0 8px 32px rgba(91, 26, 140, 0.25)',
     bubbleAiBg: 'rgba(43, 74, 125, 0.3)', // AI tint: #2B4A7D - more visible
-    bubbleAiBorder: 'rgba(43, 74, 125, 0.4)',
+    bubbleAiBorder: 'rgba(43, 74, 125, 0.7)', // Definitive border
     bubbleAiShadow: '0 8px 32px rgba(43, 74, 125, 0.25)',
     buttonBg: 'rgba(91, 26, 140, 0.12)',
     buttonHover: 'rgba(91, 26, 140, 0.2)',

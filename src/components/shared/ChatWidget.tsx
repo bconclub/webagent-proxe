@@ -137,11 +137,14 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         lastMessageType: lastMessage?.type,
         hasStreamed: lastMessage?.hasStreamed,
         isStreaming: lastMessage?.isStreaming,
+        hasText: !!lastMessage?.text,
+        textLength: lastMessage?.text?.length,
         showCalendly
       });
       
       // Wait for AI message to be fully streamed and not currently streaming
-      if (lastMessage && lastMessage.type === 'ai' && lastMessage.hasStreamed && !lastMessage.isStreaming) {
+      // Also check that message has text content (more reliable than just hasStreamed)
+      if (lastMessage && lastMessage.type === 'ai' && !lastMessage.isStreaming && lastMessage.text && lastMessage.text.length > 0) {
         console.log('AI message complete, showing calendar widget');
         // Use setTimeout to ensure state updates properly
         const timer = setTimeout(() => {
@@ -149,7 +152,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           const calendarMessageId = `calendar-${Date.now()}`;
           setShowCalendly(calendarMessageId);
           console.log('Calendar widget shown with ID:', calendarMessageId);
-        }, 300);
+        }, 500);
         
         return () => clearTimeout(timer);
       }
@@ -160,10 +163,75 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     };
   }, [messages, isOpen, pendingCalendar, showCalendly]);
 
-  // Debug: Log when showCalendly changes
+  // Debug: Log when showCalendly changes and initialize Cal.com inline embed
   useEffect(() => {
     if (showCalendly) {
       console.log('Calendar widget should be visible, showCalendly:', showCalendly);
+      
+      // Initialize Cal.com inline embed
+      (function (C: any, A: string, L: string) {
+        let p = function (a: any, ar: any) { a.q.push(ar); };
+        let d = C.document;
+        C.Cal = C.Cal || function () {
+          let cal = C.Cal;
+          let ar = arguments;
+          if (!cal.loaded) {
+            cal.ns = {};
+            cal.q = cal.q || [];
+            const script = d.createElement("script");
+            script.src = A;
+            d.head.appendChild(script);
+            cal.loaded = true;
+          }
+          if (ar[0] === L) {
+            const api: any = function () { p(api, arguments); };
+            api.q = api.q || [];
+            const namespace = ar[1];
+            if (typeof namespace === "string") {
+              cal.ns[namespace] = cal.ns[namespace] || api;
+              p(cal.ns[namespace], ar);
+              p(cal, ["initNamespace", namespace]);
+            } else {
+              p(cal, ar);
+            }
+            return;
+          }
+          p(cal, ar);
+        };
+      })(window, "https://app.cal.com/embed/embed.js", "init");
+
+      // Initialize Cal with namespace "proxe"
+      (window as any).Cal("init", "proxe", { origin: "https://app.cal.com" });
+
+      // Set up inline embed
+      if ((window as any).Cal && (window as any).Cal.ns && (window as any).Cal.ns.proxe) {
+        (window as any).Cal.ns.proxe("inline", {
+          elementOrSelector: "#my-cal-inline-proxe",
+          config: { "layout": "month_view" },
+          calLink: "bcon-club-idsfgs/proxe",
+        });
+
+        (window as any).Cal.ns.proxe("ui", { "hideEventTypeDetails": false, "layout": "month_view" });
+        console.log('Cal.com inline embed initialized');
+      } else {
+        // Wait for Cal to load
+        const checkCal = setInterval(() => {
+          if ((window as any).Cal && (window as any).Cal.ns && (window as any).Cal.ns.proxe) {
+            (window as any).Cal.ns.proxe("inline", {
+              elementOrSelector: "#my-cal-inline-proxe",
+              config: { "layout": "month_view" },
+              calLink: "bcon-club-idsfgs/proxe",
+            });
+
+            (window as any).Cal.ns.proxe("ui", { "hideEventTypeDetails": false, "layout": "month_view" });
+            console.log('Cal.com inline embed initialized');
+            clearInterval(checkCal);
+          }
+        }, 100);
+
+        // Clear interval after 5 seconds
+        setTimeout(() => clearInterval(checkCal), 5000);
+      }
     }
   }, [showCalendly]);
 
@@ -721,15 +789,11 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                     </span>
                   </div>
                   
-                  {/* Calendar widget */}
-                  <div style={{ marginTop: '16px', width: '100%' }}>
-                    <iframe 
-                      src="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0yx4sfGToL6mRp_FmiYiRz-90p2DEM52yBAyAnOUEAd7W53MSiv0oFajnZ7yOhIftdjlY12X3X?gv=true" 
-                      style={{ border: 0 }} 
-                      width="100%" 
-                      height="600" 
-                      frameBorder="0"
-                      title="Google Calendar Appointment Scheduling"
+                  {/* Calendar widget - Cal.com inline embed */}
+                  <div style={{ marginTop: '16px', width: '100%', minHeight: '600px' }}>
+                    <div 
+                      id="my-cal-inline-proxe" 
+                      style={{width:"100%",height:"100%",overflow:"scroll"}}
                     />
                   </div>
                 </div>

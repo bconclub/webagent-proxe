@@ -49,14 +49,14 @@
   --bg-active: rgba(91, 26, 140, 0.15);
   
   /* Bubble backgrounds - Differentiated tints with higher opacity for visibility */
-  /* User bubble: Purple tint (#5B1A8C) - more visible */
+  /* User bubble: Purple tint (#5B1A8C) - more visible with definitive borders */
   --bubble-user-bg: rgba(91, 26, 140, 0.25);
-  --bubble-user-border: rgba(91, 26, 140, 0.4);
+  --bubble-user-border: rgba(91, 26, 140, 0.7);
   --bubble-user-shadow: 0 8px 32px rgba(91, 26, 140, 0.25);
   
-  /* AI bubble: Blue-purple tint (#2B4A7D) - more visible */
+  /* AI bubble: Blue-purple tint (#2B4A7D) - more visible with definitive borders */
   --bubble-ai-bg: rgba(43, 74, 125, 0.3);
-  --bubble-ai-border: rgba(43, 74, 125, 0.4);
+  --bubble-ai-border: rgba(43, 74, 125, 0.7);
   --bubble-ai-shadow: 0 8px 32px rgba(43, 74, 125, 0.25);
   
   /* Buttons */
