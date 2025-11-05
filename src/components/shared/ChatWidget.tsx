@@ -328,16 +328,31 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       setIsExpanded(false);
       setShowQuickButtons(false);
       
-      // Send a short message about discovery call first (2-3 sentences max)
-      const discoveryMessage = "You'll understand our services, pricing, and how we can help you achieve your goals.";
+      // Send user message with button text first
+      const userMessage = buttonText;
       setMessageCount((prev) => prev + 1);
-      sendMessage(discoveryMessage, messageCount + 1);
+      sendMessage(userMessage, messageCount);
       
-      // Show calendar widget after message is sent
+      // Wait for AI response to complete streaming before showing calendar
+      // Use useEffect to monitor messages and show calendar when streaming completes
       setTimeout(() => {
-        const calendarMessageId = `calendar-msg-${Date.now()}`;
-        setShowCalendly(calendarMessageId);
+        const checkMessageComplete = setInterval(() => {
+          const lastMessage = messages[messages.length - 1];
+          if (lastMessage && lastMessage.type === 'ai' && lastMessage.hasStreamed && !lastMessage.isStreaming) {
+            clearInterval(checkMessageComplete);
+            const calendarMessageId = `calendar-msg-${Date.now()}`;
+            setShowCalendly(calendarMessageId);
+          }
+        }, 100);
+        
+        // Fallback timeout after 5 seconds
+        setTimeout(() => {
+          clearInterval(checkMessageComplete);
+          const calendarMessageId = `calendar-msg-${Date.now()}`;
+          setShowCalendly(calendarMessageId);
+        }, 5000);
       }, 500);
+      
       return;
     }
     
@@ -588,11 +603,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                     
                     {/* Message content */}
                     <div style={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'nowrap', gap: '8px', width: '100%' }}>
-                      {message.isStreaming && (
-                        <div className={styles.infinityLoaderWrapper}>
-                          <InfinityLoader />
-                        </div>
-                      )}
                       <div
                         className={styles.messageText}
                         style={{ flex: '1 1 auto', minWidth: 0 }}
@@ -626,15 +636,28 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                               setShowCalendly(null);
                               
                               if (shouldShowCalendar) {
-                                // Send a short message about discovery call first (2-3 sentences max)
-                                const discoveryMessage = "You'll understand our services, pricing, and how we can help you achieve your goals.";
+                                // Send user message with button text first
+                                const userMessage = followUp;
                                 setMessageCount((prev) => prev + 1);
-                                sendMessage(discoveryMessage, messageCount + 1);
+                                sendMessage(userMessage, messageCount);
                                 
-                                // Show calendar widget after message is sent
+                                // Wait for AI response to complete streaming before showing calendar
                                 setTimeout(() => {
-                                  const messageId = `calendar-${message.id}-${Date.now()}`;
-                                  setShowCalendly(messageId);
+                                  const checkMessageComplete = setInterval(() => {
+                                    const lastMessage = messages[messages.length - 1];
+                                    if (lastMessage && lastMessage.type === 'ai' && lastMessage.hasStreamed && !lastMessage.isStreaming) {
+                                      clearInterval(checkMessageComplete);
+                                      const messageId = `calendar-${message.id}-${Date.now()}`;
+                                      setShowCalendly(messageId);
+                                    }
+                                  }, 100);
+                                  
+                                  // Fallback timeout after 5 seconds
+                                  setTimeout(() => {
+                                    clearInterval(checkMessageComplete);
+                                    const messageId = `calendar-${message.id}-${Date.now()}`;
+                                    setShowCalendly(messageId);
+                                  }, 5000);
                                 }, 500);
                               } else {
                                 setMessageCount((prev) => prev + 1);
@@ -649,10 +672,11 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                       </div>
                     )}
                     
-                    {/* Google Calendar widget - show after AI message or standalone */}
+                    {/* Google Calendar widget - show after AI message streaming is complete */}
                     {showCalendly && (
                       (showCalendly.startsWith(`calendar-${message.id}`) || 
-                       (message.type === 'ai' && messages.length > 0 && message.id === messages[messages.length - 1]?.id && showCalendly.startsWith('calendar-msg-'))) && (
+                       (message.type === 'ai' && messages.length > 0 && message.id === messages[messages.length - 1]?.id && showCalendly.startsWith('calendar-msg-'))) && 
+                      !message.isStreaming && message.hasStreamed && (
                         <div 
                           style={{ marginTop: '16px' }}
                           onClick={(e) => e.stopPropagation()}
