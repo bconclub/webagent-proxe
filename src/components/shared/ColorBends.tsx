@@ -1,13 +1,12 @@
-'use client'
-
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import styles from './ColorBends.module.css';
+import './ColorBends.css';
 
 const MAX_COLORS = 8;
 
 const frag = `
 #define MAX_COLORS ${MAX_COLORS}
+
 uniform vec2 uCanvas;
 uniform float uTime;
 uniform float uSpeed;
@@ -22,31 +21,23 @@ uniform vec2 uPointer; // in NDC [-1,1]
 uniform float uMouseInfluence;
 uniform float uParallax;
 uniform float uNoise;
+
 varying vec2 vUv;
 
 void main() {
   float t = uTime * uSpeed;
   vec2 p = vUv * 2.0 - 1.0;
-  p += uPointer * uParallax * 0.15;
-  
-  // Create sweeping arc from bottom-left
-  vec2 offset = vec2(-0.8, -0.6); // Start from bottom-left
-  vec2 arcDir = normalize(p - offset);
-  float arcDist = length(p - offset);
-  float arcAngle = atan(arcDir.y, arcDir.x);
-  
+  p += uPointer * uParallax * 0.1;
   vec2 rp = vec2(p.x * uRot.x - p.y * uRot.y, p.x * uRot.y + p.y * uRot.x);
   vec2 q = vec2(rp.x * (uCanvas.x / uCanvas.y), rp.y);
   q /= max(uScale, 0.0001);
-  q /= 0.4 + 0.15 * dot(q, q);
-  q += 0.3 * cos(t + arcAngle * 2.0) - 8.0;
-  q += arcDir * 0.5 * sin(arcDist * 0.5 + t);
+  q /= 0.5 + 0.2 * dot(q, q);
+  q += 0.2 * cos(t) - 7.56;
   vec2 toward = (uPointer - rp);
-  q += toward * uMouseInfluence * 0.25;
+  q += toward * uMouseInfluence * 0.2;
 
     vec3 col = vec3(0.0);
     float a = 1.0;
-
     if (uColorCount > 0) {
       vec2 s = q;
       vec3 sumCol = vec3(0.0);
@@ -63,12 +54,12 @@ void main() {
             vec2 warped = s + disp * gain;
             float m1 = length(warped + sin(5.0 * warped.y * uFrequency - 3.0 * t + float(i)) / 4.0);
             float m = mix(m0, m1, kMix);
-            float w = 1.0 - exp(-4.0 / exp(5.0 * m));
-            sumCol += uColors[i] * w * 1.2; // Increase color intensity
+            float w = 1.0 - exp(-6.0 / exp(6.0 * m));
+            sumCol += uColors[i] * w * 3.0; // Significantly boost color intensity
             cover = max(cover, w);
       }
-      col = clamp(sumCol * 1.1, 0.0, 1.0); // Boost overall brightness
-      a = uTransparent > 0 ? min(cover * 1.2, 1.0) : 1.0; // Increase alpha for visibility
+      col = clamp(sumCol * 3.0, 0.0, 1.0); // Multiply overall brightness even more
+      a = uTransparent > 0 ? max(cover * 1.5, 0.95) : 1.0; // Ensure high alpha for visibility
     } else {
         vec2 s = q;
         for (int k = 0; k < 3; ++k) {
@@ -87,21 +78,42 @@ void main() {
         a = uTransparent > 0 ? max(max(col.r, col.g), col.b) : 1.0;
     }
 
+    // Add grainy texture for that retro-digital look
     if (uNoise > 0.0001) {
-      float n = fract(sin(dot(gl_FragCoord.xy + vec2(uTime), vec2(12.9898, 78.233))) * 43758.5453123);
+      float n = fract(sin(dot(gl_FragCoord.xy + vec2(uTime * 0.5), vec2(12.9898, 78.233))) * 43758.5453123);
       col += (n - 0.5) * uNoise;
       col = clamp(col, 0.0, 1.0);
     }
 
-    // Enhance colors for better visibility
-    col = pow(col, vec3(0.9)); // Slight gamma correction for brightness
-    vec3 rgb = (uTransparent > 0) ? col * a : col;
-    gl_FragColor = vec4(rgb, a);
+    vec3 rgb = col;
+    // Ensure minimum brightness so something is always visible
+    float minBrightness = 0.2;
+    rgb = max(rgb, vec3(minBrightness));
+    
+    // Enhance saturation and brightness for vibrant rainbow effect
+    rgb = pow(rgb, vec3(0.7)); // Stronger gamma correction to brighten more
+    
+    // Boost saturation significantly
+    float maxComp = max(max(rgb.r, rgb.g), rgb.b);
+    float minComp = min(min(rgb.r, rgb.g), rgb.b);
+    float sat = maxComp > 0.0 ? (maxComp - minComp) / maxComp : 0.0;
+    sat = min(sat * 1.5, 1.0);
+    if (maxComp > 0.0) {
+      vec3 gray = vec3(maxComp);
+      rgb = mix(gray, rgb, clamp(sat, 0.0, 1.0));
+    }
+    
+    // Final brightness boost
+    rgb = rgb * 1.5;
+    rgb = clamp(rgb, 0.0, 1.0);
+    float finalAlpha = uTransparent > 0 ? max(a, 0.98) : 1.0;
+    gl_FragColor = vec4(rgb, finalAlpha);
 }
 `;
 
 const vert = `
 varying vec2 vUv;
+
 void main() {
   vUv = uv;
   gl_Position = vec4(position, 1.0);
@@ -125,7 +137,7 @@ interface ColorBendsProps {
 }
 
 export default function ColorBends({
-  className = '',
+  className,
   style,
   rotation = 45,
   speed = 0.2,
@@ -139,7 +151,7 @@ export default function ColorBends({
   parallax = 0.5,
   noise = 0.1
 }: ColorBendsProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const rafRef = useRef<number | null>(null);
   const materialRef = useRef<THREE.ShaderMaterial | null>(null);
@@ -152,12 +164,41 @@ export default function ColorBends({
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
-
+    if (!container) {
+      console.warn('ColorBends: Container not found');
+      return;
+    }
+    
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const geometry = new THREE.PlaneGeometry(2, 2);
     const uColorsArray = Array.from({ length: MAX_COLORS }, () => new THREE.Vector3(0, 0, 0));
+
+    // Initialize colors immediately
+    const toVec3 = (hex: string) => {
+      const h = hex.replace('#', '').trim();
+      const v =
+        h.length === 3
+          ? [parseInt(h[0] + h[0], 16), parseInt(h[1] + h[1], 16), parseInt(h[2] + h[2], 16)]
+          : [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+      return new THREE.Vector3(v[0] / 255, v[1] / 255, v[2] / 255);
+    };
+
+    const colorArray = (colors || []).filter(Boolean).slice(0, MAX_COLORS).map(toVec3);
+    console.log('ColorBends: Processing colors:', colors, '->', colorArray.length, 'colors');
+    
+    if (colorArray.length === 0) {
+      console.error('ColorBends: No valid colors found! Colors array:', colors);
+      return;
+    }
+    
+    for (let i = 0; i < MAX_COLORS; i++) {
+      if (i < colorArray.length) {
+        uColorsArray[i].copy(colorArray[i]);
+        console.log(`ColorBends: Color ${i}:`, colorArray[i]);
+      }
+    }
+    console.log('ColorBends: Initial colors set:', colorArray.length, 'uColorCount will be:', colorArray.length);
 
     const material = new THREE.ShaderMaterial({
       vertexShader: vert,
@@ -167,7 +208,7 @@ export default function ColorBends({
         uTime: { value: 0 },
         uSpeed: { value: speed },
         uRot: { value: new THREE.Vector2(1, 0) },
-        uColorCount: { value: 0 },
+        uColorCount: { value: colorArray.length },
         uColors: { value: uColorsArray },
         uTransparent: { value: transparent ? 1 : 0 },
         uScale: { value: scale },
@@ -178,9 +219,8 @@ export default function ColorBends({
         uParallax: { value: parallax },
         uNoise: { value: noise }
       },
-      premultipliedAlpha: false,
-      transparent: true,
-      depthWrite: false
+      premultipliedAlpha: true,
+      transparent: true
     });
 
     materialRef.current = material;
@@ -191,17 +231,32 @@ export default function ColorBends({
       antialias: true,
       powerPreference: 'high-performance',
       alpha: true,
-      premultipliedAlpha: false
+      preserveDrawingBuffer: false,
+      failIfMajorPerformanceCaveat: false
     });
 
     rendererRef.current = renderer;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setClearColor(0x000000, 0);
+    // Use device pixel ratio but cap at 2 for mobile performance
+    const pixelRatio = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 2) : 1;
+    renderer.setPixelRatio(pixelRatio);
+    renderer.setClearColor(0x000000, transparent ? 0 : 1);
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
     renderer.domElement.style.display = 'block';
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.left = '0';
+    renderer.domElement.style.touchAction = 'none';
     container.appendChild(renderer.domElement);
+    
+    // Debug: Check if WebGL context was created
+    const gl = renderer.getContext();
+    if (!gl) {
+      console.error('ColorBends: WebGL context not available');
+      return;
+    }
+    console.log('ColorBends: WebGL context created, colors:', colors);
 
     const clock = new THREE.Clock();
 
@@ -214,11 +269,11 @@ export default function ColorBends({
 
     handleResize();
 
-    if ('ResizeObserver' in window) {
+    if (typeof ResizeObserver !== 'undefined') {
       const ro = new ResizeObserver(handleResize);
       ro.observe(container);
       resizeObserverRef.current = ro;
-    } else {
+    } else if (typeof window !== 'undefined') {
       window.addEventListener('resize', handleResize);
     }
 
@@ -239,19 +294,21 @@ export default function ColorBends({
       cur.lerp(tgt, amt);
       material.uniforms.uPointer.value.copy(cur);
 
-      renderer.render(scene, camera);
+      try {
+        renderer.render(scene, camera);
+      } catch (error) {
+        console.error('ColorBends: Render error:', error);
+      }
       rafRef.current = requestAnimationFrame(loop);
     };
 
     rafRef.current = requestAnimationFrame(loop);
+    console.log('ColorBends: Render loop started');
 
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-      if (resizeObserverRef.current) {
-        resizeObserverRef.current.disconnect();
-      } else {
-        window.removeEventListener('resize', handleResize);
-      }
+      if (resizeObserverRef.current) resizeObserverRef.current.disconnect();
+      else window.removeEventListener('resize', handleResize);
       geometry.dispose();
       material.dispose();
       renderer.dispose();
@@ -291,6 +348,7 @@ export default function ColorBends({
       if (i < arr.length) vec.copy(arr[i]);
       else vec.set(0, 0, 0);
     }
+
     material.uniforms.uColorCount.value = arr.length;
     material.uniforms.uTransparent.value = transparent ? 1 : 0;
     if (renderer) renderer.setClearColor(0x000000, 0);
@@ -314,6 +372,7 @@ export default function ColorBends({
     if (!material || !container) return;
 
     const handlePointerMove = (e: PointerEvent) => {
+      if (!container) return;
       const rect = container.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / (rect.width || 1)) * 2 - 1;
       const y = -(((e.clientY - rect.top) / (rect.height || 1)) * 2 - 1);
@@ -326,12 +385,6 @@ export default function ColorBends({
     };
   }, []);
 
-  return (
-    <div
-      ref={containerRef}
-      className={`${styles.colorBendsContainer} ${className}`}
-      style={style}
-    />
-  );
+  return <div ref={containerRef} className={`color-bends-container ${className || ''}`} style={style} />;
 }
 

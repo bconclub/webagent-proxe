@@ -8,7 +8,7 @@
   overflow: hidden;
   z-index: -1;
   pointer-events: none;
-  background: black;
+  background: transparent;
   /* No opacity reduction - blobs handle their own transparency */
 }
 
