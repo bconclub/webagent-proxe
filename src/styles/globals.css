@@ -11,13 +11,26 @@ body {
 }
 
 body {
-  /* Dark purple abstract background image */
-  background: #0F0D0F url('/assets/proxe/Front%20Image.webp') center center / cover no-repeat fixed;
+  /* Black background for seamless blob overlay */
+  background: #250061;
   background-attachment: fixed;
   min-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Fluid gradient animation */
+@keyframes fluidGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 /* Mobile: use scroll instead of fixed for better performance */

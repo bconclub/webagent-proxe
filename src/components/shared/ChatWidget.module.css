@@ -112,10 +112,19 @@
 .searchbar::before {
   content: '';
   position: absolute;
-  inset: -2px;
-  border-radius: 30px;
-  padding: 2px;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-vibrant), var(--primary-color));
+  inset: -3px;
+  border-radius: 31px;
+  padding: 3px;
+  background: linear-gradient(90deg, 
+    #ff0000 0%, 
+    #ff7f00 14.28%, 
+    #ffff00 28.56%, 
+    #00ff00 42.84%, 
+    #0000ff 57.12%, 
+    #4b0082 71.4%, 
+    #9400d3 85.68%, 
+    #ff0000 100%
+  );
   background-size: 200% 200%;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
@@ -123,7 +132,43 @@
   mask-composite: exclude;
   z-index: -1;
   pointer-events: none;
-  animation: gradientBorder 3s ease infinite;
+  animation: rainbowBorder 3s linear infinite;
+  filter: blur(8px);
+  opacity: 0.9;
+}
+
+.searchbar::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 30px;
+  padding: 2px;
+  background: linear-gradient(90deg, 
+    #ff0000 0%, 
+    #ff7f00 14.28%, 
+    #ffff00 28.56%, 
+    #00ff00 42.84%, 
+    #0000ff 57.12%, 
+    #4b0082 71.4%, 
+    #9400d3 85.68%, 
+    #ff0000 100%
+  );
+  background-size: 200% 200%;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  z-index: -1;
+  pointer-events: none;
+  animation: rainbowBorder 3s linear infinite;
+  box-shadow: 
+    0 0 20px rgba(255, 0, 0, 0.6),
+    0 0 40px rgba(255, 127, 0, 0.5),
+    0 0 60px rgba(255, 255, 0, 0.4),
+    0 0 80px rgba(0, 255, 0, 0.3),
+    0 0 100px rgba(0, 0, 255, 0.3),
+    0 0 120px rgba(75, 0, 130, 0.3),
+    0 0 140px rgba(148, 0, 211, 0.3);
 }
 
 @keyframes gradientBorder {
@@ -132,6 +177,15 @@
   }
   50% {
     background-position: 100% 50%;
+  }
+}
+
+@keyframes rainbowBorder {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
   }
 }
 
@@ -817,21 +871,11 @@
 }
 
 .chatInputWrapper::before {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: 14px;
-  padding: 2px;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-vibrant), var(--gradient-mid), var(--primary-color));
-  background-size: 200% 200%;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  z-index: -1;
-  pointer-events: none;
-  animation: gradientBorder 3s ease infinite;
-  opacity: 0.6;
+  display: none;
+}
+
+.chatInputWrapper::after {
+  display: none;
 }
 
 .chatInput {

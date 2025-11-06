@@ -8,8 +8,8 @@
   overflow: hidden;
   z-index: -1;
   pointer-events: none;
-  background: transparent;
-  opacity: 0.3; /* Reduce opacity so background image shows through */
+  background: black;
+  /* No opacity reduction - blobs handle their own transparency */
 }
 
 /* Video background for PROXe */
@@ -29,47 +29,70 @@
 .blob {
   position: absolute;
   border-radius: 50%;
-  filter: blur(150px);
-  opacity: 0.7;
+  filter: blur(200px);
+  opacity: 1;
   mix-blend-mode: screen;
   will-change: transform;
   animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
   border: none;
   outline: none;
   box-shadow: none;
+  /* Ensure seamless edges - no visible boundaries */
+  transform-origin: center;
 }
 
-/* PROXe Blobs - Updated to match new theme: #5B1A8C, #2B4A7D, #A03BA8, #6EA5D4 */
+/* PROXe Blobs - Seamless with smooth fade to transparent edges */
 [data-brand="proxe"] .blob1 {
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle at center, #5B1A8C 0%, rgba(91, 26, 140, 0.6) 30%, rgba(91, 26, 140, 0.3) 60%, transparent 100%);
-  bottom: 120px;
+  width: 800px;
+  height: 800px;
+  background: radial-gradient(circle at center, 
+    rgb(91, 26, 140) 0%, 
+    rgba(91, 26, 140, 0.5) 20%,
+    rgba(91, 26, 140, 0.3) 40%,
+    rgba(91, 26, 140, 0.15) 60%,
+    rgba(91, 26, 140, 0.05) 80%,
+    transparent 100%
+  );
+  bottom: -200px;
   left: 50%;
   top: 50%;
-  transform: translateX(50%);
+  transform: translateX(-50%);
   animation: blobFloat1 20s ease-in-out infinite;
-  opacity: 0.7;
+  opacity: 1;
 }
 
 [data-brand="proxe"] .blob2 {
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle at center, #A03BA8 0%, rgba(160, 59, 168, 0.6) 30%, rgba(160, 59, 168, 0.3) 60%, transparent 100%);
-  top: -30%;
-  right: 550px;
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle at center, 
+    rgba(160, 59, 168, 0.8) 0%, 
+    rgba(160, 59, 168, 0.5) 20%,
+    rgba(160, 59, 168, 0.3) 40%,
+    rgba(160, 59, 168, 0.15) 60%,
+    rgba(160, 59, 168, 0.05) 80%,
+    transparent 100%
+  );
+  top: -200px;
+  right: -100px;
   animation: blobFloat2 25s ease-in-out infinite;
-  opacity: 0.6;
+  opacity: 1;
 }
 
 [data-brand="proxe"] .blob3 {
-  width: 550px;
-  height: 550px;
-  background: radial-gradient(circle at center, #2B4A7D 0%, rgba(43, 74, 125, 0.6) 35%, rgba(110, 165, 212, 0.3) 65%, transparent 100%);
-  bottom: -150px;
-  left: 25%;
+  width: 750px;
+  height: 750px;
+  background: radial-gradient(circle at center, 
+    rgba(43, 74, 125, 0.8) 0%, 
+    rgba(43, 74, 125, 0.5) 20%,
+    rgba(110, 165, 212, 0.4) 40%,
+    rgba(110, 165, 212, 0.2) 60%,
+    rgba(110, 165, 212, 0.05) 80%,
+    transparent 100%
+  );
+  bottom: -200px;
+  left: -100px;
   animation: blobFloat3 22s ease-in-out infinite;
-  opacity: 0.65;
+  opacity: 1;
 }
 
 [data-brand="proxe"] .blob4 {
@@ -206,19 +229,19 @@
   box-shadow: 0 0 115px rgba(168, 85, 247, 0.45);
 }
 
-/* Blob animations - smooth, organic blob-like movement without rotation */
+/* Blob animations - smooth, organic movement that keeps blobs within seamless bounds */
 @keyframes blobFloat1 {
   0%, 100% {
-    transform: translate(0, 0) scale(1);
+    transform: translate(-50%, -50%) scale(1);
   }
   25% {
-    transform: translate(80px, 100px) scale(1.15);
+    transform: translate(-45%, -45%) scale(1.1);
   }
   50% {
-    transform: translate(-40px, 150px) scale(0.9);
+    transform: translate(-55%, -50%) scale(0.95);
   }
   75% {
-    transform: translate(60px, 80px) scale(1.05);
+    transform: translate(-50%, -48%) scale(1.05);
   }
 }
 
@@ -227,13 +250,13 @@
     transform: translate(0, 0) scale(1);
   }
   25% {
-    transform: translate(-100px, 120px) scale(1.2);
+    transform: translate(-50px, 50px) scale(1.15);
   }
   50% {
-    transform: translate(60px, -100px) scale(0.85);
+    transform: translate(30px, -30px) scale(0.9);
   }
   75% {
-    transform: translate(-80px, 60px) scale(1.1);
+    transform: translate(-30px, 40px) scale(1.05);
   }
 }
 
@@ -242,13 +265,13 @@
     transform: translate(0, 0) scale(1);
   }
   25% {
-    transform: translate(90px, -120px) scale(1.25);
+    transform: translate(40px, -50px) scale(1.2);
   }
   50% {
-    transform: translate(-70px, 130px) scale(0.9);
+    transform: translate(-40px, 50px) scale(0.9);
   }
   75% {
-    transform: translate(50px, -80px) scale(1.1);
+    transform: translate(30px, -30px) scale(1.1);
   }
 }
 
