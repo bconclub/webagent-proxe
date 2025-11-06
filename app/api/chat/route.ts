@@ -26,6 +26,10 @@ if (!claudeApiKey) {
 
 const anthropic = claudeApiKey ? new Anthropic({ apiKey: claudeApiKey }) : null;
 
+if (!anthropic) {
+  console.error('❌ ERROR: No AI provider configured. Please set CLAUDE_API_KEY in environment variables.');
+}
+
 // Search knowledge base
 async function searchKnowledgeBase(query: string, brand: string = 'proxe', limit: number = 3) {
   try {
@@ -127,6 +131,14 @@ async function searchKnowledgeBase(query: string, brand: string = 'proxe', limit
 
 // Generate follow-up suggestion
 async function generateFollowUpSuggestion(userMessage: string, assistantMessage: string, messageCount: number = 0, brand: string = 'proxe') {
+  if (anthropic) {
+    return await generateFollowUpWithClaude(userMessage, assistantMessage, messageCount, brand);
+  }
+  return null;
+}
+
+// Generate follow-up with Claude
+async function generateFollowUpWithClaude(userMessage: string, assistantMessage: string, messageCount: number = 0, brand: string = 'proxe') {
   if (!anthropic) return null;
 
   try {
@@ -269,9 +281,12 @@ export async function POST(request: NextRequest) {
       message = message.replace('[Booking already scheduled]', '').trim();
     }
 
+    // Check if we have any AI provider available
     if (!anthropic) {
       return Response.json(
-        { error: 'CLAUDE_API_KEY is not configured. Please set CLAUDE_API_KEY in Vercel environment variables.' },
+        { 
+          error: 'No AI provider configured. Please set CLAUDE_API_KEY in environment variables.' 
+        },
         { status: 500 }
       );
     }
@@ -305,6 +320,14 @@ export async function POST(request: NextRequest) {
     const stream = new ReadableStream({
       async start(controller) {
         try {
+          let rawResponse = '';
+          let cleanedResponse = '';
+
+          // Use Claude for streaming
+          if (!anthropic) {
+            throw new Error('Claude API is not configured. Please set CLAUDE_API_KEY in environment variables.');
+          }
+
           const anthropicStream = await anthropic.messages.stream({
             model: 'claude-sonnet-4-20250514',
             max_tokens: 1024,
@@ -314,8 +337,6 @@ export async function POST(request: NextRequest) {
               content: `${message}\n\n[REMINDER: Answer their question directly. Use the knowledge base context. Be concise (1-3 sentences). If they want more details, they'll ask.${isThirdMessage ? ' IMPORTANT: After 3 messages, suggest booking a call to discuss further.' : ''}${isBookingAlreadyScheduled ? ' IMPORTANT: The user is trying to book again, but a booking is already scheduled. Politely inform them that their booking is already scheduled and they can check the calendar above to view or modify their appointment.' : ''}]`
             }],
           });
-
-          let rawResponse = '';
 
           for await (const chunk of anthropicStream) {
             if (chunk.type === 'content_block_delta' && chunk.delta && chunk.delta.type === 'text_delta') {
@@ -327,7 +348,7 @@ export async function POST(request: NextRequest) {
           }
 
           // Clean response
-          let cleanedResponse = rawResponse
+          cleanedResponse = rawResponse
             .replace(/^(Hi there!|Hello!|Hey!|Hi!)\s*/gi, '')
             .replace(/^(Hi|Hello|Hey),?\s*/gi, '')
             .trim();

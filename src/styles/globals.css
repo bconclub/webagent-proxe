@@ -11,11 +11,11 @@ body {
 }
 
 body {
-  /* Black background for seamless blob overlay */
-  background: #250061;
+  /* Dark background for colourbends */
+  background: #000000;
   background-attachment: fixed;
   min-height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: "Blinker", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
