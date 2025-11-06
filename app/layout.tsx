@@ -1,11 +1,24 @@
 import type { Metadata, Viewport } from 'next'
+import { Blinker } from 'next/font/google'
 import '@/src/styles/globals.css'
 import '@/src/styles/themes/proxe.css'
 import '@/src/styles/themes/windchasers.css'
 
+const blinker = Blinker({
+  weight: ['100', '200', '300', '400', '600', '700', '800', '900'],
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-blinker',
+})
+
 export const metadata: Metadata = {
   title: 'PROXe',
   description: 'AI Operations System For Business',
+  icons: {
+    icon: '/assets/proxe/PROXe Favicon.png',
+    shortcut: '/assets/proxe/PROXe Favicon.png',
+    apple: '/assets/proxe/PROXe Favicon.png',
+  },
 }
 
 export const viewport: Viewport = {
@@ -22,12 +35,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" data-brand="proxe" data-theme="purple-frost" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Blinker:wght@200;300;400;600;700;800;900&display=swap" rel="stylesheet" />
-      </head>
+    <html lang="en" data-brand="proxe" data-theme="purple-frost" className={blinker.variable} suppressHydrationWarning>
       <body suppressHydrationWarning>{children}</body>
     </html>
   )

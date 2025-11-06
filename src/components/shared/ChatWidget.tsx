@@ -95,6 +95,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [inputValue, setInputValue] = useState('');
   const [showQuickButtons, setShowQuickButtons] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isInputActive, setIsInputActive] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [showCalendly, setShowCalendly] = useState<string | null>(null);
@@ -125,7 +126,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     }
     
     // Add/remove class to body for background blur
-    if (isOpen) {
+    if (isOpen || isInputActive) {
       document.body.classList.add('chat-open');
     } else {
       document.body.classList.remove('chat-open');
@@ -358,6 +359,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       
       if (!isOpen) {
         setIsOpen(true);
+        setIsInputActive(true);
         setIsExpanded(false);
         setShowQuickButtons(false);
         setTimeout(() => sendMessage(contextualMessage, messageCount + 1, usedButtons), 100);
@@ -377,6 +379,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     
     if (!isOpen) {
       setIsOpen(true);
+      setIsInputActive(true);
       setIsExpanded(false);
       setShowQuickButtons(false);
       setTimeout(() => sendMessage(message, messageCount + 1, usedButtons), 100);
@@ -399,6 +402,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       console.log('Booking already completed, skipping calendar');
       // Don't trigger calendar again, just send the message
       setIsOpen(true);
+      setIsInputActive(true);
       setIsExpanded(false);
       setShowQuickButtons(false);
       setUsedButtons((prev) => [...prev, buttonText]);
@@ -424,6 +428,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     });
     
     setIsOpen(true);
+    setIsInputActive(true);
     setIsExpanded(false);
     setShowQuickButtons(false);
     
@@ -445,6 +450,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   };
 
   const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setIsInputActive(true);
     if (!isOpen) {
       setIsExpanded(true);
       // Show quick buttons only when expanded
@@ -502,6 +508,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       if (!inputValue.trim() && !isOpen) {
         setShowQuickButtons(false);
         setIsExpanded(false);
+        setIsInputActive(false);
       }
     }, 200);
   };
@@ -661,6 +668,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             className={styles.resetBtn} 
             onClick={() => {
               setIsOpen(false);
+              setIsInputActive(false);
               setShowCalendly(null);
               setPendingCalendar(false);
               setBookingCompleted(false);
@@ -674,6 +682,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           </button>
           <button className={styles.closeBtn} onClick={() => {
             setIsOpen(false);
+            setIsInputActive(false);
             setShowCalendly(null);
             setPendingCalendar(false);
             setBookingCompleted(false);

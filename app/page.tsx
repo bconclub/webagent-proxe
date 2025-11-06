@@ -1,6 +1,7 @@
 'use client'
 
 import { BrandChatWidget } from '@/src/components/brand/BrandChatWidget';
+import DarkVeil from '@/src/components/shared/DarkVeil';
 
 export default function HomePage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || undefined;
