@@ -101,7 +101,9 @@ export default function DarkVeil({
 
     const renderer = new Renderer({
       dpr: typeof window !== 'undefined' ? Math.min(window.devicePixelRatio, 2) : 1,
-      canvas
+      canvas,
+      alpha: true,
+      antialias: true
     });
 
     const gl = renderer.gl;

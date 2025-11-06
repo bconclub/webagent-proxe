@@ -1,15 +1,29 @@
 /* ChatWidget Styles - Using CSS Variables from Theme */
 
 .searchbarWrapper {
-  position: fixed;
-  bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  position: fixed !important;
+  bottom: 40px !important;
+  top: auto !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  -webkit-transform: translateX(-50%) !important;
+  -moz-transform: translateX(-50%) !important;
+  -ms-transform: translateX(-50%) !important;
+  z-index: 9999 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding: 0 !important;
+  pointer-events: auto !important;
+  width: auto !important;
+  height: auto !important;
 }
 
 .quickButtons {
@@ -108,7 +122,12 @@
   cursor: pointer;
   pointer-events: auto !important;
   z-index: 10000;
-  position: relative;
+  position: relative !important;
+  top: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  margin: 0 !important;
   overflow: visible;
   isolation: isolate;
   -webkit-tap-highlight-color: transparent;
@@ -174,11 +193,20 @@
 .searchbarExpanded {
   width: 400px !important;
   max-width: 90vw !important;
-  transform: scale(1.02);
+  transform: scale(1.02) !important;
+  -webkit-transform: scale(1.02) !important;
+  position: relative !important;
+  top: auto !important;
+  bottom: auto !important;
 }
 
 .searchbar:hover {
   background: rgba(255, 255, 255, 0.04);
+  position: relative !important;
+  top: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  -webkit-transform: none !important;
 }
 
 .searchIcon {
@@ -259,6 +287,9 @@
   top: 50% !important;
   left: 50% !important;
   transform: translate(-50%, -50%) !important;
+  -webkit-transform: translate(-50%, -50%) !important;
+  -moz-transform: translate(-50%, -50%) !important;
+  -ms-transform: translate(-50%, -50%) !important;
   bottom: auto !important;
   right: auto !important;
   margin: 0 !important;
@@ -277,7 +308,6 @@
   border: none;
   box-shadow: none;
   isolation: isolate;
-  position: relative;
 }
 
 /* Animated accent color border - removed */
@@ -303,25 +333,22 @@
     right: auto !important;
     bottom: auto !important;
     transform: translate(-50%, -50%) !important;
+    -webkit-transform: translate(-50%, -50%) !important;
+    -moz-transform: translate(-50%, -50%) !important;
+    -ms-transform: translate(-50%, -50%) !important;
+    transform-origin: center center !important;
+    -webkit-transform-origin: center center !important;
     margin: 0 !important;
     margin-top: 0 !important;
     margin-bottom: 0 !important;
     margin-left: 0 !important;
     margin-right: 0 !important;
+    width: 380px !important;
+    max-width: 380px !important;
   }
   
   .chatboxContainer::after {
     display: none;
-  }
-}
-
-/* Additional specificity for desktop centering */
-@media screen and (min-width: 769px) {
-  .chatboxContainer {
-    position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
   }
 }
 
@@ -955,11 +982,15 @@
 /* Mobile styles */
 @media (max-width: 768px) {
   .searchbarWrapper {
-    bottom: 20px;
-    left: 20px;
-    right: 20px;
-    transform: none;
-    width: auto;
+    bottom: 20px !important;
+    left: 20px !important;
+    right: 20px !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+    width: auto !important;
+    top: auto !important;
+    position: fixed !important;
+    z-index: 9999 !important;
   }
 
   .searchbar {
@@ -976,6 +1007,9 @@
     right: 0 !important;
     bottom: 0 !important;
     transform: none !important;
+    -webkit-transform: none !important;
+    -moz-transform: none !important;
+    -ms-transform: none !important;
     width: 100% !important;
     max-width: 100% !important;
     height: 100vh !important;

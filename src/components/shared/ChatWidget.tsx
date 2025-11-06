@@ -102,13 +102,93 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [pendingCalendar, setPendingCalendar] = useState(false);
   const [bookingCompleted, setBookingCompleted] = useState(false);
   const [usedButtons, setUsedButtons] = useState<string[]>([]);
+  const [isDesktop, setIsDesktop] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
   const quickButtonsRef = useRef<HTMLDivElement>(null);
+  const chatboxContainerRef = useRef<HTMLDivElement>(null);
+  const searchbarWrapperRef = useRef<HTMLDivElement>(null);
   const dragStartX = useRef<number>(0);
   const dragStartScrollLeft = useRef<number>(0);
   const hasDraggedRef = useRef<boolean>(false);
+
+  // Keep searchbarWrapper fixed at bottom at all times
+  useEffect(() => {
+    const fixSearchbarPosition = () => {
+      if (searchbarWrapperRef.current && window.innerWidth >= 769) {
+        // Desktop: keep at bottom, centered horizontally
+        searchbarWrapperRef.current.style.setProperty('position', 'fixed', 'important');
+        searchbarWrapperRef.current.style.setProperty('bottom', '40px', 'important');
+        searchbarWrapperRef.current.style.setProperty('top', 'auto', 'important');
+        searchbarWrapperRef.current.style.setProperty('left', '50%', 'important');
+        searchbarWrapperRef.current.style.setProperty('right', 'auto', 'important');
+        searchbarWrapperRef.current.style.setProperty('transform', 'translateX(-50%)', 'important');
+        searchbarWrapperRef.current.style.setProperty('-webkit-transform', 'translateX(-50%)', 'important');
+        searchbarWrapperRef.current.style.setProperty('z-index', '9999', 'important');
+      } else if (searchbarWrapperRef.current) {
+        // Mobile: keep at bottom
+        searchbarWrapperRef.current.style.setProperty('position', 'fixed', 'important');
+        searchbarWrapperRef.current.style.setProperty('bottom', '20px', 'important');
+        searchbarWrapperRef.current.style.setProperty('top', 'auto', 'important');
+      }
+    };
+    
+    // Fix immediately
+    fixSearchbarPosition();
+    
+    // Fix on resize
+    window.addEventListener('resize', fixSearchbarPosition);
+    
+    // Fix periodically to prevent any CSS from overriding
+    const interval = setInterval(fixSearchbarPosition, 200);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('resize', fixSearchbarPosition);
+    };
+  }, [isOpen]); // Also run when isOpen changes
+
+  // Check if desktop on mount and resize, and apply centering styles
+  useEffect(() => {
+    const checkDesktop = () => {
+      const desktop = window.innerWidth >= 769;
+      setIsDesktop(desktop);
+      
+      // Directly set styles on the element to override CSS
+      if (chatboxContainerRef.current && isOpen) {
+        if (desktop) {
+          // Use setTimeout to ensure DOM is ready
+          setTimeout(() => {
+            if (chatboxContainerRef.current) {
+              chatboxContainerRef.current.style.setProperty('position', 'fixed', 'important');
+              chatboxContainerRef.current.style.setProperty('top', '50%', 'important');
+              chatboxContainerRef.current.style.setProperty('left', '50%', 'important');
+              chatboxContainerRef.current.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
+              chatboxContainerRef.current.style.setProperty('-webkit-transform', 'translate(-50%, -50%)', 'important');
+              chatboxContainerRef.current.style.setProperty('right', 'auto', 'important');
+              chatboxContainerRef.current.style.setProperty('bottom', 'auto', 'important');
+              chatboxContainerRef.current.style.setProperty('width', '380px', 'important');
+              chatboxContainerRef.current.style.setProperty('max-width', '380px', 'important');
+            }
+          }, 0);
+        } else {
+          // Clear desktop styles on mobile
+          if (chatboxContainerRef.current) {
+            chatboxContainerRef.current.style.removeProperty('top');
+            chatboxContainerRef.current.style.removeProperty('left');
+            chatboxContainerRef.current.style.removeProperty('transform');
+            chatboxContainerRef.current.style.removeProperty('-webkit-transform');
+            chatboxContainerRef.current.style.removeProperty('right');
+            chatboxContainerRef.current.style.removeProperty('bottom');
+          }
+        }
+      }
+    };
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
+    return () => window.removeEventListener('resize', checkDesktop);
+  }, [isOpen]);
 
 
   const { messages, isLoading, sendMessage, handleQuickButton, clearMessages } = useChat({
@@ -528,7 +608,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   
   if (!isOpen) {
     return (
-      <div className={styles.searchbarWrapper}>
+      <div ref={searchbarWrapperRef} className={styles.searchbarWrapper}>
         {isExpanded && showQuickButtons && config?.quickButtons && config.quickButtons.length > 0 && (
           <div ref={quickButtonsRef} className={styles.quickButtons}>
             {config.quickButtons.map((buttonText, index) => (
@@ -655,7 +735,10 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   }
 
   return (
-    <div className={styles.chatboxContainer}>
+    <div 
+      ref={chatboxContainerRef}
+      className={styles.chatboxContainer}
+    >
       <div className={styles.chatHeader}>
         <div className={styles.brandName}>
           <div className={styles.avatar}>
