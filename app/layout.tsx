@@ -1,14 +1,15 @@
 import type { Metadata, Viewport } from 'next'
-import { Blinker } from 'next/font/google'
+import { Exo_2 } from 'next/font/google'
 import '@/src/styles/globals.css'
 import '@/src/styles/themes/proxe.css'
 import '@/src/styles/themes/windchasers.css'
+import LoadingBar from '@/src/components/shared/LoadingBar'
 
-const blinker = Blinker({
-  weight: ['100', '200', '300', '400', '600', '700', '800', '900'],
+const exo2 = Exo_2({
+  weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-blinker',
+  variable: '--font-exo2',
 })
 
 export const metadata: Metadata = {
@@ -35,8 +36,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" data-brand="proxe" data-theme="purple-frost" className={blinker.variable} suppressHydrationWarning>
-      <body suppressHydrationWarning>{children}</body>
+    <html lang="en" data-brand="proxe" data-theme="purple-frost" className={exo2.variable} suppressHydrationWarning>
+      <body suppressHydrationWarning>
+        <LoadingBar />
+        {children}
+      </body>
     </html>
   )
 }

@@ -107,6 +107,10 @@ export default function DarkVeil({
     });
 
     const gl = renderer.gl;
+    if (!gl) {
+      console.error('Failed to create WebGL context');
+      return;
+    }
     const geometry = new Triangle(gl);
 
     const program = new Program(gl, {
@@ -129,14 +133,24 @@ export default function DarkVeil({
       if (!parent) return;
       const w = parent.clientWidth;
       const h = parent.clientHeight;
-      renderer.setSize(w * resolutionScale, h * resolutionScale);
-      program.uniforms.uResolution.value.set(w, h);
+      if (w > 0 && h > 0) {
+        renderer.setSize(w * resolutionScale, h * resolutionScale);
+        program.uniforms.uResolution.value.set(w, h);
+        console.log('DarkVeil resized:', { w, h, resolutionScale });
+      }
     };
 
     if (typeof window !== 'undefined') {
       window.addEventListener('resize', resize);
     }
     resize();
+    
+    // Force initial render
+    setTimeout(() => {
+      resize();
+      renderer.render({ scene: mesh });
+      console.log('DarkVeil initial render');
+    }, 100);
 
     const start = performance.now();
     let frame: number | null = null;
