@@ -99,14 +99,62 @@
   align-items: center;
   gap: 10px;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 2px solid transparent;
+  border: none;
   box-shadow: 
     0 4px 24px rgba(0, 0, 0, 0.3);
   cursor: pointer;
-  pointer-events: auto;
+  pointer-events: auto !important;
   z-index: 10000;
   position: relative;
   overflow: visible;
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Brand-specific border - 1px width */
+.searchbar::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 29px;
+  padding: 1px;
+  background-size: 200% 100%;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  z-index: -1;
+  pointer-events: none;
+  animation: accentBorderFlow 3s linear infinite;
+}
+
+/* PROXe - Rainbow border */
+[data-brand="proxe"] .searchbar::before,
+[data-theme="purple-frost"] .searchbar::before {
+  background: linear-gradient(90deg, 
+    #FF0000 0%, 
+    #FF7F00 14.28%,
+    #FFFF00 28.56%,
+    #00FF00 42.84%,
+    #0000FF 57.12%,
+    #4B0082 71.4%,
+    #9400D3 85.68%,
+    #FF0000 100%
+  );
+  background-size: 200% 100%;
+}
+
+/* Wind Chasers - Gold/Brown accent gradient */
+[data-brand="windchasers"] .searchbar::before,
+[data-theme="warm-frost"] .searchbar::before {
+  background: linear-gradient(90deg, 
+    #C4A574 0%, 
+    #D4B88A 25%,
+    #8B6B4A 50%,
+    #D4B88A 75%,
+    #C4A574 100%
+  );
+  background-size: 200% 100%;
 }
 
 
@@ -128,7 +176,6 @@
 
 .searchbar:hover {
   background: rgba(255, 255, 255, 0.04);
-  border-color: var(--border-accent);
 }
 
 .searchIcon {
@@ -230,32 +277,9 @@
   position: relative;
 }
 
-/* Animated accent color border */
+/* Animated accent color border - removed */
 .chatboxContainer::after {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: 26px;
-  padding: 2px;
-  background: linear-gradient(90deg, 
-    #FF5722 0%, 
-    #FF8C00 25%,
-    #FF7043 50%,
-    #FF8C00 75%,
-    #FF5722 100%
-  );
-  background-size: 200% 100%;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  z-index: -1;
-  pointer-events: none;
-  animation: accentBorderFlow 3s linear infinite;
-  box-shadow: 
-    0 0 15px rgba(255, 87, 34, 0.5),
-    0 0 30px rgba(255, 140, 0, 0.4),
-    0 0 45px rgba(255, 112, 67, 0.3);
+  display: none;
 }
 
 @keyframes accentBorderFlow {
@@ -284,7 +308,7 @@
   }
   
   .chatboxContainer::after {
-    border-radius: 26px;
+    display: none;
   }
 }
 
@@ -303,8 +327,8 @@
   position: absolute;
   inset: 0;
   border-radius: 24px;
-  /* Frosted glass background with accent color tint */
-  background: rgba(255, 87, 34, 0.05);
+  /* Frosted glass background with dark tint */
+  background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(80px) saturate(200%);
   -webkit-backdrop-filter: blur(80px) saturate(200%);
   z-index: 0;
@@ -312,8 +336,8 @@
   box-shadow: 
     0 8px 32px rgba(0, 0, 0, 0.15),
     0 2px 8px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 87, 34, 0.2),
-    inset 0 -1px 0 rgba(255, 140, 0, 0.1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
 }
 
 @keyframes rotateGradient {
@@ -832,19 +856,13 @@
   border-radius: 12px;
 }
 
+/* Accent color gradient border - Brand specific */
 .chatInputWrapper::before {
   content: '';
   position: absolute;
-  inset: -2px;
-  border-radius: 14px;
-  padding: 2px;
-  background: linear-gradient(90deg, 
-    #FF5722 0%, 
-    #FF8C00 25%,
-    #FF7043 50%,
-    #FF8C00 75%,
-    #FF5722 100%
-  );
+  inset: -1px;
+  border-radius: 13px;
+  padding: 1px;
   background-size: 200% 100%;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
@@ -855,31 +873,34 @@
   animation: accentBorderFlow 3s linear infinite;
 }
 
-.chatInputWrapper::after {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border-radius: 13px;
-  padding: 1px;
+/* PROXe - Purple accent gradient */
+[data-brand="proxe"] .chatInputWrapper::before,
+[data-theme="purple-frost"] .chatInputWrapper::before {
   background: linear-gradient(90deg, 
-    #FF5722 0%, 
-    #FF8C00 25%,
-    #FF7043 50%,
-    #FF8C00 75%,
-    #FF5722 100%
+    #5B1A8C 0%, 
+    #A03BA8 25%,
+    #2B4A7D 50%,
+    #A03BA8 75%,
+    #5B1A8C 100%
   );
   background-size: 200% 100%;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  z-index: -1;
-  pointer-events: none;
-  animation: accentBorderFlow 3s linear infinite;
-  box-shadow: 
-    0 0 10px rgba(255, 87, 34, 0.4),
-    0 0 20px rgba(255, 140, 0, 0.3),
-    0 0 30px rgba(255, 112, 67, 0.2);
+}
+
+/* Wind Chasers - Gold/Brown accent gradient */
+[data-brand="windchasers"] .chatInputWrapper::before,
+[data-theme="warm-frost"] .chatInputWrapper::before {
+  background: linear-gradient(90deg, 
+    #C4A574 0%, 
+    #D4B88A 25%,
+    #8B6B4A 50%,
+    #D4B88A 75%,
+    #C4A574 100%
+  );
+  background-size: 200% 100%;
+}
+
+.chatInputWrapper::after {
+  display: none;
 }
 
 @keyframes accentBorderFlow {
@@ -967,8 +988,7 @@
   }
 
   .chatboxContainer::after {
-    border-radius: 0 !important;
-    inset: -2px;
+    display: none !important;
   }
 
   .chatboxContainer::before {

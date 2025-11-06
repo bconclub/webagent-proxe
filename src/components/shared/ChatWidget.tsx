@@ -517,6 +517,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       .replace(/\*(.+?)\*/g, '<em>$1</em>');
   };
 
+  console.log('ChatWidget render', { isOpen, isExpanded, showQuickButtons, hasConfig: !!config, quickButtonsCount: config?.quickButtons?.length });
+  
   if (!isOpen) {
     return (
       <div className={styles.searchbarWrapper}>
@@ -540,19 +542,39 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         )}
         <div 
           className={`${styles.searchbar} ${isExpanded ? styles.searchbarExpanded : ''}`}
+          onMouseDown={(e) => {
+            console.log('Searchbar mousedown', { isExpanded, showQuickButtons, isOpen });
+            // Don't prevent default - let click event fire
+          }}
           onClick={(e) => {
-            if (!isOpen && !isExpanded) {
-              e.stopPropagation();
-              setIsExpanded(true);
-              setTimeout(() => {
-                setShowQuickButtons(true);
-                inputRef.current?.focus();
-              }, 100);
-            }
+            console.log('=== SEARCHBAR CLICKED ===', { isExpanded, showQuickButtons, isOpen, hasQuickButtons: config?.quickButtons?.length });
+            e.stopPropagation();
+            // Always expand and show quick buttons on click
+            console.log('Setting states to true');
+            setIsExpanded(true);
+            setShowQuickButtons(true);
+            console.log('States set');
+            // Focus input
+            setTimeout(() => {
+              inputRef.current?.focus();
+            }, 50);
+          }}
+          onTouchStart={(e) => {
+            console.log('Searchbar touchstart');
+            setIsExpanded(true);
+            setShowQuickButtons(true);
           }}
           style={{ cursor: 'pointer' }}
         >
-          <div className={styles.searchIcon}>
+          <div className={styles.searchIcon} onClick={(e) => {
+            e.stopPropagation();
+            console.log('Search icon clicked');
+            setIsExpanded(true);
+            setShowQuickButtons(true);
+            setTimeout(() => {
+              inputRef.current?.focus();
+            }, 50);
+          }}>
             {ICONS.search}
           </div>
           <input
@@ -562,13 +584,16 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             placeholder="Ask me anything..."
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('Input clicked');
+              setIsExpanded(true);
+              setShowQuickButtons(true);
+            }}
             onFocus={(e) => {
-              if (!isOpen) {
-                setIsExpanded(true);
-                setTimeout(() => {
-                  setShowQuickButtons(true);
-                }, 100);
-              }
+              console.log('Input focused', { isExpanded, showQuickButtons });
+              setIsExpanded(true);
+              setShowQuickButtons(true);
               // Scroll input into view above keyboard on mobile
               const scrollInputIntoView = () => {
                 const input = e.target;
