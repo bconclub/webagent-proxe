@@ -1,3 +1,5 @@
+'use client'
+
 import { useRef, useEffect } from 'react';
 import { Renderer, Program, Mesh, Triangle, Vec2 } from 'ogl';
 import './DarkVeil.css';
@@ -91,14 +93,14 @@ export default function DarkVeil({
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const canvas = ref.current;
-    if (!canvas) return;
+    if (!ref.current) return;
     
+    const canvas = ref.current;
     const parent = canvas.parentElement;
     if (!parent) return;
 
     const renderer = new Renderer({
-      dpr: Math.min(window.devicePixelRatio, 2),
+      dpr: typeof window !== 'undefined' ? Math.min(window.devicePixelRatio, 2) : 1,
       canvas
     });
 
@@ -122,17 +124,20 @@ export default function DarkVeil({
     const mesh = new Mesh(gl, { geometry, program });
 
     const resize = () => {
+      if (!parent) return;
       const w = parent.clientWidth;
       const h = parent.clientHeight;
       renderer.setSize(w * resolutionScale, h * resolutionScale);
       program.uniforms.uResolution.value.set(w, h);
     };
 
-    window.addEventListener('resize', resize);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', resize);
+    }
     resize();
 
     const start = performance.now();
-    let frame = 0;
+    let frame: number | null = null;
 
     const loop = () => {
       program.uniforms.uTime.value = ((performance.now() - start) / 1000) * speed;
@@ -149,8 +154,12 @@ export default function DarkVeil({
     loop();
 
     return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener('resize', resize);
+      if (frame !== null) {
+        cancelAnimationFrame(frame);
+      }
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', resize);
+      }
     };
   }, [hueShift, noiseIntensity, scanlineIntensity, speed, scanlineFrequency, warpAmount, resolutionScale]);
 
