@@ -43,6 +43,13 @@
   pointer-events: auto !important;
   width: auto !important;
   height: auto !important;
+  will-change: bottom !important;
+  -webkit-backface-visibility: hidden !important;
+  backface-visibility: hidden !important;
+  isolation: isolate !important;
+  touch-action: manipulation !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
 }
 
 .quickButtons {
@@ -61,6 +68,9 @@
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  touch-action: pan-x;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* Show grab cursor on desktop when hovering over quick buttons container */
@@ -110,6 +120,9 @@
   overflow: visible;
   isolation: isolate;
   text-shadow: none;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .quickBtn:hover {
@@ -284,6 +297,9 @@
   font-family: inherit;
   cursor: text;
   pointer-events: auto;
+  touch-action: auto;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .searchInput::placeholder {
@@ -1028,6 +1044,7 @@
 /* Mobile styles - Fullscreen */
 @media (max-width: 768px) {
   .searchbarWrapper {
+    position: fixed !important;
     bottom: 40px !important;
     left: 20px !important;
     right: 20px !important;
@@ -1035,6 +1052,9 @@
     -webkit-transform: none !important;
     width: auto !important;
     top: auto !important;
+    will-change: bottom !important;
+    -webkit-backface-visibility: hidden !important;
+    backface-visibility: hidden !important;
   }
 
   .searchbar {

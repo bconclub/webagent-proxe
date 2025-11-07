@@ -207,20 +207,41 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   // Lock body scroll when searchbar is hovered or clicked
   useEffect(() => {
     if (isSearchbarHovered || isInputActive) {
-      // Store original overflow
+      // Store original overflow and scroll position
       const originalOverflow = document.body.style.overflow;
       const originalPosition = document.body.style.position;
+      const originalTop = document.body.style.top;
+      const scrollY = window.scrollY;
       
       // Lock body scroll
       document.body.style.overflow = 'hidden';
       document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
       document.body.style.width = '100%';
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      
+      // Prevent touch move on mobile
+      const preventScroll = (e: TouchEvent) => {
+        if (e.target && searchbarWrapperRef.current && !searchbarWrapperRef.current.contains(e.target as Node)) {
+          e.preventDefault();
+        }
+      };
+      
+      document.addEventListener('touchmove', preventScroll, { passive: false });
       
       return () => {
-        // Restore original overflow
+        // Restore original overflow and scroll position
         document.body.style.overflow = originalOverflow;
         document.body.style.position = originalPosition;
+        document.body.style.top = originalTop;
         document.body.style.width = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        
+        window.scrollTo(0, scrollY);
+        
+        document.removeEventListener('touchmove', preventScroll);
       };
     }
   }, [isSearchbarHovered, isInputActive]);
