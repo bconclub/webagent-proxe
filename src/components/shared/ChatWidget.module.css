@@ -95,7 +95,7 @@
   background: rgba(91, 26, 140, 0.25);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(160, 59, 168, 0.6);
+  border: 1px solid transparent;
   color: var(--white);
   border-radius: 20px;
   cursor: pointer;
@@ -104,73 +104,49 @@
   white-space: nowrap;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
-  box-shadow: 
-    0 2px 8px rgba(91, 26, 140, 0.2),
-    0 0 16px rgba(160, 59, 168, 0.15),
-    0 0 24px rgba(91, 26, 140, 0.1),
-    0 0 0 1px rgba(160, 59, 168, 0.15) inset;
+  box-shadow: none;
   position: relative;
   overflow: visible;
   isolation: isolate;
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
+  text-shadow: none;
 }
 
 .quickBtn:hover {
   background: rgba(91, 26, 140, 0.35);
-  border-color: rgba(160, 59, 168, 0.8);
-  box-shadow: 
-    0 4px 16px rgba(91, 26, 140, 0.25),
-    0 0 24px rgba(160, 59, 168, 0.2),
-    0 0 32px rgba(91, 26, 140, 0.15),
-    0 0 0 1px rgba(160, 59, 168, 0.2) inset;
+  border-color: transparent;
+  box-shadow: none;
   transform: translateY(-1px);
-  text-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
+  text-shadow: none;
 }
 
-/* PROXe brand - Purple glow */
+/* PROXe brand */
 [data-brand="proxe"] .quickBtn,
 [data-theme="purple-frost"] .quickBtn {
   background: rgba(91, 26, 140, 0.25);
-  border-color: rgba(160, 59, 168, 0.6);
-  box-shadow: 
-    0 2px 8px rgba(91, 26, 140, 0.2),
-    0 0 16px rgba(160, 59, 168, 0.15),
-    0 0 24px rgba(91, 26, 140, 0.1),
-    0 0 0 1px rgba(160, 59, 168, 0.15) inset;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 [data-brand="proxe"] .quickBtn:hover,
 [data-theme="purple-frost"] .quickBtn:hover {
   background: rgba(91, 26, 140, 0.35);
-  border-color: rgba(160, 59, 168, 0.8);
-  box-shadow: 
-    0 4px 16px rgba(91, 26, 140, 0.25),
-    0 0 24px rgba(160, 59, 168, 0.2),
-    0 0 32px rgba(91, 26, 140, 0.15),
-    0 0 0 1px rgba(160, 59, 168, 0.2) inset;
+  border-color: transparent;
+  box-shadow: none;
 }
 
-/* Wind Chasers brand - Gold/Brown glow */
+/* Wind Chasers brand */
 [data-brand="windchasers"] .quickBtn,
 [data-theme="warm-frost"] .quickBtn {
   background: rgba(196, 165, 116, 0.25);
-  border-color: rgba(212, 184, 138, 0.6);
-  box-shadow: 
-    0 2px 8px rgba(196, 165, 116, 0.2),
-    0 0 16px rgba(212, 184, 138, 0.15),
-    0 0 24px rgba(196, 165, 116, 0.1),
-    0 0 0 1px rgba(212, 184, 138, 0.15) inset;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 [data-brand="windchasers"] .quickBtn:hover,
 [data-theme="warm-frost"] .quickBtn:hover {
   background: rgba(196, 165, 116, 0.35);
-  border-color: rgba(212, 184, 138, 0.8);
-  box-shadow: 
-    0 4px 16px rgba(196, 165, 116, 0.25),
-    0 0 24px rgba(212, 184, 138, 0.2),
-    0 0 32px rgba(196, 165, 116, 0.15),
-    0 0 0 1px rgba(212, 184, 138, 0.2) inset;
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .searchbar {
