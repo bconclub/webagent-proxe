@@ -39,7 +39,7 @@ export default function HomePage() {
   ];
 
   return (
-    <main style={{ position: 'relative', minHeight: '100vh', background: 'transparent' }}>
+    <main className={styles.pageContainer}>
       <div 
         id="darkveil-container"
         className="darkveil-container"
