@@ -6,7 +6,7 @@ import Header from '@/src/components/shared/Header';
 import BlurText from '@/src/components/shared/BlurText';
 import styles from './page.module.css';
 
-export default function HomePage() {
+export default function ProxePage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || undefined;
 
   return (
@@ -29,3 +29,4 @@ export default function HomePage() {
     </main>
   )
 }
+

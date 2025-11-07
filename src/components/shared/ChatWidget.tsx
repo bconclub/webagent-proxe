@@ -606,9 +606,38 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
   console.log('ChatWidget render', { isOpen, isExpanded, showQuickButtons, hasConfig: !!config, quickButtonsCount: config?.quickButtons?.length });
   
+  const shouldShowBlur = (isExpanded || showQuickButtons) && !isOpen;
+  
   if (!isOpen) {
     return (
-      <div ref={searchbarWrapperRef} className={styles.searchbarWrapper}>
+      <>
+        {shouldShowBlur && (
+          <div 
+            className={styles.blurOverlay}
+            onClick={() => {
+              if (!isInputActive && !inputValue.trim()) {
+                setIsExpanded(false);
+                setShowQuickButtons(false);
+              }
+            }}
+          />
+        )}
+        <div 
+          ref={searchbarWrapperRef} 
+          className={styles.searchbarWrapper}
+          onMouseEnter={() => {
+            if (!isOpen && config?.quickButtons && config.quickButtons.length > 0) {
+              setIsExpanded(true);
+              setShowQuickButtons(true);
+            }
+          }}
+          onMouseLeave={() => {
+            if (!isOpen && !isInputActive && !inputValue.trim()) {
+              setIsExpanded(false);
+              setShowQuickButtons(false);
+            }
+          }}
+        >
         {isExpanded && showQuickButtons && config?.quickButtons && config.quickButtons.length > 0 && (
           <div ref={quickButtonsRef} className={styles.quickButtons}>
             {config.quickButtons.map((buttonText, index) => (
@@ -731,6 +760,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           )}
         </div>
       </div>
+      </>
     );
   }
 

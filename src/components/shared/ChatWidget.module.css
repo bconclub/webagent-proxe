@@ -1,5 +1,21 @@
 /* ChatWidget Styles - Using CSS Variables from Theme */
 
+.blurOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 9998;
+  pointer-events: auto;
+  transition: opacity 0.3s ease, backdrop-filter 0.3s ease;
+}
+
 .searchbarWrapper {
   position: fixed !important;
   bottom: 40px !important;
