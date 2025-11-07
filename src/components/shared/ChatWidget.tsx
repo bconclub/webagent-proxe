@@ -105,6 +105,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [usedButtons, setUsedButtons] = useState<string[]>([]);
   const [isDesktop, setIsDesktop] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const SEARCHBAR_BASE_OFFSET = 60;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -119,13 +120,14 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   useEffect(() => {
     const fixSearchbarPosition = () => {
       if (!searchbarWrapperRef.current) return;
+      if (keyboardHeight > 0) return; // let keyboard handler control position
       
       const isMobile = window.innerWidth < 769;
       
       if (isMobile) {
-        // Mobile: Full width at bottom with 40px padding
+        // Mobile: Full width at bottom with consistent padding
         searchbarWrapperRef.current.style.setProperty('position', 'fixed', 'important');
-        searchbarWrapperRef.current.style.setProperty('bottom', '40px', 'important');
+        searchbarWrapperRef.current.style.setProperty('bottom', `${SEARCHBAR_BASE_OFFSET}px`, 'important');
         searchbarWrapperRef.current.style.setProperty('left', '20px', 'important');
         searchbarWrapperRef.current.style.setProperty('right', '20px', 'important');
         searchbarWrapperRef.current.style.setProperty('top', 'auto', 'important');
@@ -136,7 +138,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       } else {
         // Desktop: Centered at bottom
         searchbarWrapperRef.current.style.setProperty('position', 'fixed', 'important');
-        searchbarWrapperRef.current.style.setProperty('bottom', '40px', 'important');
+        searchbarWrapperRef.current.style.setProperty('bottom', `${SEARCHBAR_BASE_OFFSET}px`, 'important');
         searchbarWrapperRef.current.style.setProperty('top', 'auto', 'important');
         searchbarWrapperRef.current.style.setProperty('left', '50%', 'important');
         searchbarWrapperRef.current.style.setProperty('right', 'auto', 'important');
@@ -159,7 +161,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       clearInterval(interval);
       window.removeEventListener('resize', fixSearchbarPosition);
     };
-  }, [isOpen, isExpanded, showQuickButtons, isInputActive]); // Run when these states change
+  }, [isOpen, isExpanded, showQuickButtons, isInputActive, keyboardHeight]); // Run when these states change
 
   // Apply styles based on device type
   useEffect(() => {
@@ -264,12 +266,12 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
       // Adjust searchbar position when keyboard is visible
       if (searchbarWrapperRef.current && calculatedKeyboardHeight > 0) {
-        const newBottom = calculatedKeyboardHeight + 50; // 50px above keyboard for better spacing
+        const newBottom = calculatedKeyboardHeight + SEARCHBAR_BASE_OFFSET;
         searchbarWrapperRef.current.style.setProperty('bottom', `${newBottom}px`, 'important');
         searchbarWrapperRef.current.style.setProperty('transition', 'none', 'important');
       } else if (searchbarWrapperRef.current && calculatedKeyboardHeight === 0) {
         // Keyboard is hidden, restore original position with smooth transition
-        searchbarWrapperRef.current.style.setProperty('bottom', '40px', 'important');
+        searchbarWrapperRef.current.style.setProperty('bottom', `${SEARCHBAR_BASE_OFFSET}px`, 'important');
         searchbarWrapperRef.current.style.setProperty('transition', 'bottom 0.2s ease-out', 'important');
       }
 
