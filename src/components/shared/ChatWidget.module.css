@@ -10,74 +10,12 @@
   height: 100%;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.75);
   z-index: 9998;
   pointer-events: auto;
-  transition: opacity 0.3s ease, backdrop-filter 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
+  transition: opacity 0.3s ease, backdrop-filter 0.3s ease, background 0.3s ease;
   border: none;
   box-sizing: border-box;
-}
-
-/* Glowing diffused accent border for PROXe brand */
-[data-brand="proxe"] .blurOverlay,
-[data-theme="purple-frost"] .blurOverlay {
-  box-shadow: 
-    inset 0 0 80px rgba(91, 26, 140, 0.3),
-    inset 0 0 120px rgba(160, 59, 168, 0.2),
-    0 0 60px rgba(91, 26, 140, 0.25),
-    0 0 100px rgba(160, 59, 168, 0.15),
-    0 0 140px rgba(91, 26, 140, 0.1);
-  animation: borderGlow 4s ease-in-out infinite;
-}
-
-/* Glowing diffused accent border for Wind Chasers brand */
-[data-brand="windchasers"] .blurOverlay,
-[data-theme="warm-frost"] .blurOverlay {
-  box-shadow: 
-    inset 0 0 80px rgba(196, 165, 116, 0.3),
-    inset 0 0 120px rgba(212, 184, 138, 0.2),
-    0 0 60px rgba(196, 165, 116, 0.25),
-    0 0 100px rgba(212, 184, 138, 0.15),
-    0 0 140px rgba(196, 165, 116, 0.1);
-  animation: borderGlowWarm 4s ease-in-out infinite;
-}
-
-@keyframes borderGlow {
-  0%, 100% {
-    box-shadow: 
-      inset 0 0 80px rgba(91, 26, 140, 0.3),
-      inset 0 0 120px rgba(160, 59, 168, 0.2),
-      0 0 60px rgba(91, 26, 140, 0.25),
-      0 0 100px rgba(160, 59, 168, 0.15),
-      0 0 140px rgba(91, 26, 140, 0.1);
-  }
-  50% {
-    box-shadow: 
-      inset 0 0 100px rgba(160, 59, 168, 0.4),
-      inset 0 0 150px rgba(91, 26, 140, 0.3),
-      0 0 80px rgba(160, 59, 168, 0.35),
-      0 0 120px rgba(91, 26, 140, 0.25),
-      0 0 180px rgba(160, 59, 168, 0.15);
-  }
-}
-
-@keyframes borderGlowWarm {
-  0%, 100% {
-    box-shadow: 
-      inset 0 0 80px rgba(196, 165, 116, 0.3),
-      inset 0 0 120px rgba(212, 184, 138, 0.2),
-      0 0 60px rgba(196, 165, 116, 0.25),
-      0 0 100px rgba(212, 184, 138, 0.15),
-      0 0 140px rgba(196, 165, 116, 0.1);
-  }
-  50% {
-    box-shadow: 
-      inset 0 0 100px rgba(212, 184, 138, 0.4),
-      inset 0 0 150px rgba(196, 165, 116, 0.3),
-      0 0 80px rgba(212, 184, 138, 0.35),
-      0 0 120px rgba(196, 165, 116, 0.25),
-      0 0 180px rgba(212, 184, 138, 0.15);
-  }
 }
 
 .searchbarWrapper {
@@ -154,34 +92,85 @@
 
 .quickBtn {
   padding: 8px 14px;
-  background: rgba(91, 26, 140, 0.15);
+  background: rgba(91, 26, 140, 0.25);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(91, 26, 140, 0.4);
+  border: 1px solid rgba(160, 59, 168, 0.6);
   color: var(--white);
   border-radius: 20px;
   cursor: pointer;
   font-size: 14px;
+  font-weight: 500;
   white-space: nowrap;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
   box-shadow: 
-    0 1px 4px rgba(0, 0, 0, 0.1),
-    0 0 0 0.5px rgba(91, 26, 140, 0.15) inset,
-    0 0 6px rgba(91, 26, 140, 0.15);
+    0 2px 8px rgba(91, 26, 140, 0.2),
+    0 0 16px rgba(160, 59, 168, 0.15),
+    0 0 24px rgba(91, 26, 140, 0.1),
+    0 0 0 1px rgba(160, 59, 168, 0.15) inset;
   position: relative;
   overflow: visible;
   isolation: isolate;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
 }
 
 .quickBtn:hover {
+  background: rgba(91, 26, 140, 0.35);
+  border-color: rgba(160, 59, 168, 0.8);
+  box-shadow: 
+    0 4px 16px rgba(91, 26, 140, 0.25),
+    0 0 24px rgba(160, 59, 168, 0.2),
+    0 0 32px rgba(91, 26, 140, 0.15),
+    0 0 0 1px rgba(160, 59, 168, 0.2) inset;
+  transform: translateY(-1px);
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
+}
+
+/* PROXe brand - Purple glow */
+[data-brand="proxe"] .quickBtn,
+[data-theme="purple-frost"] .quickBtn {
   background: rgba(91, 26, 140, 0.25);
   border-color: rgba(160, 59, 168, 0.6);
   box-shadow: 
     0 2px 8px rgba(91, 26, 140, 0.2),
-    0 0 0 0.5px rgba(160, 59, 168, 0.2) inset,
-    0 0 10px rgba(91, 26, 140, 0.25);
-  transform: translateY(-1px);
+    0 0 16px rgba(160, 59, 168, 0.15),
+    0 0 24px rgba(91, 26, 140, 0.1),
+    0 0 0 1px rgba(160, 59, 168, 0.15) inset;
+}
+
+[data-brand="proxe"] .quickBtn:hover,
+[data-theme="purple-frost"] .quickBtn:hover {
+  background: rgba(91, 26, 140, 0.35);
+  border-color: rgba(160, 59, 168, 0.8);
+  box-shadow: 
+    0 4px 16px rgba(91, 26, 140, 0.25),
+    0 0 24px rgba(160, 59, 168, 0.2),
+    0 0 32px rgba(91, 26, 140, 0.15),
+    0 0 0 1px rgba(160, 59, 168, 0.2) inset;
+}
+
+/* Wind Chasers brand - Gold/Brown glow */
+[data-brand="windchasers"] .quickBtn,
+[data-theme="warm-frost"] .quickBtn {
+  background: rgba(196, 165, 116, 0.25);
+  border-color: rgba(212, 184, 138, 0.6);
+  box-shadow: 
+    0 2px 8px rgba(196, 165, 116, 0.2),
+    0 0 16px rgba(212, 184, 138, 0.15),
+    0 0 24px rgba(196, 165, 116, 0.1),
+    0 0 0 1px rgba(212, 184, 138, 0.15) inset;
+}
+
+[data-brand="windchasers"] .quickBtn:hover,
+[data-theme="warm-frost"] .quickBtn:hover {
+  background: rgba(196, 165, 116, 0.35);
+  border-color: rgba(212, 184, 138, 0.8);
+  box-shadow: 
+    0 4px 16px rgba(196, 165, 116, 0.25),
+    0 0 24px rgba(212, 184, 138, 0.2),
+    0 0 32px rgba(196, 165, 116, 0.15),
+    0 0 0 1px rgba(212, 184, 138, 0.2) inset;
 }
 
 .searchbar {
