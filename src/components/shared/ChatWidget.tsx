@@ -264,11 +264,13 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
       // Adjust searchbar position when keyboard is visible
       if (searchbarWrapperRef.current && calculatedKeyboardHeight > 0) {
-        const newBottom = calculatedKeyboardHeight + 20; // 20px above keyboard
+        const newBottom = calculatedKeyboardHeight + 50; // 50px above keyboard for better spacing
         searchbarWrapperRef.current.style.setProperty('bottom', `${newBottom}px`, 'important');
+        searchbarWrapperRef.current.style.setProperty('transition', 'none', 'important');
       } else if (searchbarWrapperRef.current && calculatedKeyboardHeight === 0) {
-        // Keyboard is hidden, restore original position
+        // Keyboard is hidden, restore original position with smooth transition
         searchbarWrapperRef.current.style.setProperty('bottom', '40px', 'important');
+        searchbarWrapperRef.current.style.setProperty('transition', 'bottom 0.2s ease-out', 'important');
       }
 
       // Adjust chat container height when keyboard is visible (mobile only)
