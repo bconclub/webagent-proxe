@@ -189,7 +189,7 @@
   }
 
   .logo {
-    height: 22px;
+    height: 26px;
     flex-shrink: 0;
   }
 
@@ -199,6 +199,15 @@
 
   .mobileNav {
     display: flex;
+  }
+
+  .mobileDeployButton {
+    padding: 14px 28px;
+    font-size: 20px;
+  }
+
+  .plusIcon {
+    font-size: 42px;
   }
 
   .mobileMenu {
@@ -216,12 +225,12 @@
   }
 
   .logo {
-    height: 18px;
+    height: 22px;
   }
 
   .mobileDeployButton {
-    padding: 8px 17px;
-    font-size: 16px;
+    padding: 10px 20px;
+    font-size: 19px;
   }
 
   .menuButton {
@@ -230,7 +239,7 @@
   }
 
   .plusIcon {
-    font-size: 29px;
+    font-size: 35px;
   }
 }
 

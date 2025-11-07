@@ -11,7 +11,24 @@ export default function HomePage() {
 
   return (
     <main style={{ position: 'relative', minHeight: '100vh', background: 'transparent' }}>
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1, pointerEvents: 'none', width: '100%', height: '100%', minWidth: '100%', minHeight: '100%' }}>
+      <div 
+        id="darkveil-container"
+        className="darkveil-container"
+        style={{ 
+          position: 'fixed', 
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          bottom: 0, 
+          zIndex: 0, 
+          pointerEvents: 'none', 
+          width: '100vw', 
+          height: '100vh', 
+          minWidth: '100vw', 
+          minHeight: '100vh',
+          backgroundColor: 'transparent'
+        }}
+      >
         <DarkVeil speed={0.8} warpAmount={0.3} />
       </div>
       <Header />

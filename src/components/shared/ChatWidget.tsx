@@ -653,6 +653,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         {shouldShowBlur && (
           <div 
             className={styles.blurOverlay}
+            data-brand={brand}
             onClick={() => {
               if (!isInputActive && !inputValue.trim()) {
                 setIsExpanded(false);
