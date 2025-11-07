@@ -104,6 +104,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [bookingCompleted, setBookingCompleted] = useState(false);
   const [usedButtons, setUsedButtons] = useState<string[]>([]);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -223,6 +224,59 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       };
     }
   }, [isSearchbarHovered, isInputActive]);
+
+  // Handle keyboard appearance and adjust searchbar position
+  useEffect(() => {
+    if (!window.visualViewport) return;
+
+    const viewport = window.visualViewport;
+
+    const handleViewportChange = () => {
+      if (!viewport) return;
+
+      // Calculate keyboard height
+      const windowHeight = window.innerHeight;
+      const viewportHeight = viewport.height;
+      const calculatedKeyboardHeight = windowHeight - viewportHeight;
+      
+      setKeyboardHeight(calculatedKeyboardHeight);
+
+      // Adjust searchbar position when keyboard is visible
+      if (searchbarWrapperRef.current && calculatedKeyboardHeight > 0) {
+        const newBottom = calculatedKeyboardHeight + 20; // 20px above keyboard
+        searchbarWrapperRef.current.style.setProperty('bottom', `${newBottom}px`, 'important');
+      } else if (searchbarWrapperRef.current && calculatedKeyboardHeight === 0) {
+        // Keyboard is hidden, restore original position
+        searchbarWrapperRef.current.style.setProperty('bottom', '40px', 'important');
+      }
+
+      // Adjust chat container height when keyboard is visible (mobile only)
+      if (isOpen && chatboxContainerRef.current && window.innerWidth < 769) {
+        if (calculatedKeyboardHeight > 0) {
+          // Keyboard is visible - adjust container to account for keyboard
+          const adjustedHeight = viewportHeight;
+          chatboxContainerRef.current.style.setProperty('height', `${adjustedHeight}px`, 'important');
+          chatboxContainerRef.current.style.setProperty('max-height', `${adjustedHeight}px`, 'important');
+        } else {
+          // Keyboard is hidden - restore full height
+          chatboxContainerRef.current.style.setProperty('height', '100dvh', 'important');
+          chatboxContainerRef.current.style.setProperty('max-height', '100dvh', 'important');
+        }
+      }
+    };
+
+    // Listen for viewport changes (keyboard show/hide)
+    viewport.addEventListener('resize', handleViewportChange);
+    viewport.addEventListener('scroll', handleViewportChange);
+    
+    // Initial check
+    handleViewportChange();
+
+    return () => {
+      viewport.removeEventListener('resize', handleViewportChange);
+      viewport.removeEventListener('scroll', handleViewportChange);
+    };
+  }, [isOpen]);
 
 
   const { messages, isLoading, sendMessage, handleQuickButton, clearMessages } = useChat({
