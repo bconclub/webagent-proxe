@@ -105,7 +105,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [usedButtons, setUsedButtons] = useState<string[]>([]);
   const [isDesktop, setIsDesktop] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const SEARCHBAR_BASE_OFFSET = 60;
+  const SEARCHBAR_BASE_OFFSET = 40;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);

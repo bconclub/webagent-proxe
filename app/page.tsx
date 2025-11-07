@@ -5,9 +5,38 @@ import DarkVeil from '@/src/components/shared/DarkVeil';
 import Header from '@/src/components/shared/Header';
 import BlurText from '@/src/components/shared/BlurText';
 import styles from './page.module.css';
+import {
+  HugeiconsIcon,
+  BrowserIcon,
+  WhatsappIcon,
+  AiVoiceIcon,
+  VideoAiIcon,
+} from '@/src/components/shared/icons/HugeIcons';
 
 export default function HomePage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || undefined;
+  const proxeSolutions = [
+    {
+      id: 'web',
+      title: 'Web\nPROXe',
+      icon: BrowserIcon,
+    },
+    {
+      id: 'whatsapp',
+      title: 'WhatsApp\nPROXe',
+      icon: WhatsappIcon,
+    },
+    {
+      id: 'voice',
+      title: 'Voice\nPROXe',
+      icon: AiVoiceIcon,
+    },
+    {
+      id: 'social',
+      title: 'Content\nPROXe',
+      icon: VideoAiIcon,
+    },
+  ];
 
   return (
     <main style={{ position: 'relative', minHeight: '100vh', background: 'transparent' }}>
@@ -41,6 +70,22 @@ export default function HomePage() {
           className={styles.heroTitle}
         />
         <p className={styles.heroSubtitle}>Every <b>Customer</b> touch point automated with PROXe</p>
+      </section>
+      <section className={styles.solutionsSection}>
+        <h2 className={styles.sectionHeading}>Choose Your PROXe</h2>
+        <p className={styles.sectionSubtitle}>
+          Deploy the channel-first agent that matches the way your customers already interact.
+        </p>
+        <div className={styles.solutionsGrid}>
+          {proxeSolutions.map((solution) => (
+            <article key={solution.id} className={styles.solutionCard}>
+              <div className={styles.solutionIcon} aria-hidden="true">
+                <HugeiconsIcon icon={solution.icon} size={39} />
+              </div>
+              <h3 className={styles.solutionTitle}>{solution.title}</h3>
+            </article>
+          ))}
+        </div>
       </section>
       <BrandChatWidget brand="proxe" apiUrl={apiUrl} />
     </main>
