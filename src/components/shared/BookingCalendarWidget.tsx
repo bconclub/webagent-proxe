@@ -78,7 +78,6 @@ export function BookingCalendarWidget({ onClose, onBookingComplete, brand, confi
 
     try {
       const dateStr = formatDateForAPI(selectedDate);
-      console.log('Checking availability for date:', dateStr, '(selected date:', selectedDate, ')');
       
       const response = await fetch('/api/calendar/availability', {
         method: 'POST',
@@ -99,7 +98,6 @@ export function BookingCalendarWidget({ onClose, onBookingComplete, brand, confi
       
       // Show warning if credentials are not configured
       if (data.warning) {
-        console.warn(data.warning);
         setBookingError(data.warning);
         setIsWarning(true);
       } else {
@@ -124,7 +122,6 @@ export function BookingCalendarWidget({ onClose, onBookingComplete, brand, confi
       setTimeSlots(slots);
       setShowTimeSlots(true);
     } catch (error: any) {
-      console.error('Error checking availability:', error);
       const errorMessage = error.message || 'Failed to check availability. Please check your Google Calendar configuration.';
       setBookingError(errorMessage);
       setIsWarning(false);
@@ -181,7 +178,6 @@ export function BookingCalendarWidget({ onClose, onBookingComplete, brand, confi
 
     try {
       const dateStr = formatDateForAPI(selectedDate);
-      console.log('Booking for date:', dateStr, '(selected date:', selectedDate, ')');
       
       const response = await fetch('/api/calendar/book', {
         method: 'POST',
@@ -224,7 +220,6 @@ export function BookingCalendarWidget({ onClose, onBookingComplete, brand, confi
         onBookingComplete(bookingData);
       }
     } catch (error: any) {
-      console.error('Error creating booking:', error);
       setBookingError(error.message || 'Failed to create booking. Please try again.');
     }
   };

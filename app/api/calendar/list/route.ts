@@ -57,7 +57,6 @@ export async function GET(request: NextRequest) {
       totalCalendars: calendars.length,
     });
   } catch (error: any) {
-    console.error('Error listing calendars:', error);
     return NextResponse.json(
       { 
         error: error.message || 'Failed to list calendars',

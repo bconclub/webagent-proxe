@@ -20,12 +20,10 @@ A modern, brand-themed chat widget built with Next.js, React, and TypeScript. Su
 │   ├── configs/           # Brand configurations
 │   └── styles/            # CSS and themes
 ├── app/                    # Next.js App Router pages
+│   ├── api/               # Next.js API routes
 │   ├── page.tsx           # PROXe brand homepage
 │   └── windchasers/       # Wind Chasers brand page
 ├── public/                 # Static assets
-├── api/                    # Express API server (deploy separately)
-│   ├── server.js
-│   └── package.json
 ├── package.json            # Frontend dependencies
 ├── next.config.js          # Next.js configuration
 └── tsconfig.json           # TypeScript configuration
@@ -35,7 +33,6 @@ A modern, brand-themed chat widget built with Next.js, React, and TypeScript. Su
 
 - Node.js 18+ 
 - npm or yarn
-- API server (deployed separately)
 
 ## Local Development
 
@@ -47,14 +44,22 @@ npm install
 
 ### 2. Set Environment Variables
 
-Create `.env.local` (copy from `.env.local.example`):
+Create `.env.local`:
 
 ```env
 # Required: Claude API Key for chat functionality
 CLAUDE_API_KEY=sk-ant-api03-your-key-here
 
-# Optional: Use external API server instead of Next.js API route
-# NEXT_PUBLIC_API_URL=http://localhost:3000
+# Required: Supabase URLs and keys for knowledge base
+PROXE_SUPABASE_URL=your-proxe-supabase-url
+PROXE_SUPABASE_ANON_KEY=your-proxe-supabase-key
+SUPABASE_URL=your-windchasers-supabase-url
+SUPABASE_ANON_KEY=your-windchasers-supabase-key
+
+# Required: Google Calendar API credentials
+GOOGLE_CALENDAR_ID=your-calendar-id
+GOOGLE_SERVICE_ACCOUNT_EMAIL=your-service-account@project.iam.gserviceaccount.com
+GOOGLE_PRIVATE_KEY=your-private-key
 ```
 
 **Get your Claude API Key:**
@@ -62,28 +67,15 @@ CLAUDE_API_KEY=sk-ant-api03-your-key-here
 - Create an API key
 - Add it to `.env.local` as `CLAUDE_API_KEY`
 
-### 3. Start API Server
-
-In a separate terminal:
-
-```bash
-cd api
-npm install
-# Create api/.env with CLAUDE_API_KEY
-npm run dev
-```
-
-API server should be running on `http://localhost:3000`
-
-### 4. Start Frontend Dev Server
+### 3. Start Development Server
 
 ```bash
 npm run dev
 ```
 
-Frontend will be available at `http://localhost:3002`
+Application will be available at `http://localhost:3002`
 
-### 5. Access the Application
+### 4. Access the Application
 
 - **PROXe Brand**: http://localhost:3002/
 - **Wind Chasers Brand**: http://localhost:3002/windchasers
@@ -112,10 +104,13 @@ Vercel automatically detects Next.js and provides zero-configuration deployment 
    
    **Required:**
    - `CLAUDE_API_KEY`: Your Anthropic Claude API key (get from [console.anthropic.com](https://console.anthropic.com/))
-   
-   **Optional (if using external API server):**
-   - `NEXT_PUBLIC_API_URL`: Your API server URL (e.g., `https://your-api.railway.app`)
-   - If not set, the app will use the built-in Next.js API route at `/api/chat`
+   - `PROXE_SUPABASE_URL`: PROXe Supabase URL
+   - `PROXE_SUPABASE_ANON_KEY`: PROXe Supabase anonymous key
+   - `SUPABASE_URL`: Wind Chasers Supabase URL
+   - `SUPABASE_ANON_KEY`: Wind Chasers Supabase anonymous key
+   - `GOOGLE_CALENDAR_ID`: Google Calendar ID for bookings
+   - `GOOGLE_SERVICE_ACCOUNT_EMAIL`: Google service account email
+   - `GOOGLE_PRIVATE_KEY`: Google service account private key
 
 4. **Deploy**
    - Vercel will automatically deploy on every push to main
@@ -126,61 +121,42 @@ Vercel automatically detects Next.js and provides zero-configuration deployment 
 The project uses standard Next.js structure:
 - `package.json` at root (Vercel auto-detects)
 - `next.config.js` for configuration
-- Environment variable support for API URL
+- Built-in Next.js API routes for chat and calendar
 - Automatic routing via Next.js App Router
-
-### API Server Deployment
-
-The API server (`api/` folder) needs to be deployed separately:
-- **Railway**: [railway.app](https://railway.app)
-- **Render**: [render.com](https://render.com)
-- **Heroku**: [heroku.com](https://heroku.com)
-- Or any Node.js hosting service
-
-Make sure to:
-1. Set CORS to allow requests from your Vercel domain
-2. Set all required environment variables (CLAUDE_API_KEY, etc.)
-3. Update `NEXT_PUBLIC_API_URL` in Vercel with your API server URL
 
 ## Environment Variables
 
-### Frontend (Vercel/Local)
+### Required Environment Variables
 
-- `CLAUDE_API_KEY` - **Required**: Anthropic Claude API key (get from [console.anthropic.com](https://console.anthropic.com/))
-- `NEXT_PUBLIC_API_URL` - Optional: External API server URL (if not set, uses built-in Next.js API route)
-
-### API Server (Separate Deployment - Optional)
-
-If deploying API server separately (not recommended, as Next.js API route works fine):
-- `CLAUDE_API_KEY` - Anthropic Claude API key (required)
-- `PROXE_SUPABASE_URL` - PROXe Supabase URL (optional)
-- `PROXE_SUPABASE_ANON_KEY` - PROXe Supabase key (optional)
-- `SUPABASE_URL` - Wind Chasers Supabase URL (optional)
-- `SUPABASE_ANON_KEY` - Wind Chasers Supabase key (optional)
+- `CLAUDE_API_KEY` - Anthropic Claude API key (get from [console.anthropic.com](https://console.anthropic.com/))
+- `PROXE_SUPABASE_URL` - PROXe Supabase URL
+- `PROXE_SUPABASE_ANON_KEY` - PROXe Supabase anonymous key
+- `SUPABASE_URL` - Wind Chasers Supabase URL
+- `SUPABASE_ANON_KEY` - Wind Chasers Supabase anonymous key
+- `GOOGLE_CALENDAR_ID` - Google Calendar ID for bookings
+- `GOOGLE_SERVICE_ACCOUNT_EMAIL` - Google service account email
+- `GOOGLE_PRIVATE_KEY` - Google service account private key
 
 ## Available Scripts
 
-### Frontend
-
 - `npm run dev` - Start development server (port 3002)
 - `npm run build` - Build for production
+- `npm run build:proxe` - Build PROXe brand only
+- `npm run build:windchasers` - Build Wind Chasers brand only
+- `npm run build:all` - Build all brands
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 
-### API Server
-
-```bash
-cd api
-npm run dev    # Start development server (port 3000)
-npm start      # Start production server
-```
-
 ## Tech Stack
 
-- **Frontend**: Next.js 14, React 18, TypeScript
+- **Framework**: Next.js 14 with App Router
+- **Frontend**: React 18, TypeScript
 - **Styling**: CSS Modules, CSS Variables
-- **API**: Express.js, Anthropic Claude API
-- **Database**: Supabase (optional, for knowledge base)
+- **AI**: Anthropic Claude API (Sonnet 4)
+- **Database**: Supabase (for knowledge base)
+- **Calendar**: Google Calendar API
+- **Animations**: Motion, Lottie React
+- **3D Graphics**: OGL (for background effects)
 
 ## License
 

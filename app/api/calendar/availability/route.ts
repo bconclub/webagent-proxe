@@ -45,7 +45,6 @@ export async function POST(request: NextRequest) {
     
     if (!serviceAccountEmail || !privateKey) {
       // Return all slots as available when credentials are not configured (for development)
-      console.warn('Google Calendar credentials not configured. Returning all slots as available.');
       return NextResponse.json({
         date,
         availability: {},
@@ -66,7 +65,6 @@ export async function POST(request: NextRequest) {
     try {
       auth = await getAuthClient();
     } catch (authError: any) {
-      console.error('Authentication error:', authError);
       return NextResponse.json(
         { 
           error: 'Failed to authenticate with Google Calendar',
@@ -81,7 +79,6 @@ export async function POST(request: NextRequest) {
     // Parse date - use the date string directly to avoid timezone conversion issues
     // date should be in format "YYYY-MM-DD"
     const dateStr = date.split('T')[0]; // Extract YYYY-MM-DD if time is included
-    console.log('Availability check date received:', date, '-> Parsed as:', dateStr);
     
     // Create date range for the selected day (00:00 to 23:59 in Asia/Kolkata)
     // Format: YYYY-MM-DDTHH:mm:ss+05:30 (Asia/Kolkata offset)
@@ -96,8 +93,6 @@ export async function POST(request: NextRequest) {
       const startOfDayUTC = new Date(`${dateStr}T00:00:00+05:30`).toISOString();
       const endOfDayUTC = new Date(`${dateStr}T23:59:59+05:30`).toISOString();
       
-      console.log(`Querying calendar for ${dateStr}: ${startOfDayUTC} to ${endOfDayUTC}`);
-      
       response = await calendar.events.list({
         calendarId: CALENDAR_ID,
         timeMin: startOfDayUTC,
@@ -107,10 +102,6 @@ export async function POST(request: NextRequest) {
         orderBy: 'startTime',
       });
     } catch (calendarError: any) {
-      console.error('Calendar API error:', calendarError);
-      console.error('Calendar ID:', CALENDAR_ID);
-      console.error('Service Account Email:', serviceAccountEmail);
-      
       let errorMessage = 'Failed to fetch calendar events';
       let details = calendarError.message || 'Unknown error';
       let suggestion = '';
@@ -139,11 +130,6 @@ export async function POST(request: NextRequest) {
     }
 
     const events = response.data.items || [];
-    
-    console.log(`Found ${events.length} events for ${dateStr}`);
-    events.forEach((event: any) => {
-      console.log(`Event: ${event.summary || 'No title'} - ${event.start?.dateTime || event.start?.date} to ${event.end?.dateTime || event.end?.date}`);
-    });
 
     // Check availability for each slot
     const availability: Record<string, boolean> = {};
@@ -198,19 +184,11 @@ export async function POST(request: NextRequest) {
           (slotStartDate <= eventStart && slotEndDate >= eventEnd)
         );
         
-        if (hasOverlap) {
-          console.log(`Slot ${slot} conflicts with event: ${event.summary || 'No title'} (${eventStart.toISOString()} - ${eventEnd.toISOString()})`);
-        }
-        
         return hasOverlap;
       });
 
       const isAvailable = !conflictingEvent;
       availability[slot] = isAvailable;
-      
-      if (!isAvailable) {
-        console.log(`Slot ${slot} (${slotStart} to ${slotEnd}) is UNAVAILABLE`);
-      }
     });
 
     return NextResponse.json({
@@ -228,8 +206,6 @@ export async function POST(request: NextRequest) {
       }),
     });
   } catch (error: any) {
-    console.error('Error checking calendar availability:', error);
-    console.error('Error stack:', error.stack);
     return NextResponse.json(
       { 
         error: error.message || 'Failed to check availability',

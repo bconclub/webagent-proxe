@@ -20,15 +20,8 @@ const windchasersSupabase = createClient(windchasersSupabaseUrl, windchasersSupa
 
 // Initialize Claude API
 const claudeApiKey = process.env.CLAUDE_API_KEY;
-if (!claudeApiKey) {
-  console.error('❌ ERROR: CLAUDE_API_KEY not found in environment variables!');
-}
 
 const anthropic = claudeApiKey ? new Anthropic({ apiKey: claudeApiKey }) : null;
-
-if (!anthropic) {
-  console.error('❌ ERROR: No AI provider configured. Please set CLAUDE_API_KEY in environment variables.');
-}
 
 // Search knowledge base
 async function searchKnowledgeBase(query: string, brand: string = 'proxe', limit: number = 3) {
@@ -38,13 +31,11 @@ async function searchKnowledgeBase(query: string, brand: string = 'proxe', limit
     if (brand === 'proxe' || brand === 'PROXe') {
       supabaseClient = proxeSupabase;
       if (!supabaseClient) {
-        console.warn('⚠️ PROXe Supabase not configured');
         return [];
       }
     } else {
       supabaseClient = windchasersSupabase;
       if (!supabaseClient) {
-        console.warn('⚠️ Wind Chasers Supabase not configured');
         return [];
       }
     }
@@ -124,7 +115,6 @@ async function searchKnowledgeBase(query: string, brand: string = 'proxe', limit
     
     return sortedResults.slice(0, limit * 3);
   } catch (error) {
-    console.error(`[${brand}] Error searching knowledge base:`, error);
     return [];
   }
 }
@@ -225,7 +215,6 @@ IMPORTANT RULES:
 
     return normalized.replace(/["']/g, '').trim();
   } catch (error) {
-    console.error('Follow-up generation error:', error);
     return null;
   }
 }
@@ -423,7 +412,6 @@ export async function POST(request: NextRequest) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`));
           controller.close();
         } catch (error: any) {
-          console.error('Streaming error:', error);
           const errorMessage = error.message || 'Unknown error occurred';
           const errorType = error.type || error.error?.type || 'unknown_error';
           
@@ -458,7 +446,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('API route error:', error);
     return Response.json(
       { error: 'Error processing request', message: error.message },
       { status: 500 }

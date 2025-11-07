@@ -62,8 +62,6 @@ export function useChatStream({ brand, apiUrl, onMessageComplete }: UseChatStrea
       const apiBaseUrl = apiUrl || process.env.NEXT_PUBLIC_API_URL || '';
       const apiEndpoint = apiBaseUrl ? `${apiBaseUrl}/api/chat` : '/api/chat';
       
-      console.log('Sending message to:', apiEndpoint, { message, brand, messageCount });
-      
       const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {
@@ -80,7 +78,6 @@ export function useChatStream({ brand, apiUrl, onMessageComplete }: UseChatStrea
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
-        console.error('API Error:', response.status, errorText);
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
@@ -263,7 +260,7 @@ export function useChatStream({ brand, apiUrl, onMessageComplete }: UseChatStrea
                 setTimeout(checkAndComplete, 100);
               }
             } catch (parseError) {
-              console.error('Error parsing stream data:', parseError);
+              // Silently handle parse errors
             }
           }
         }
@@ -276,7 +273,6 @@ export function useChatStream({ brand, apiUrl, onMessageComplete }: UseChatStrea
         return;
       }
 
-      console.error('Chat error:', err);
       setError(err.message || 'Failed to send message');
       setIsLoading(false);
 

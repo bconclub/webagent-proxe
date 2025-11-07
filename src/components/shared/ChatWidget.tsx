@@ -254,28 +254,16 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     // Check if we should show calendar widget after AI response completes
     if (pendingCalendar && messages.length > 0 && !bookingCompleted) {
       const lastMessage = messages[messages.length - 1];
-      console.log('Checking calendar display:', {
-        pendingCalendar,
-        bookingCompleted,
-        lastMessageType: lastMessage?.type,
-        hasStreamed: lastMessage?.hasStreamed,
-        isStreaming: lastMessage?.isStreaming,
-        hasText: !!lastMessage?.text,
-        textLength: lastMessage?.text?.length,
-        showCalendly
-      });
       
       // Wait for AI message to be fully streamed and not currently streaming
       // Also check that message has text content (more reliable than just hasStreamed)
       if (lastMessage && lastMessage.type === 'ai' && !lastMessage.isStreaming && lastMessage.text && lastMessage.text.length > 0) {
-        console.log('AI message complete, showing calendar widget');
         // Use setTimeout to ensure state updates properly
         const timer = setTimeout(() => {
           setPendingCalendar(false);
           setBookingCompleted(true); // Mark booking as completed
           const calendarMessageId = `calendar-${Date.now()}`;
           setShowCalendly(calendarMessageId);
-          console.log('Calendar widget shown with ID:', calendarMessageId);
         }, 500);
         
         return () => clearTimeout(timer);
@@ -289,7 +277,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
   // Handle booking completion
   const handleBookingComplete = (bookingData: any) => {
-    console.log('Booking completed:', bookingData);
     setBookingCompleted(true);
     // Optionally send a message to the chat about the booking
   };
@@ -513,12 +500,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       e.stopPropagation();
     }
     
-    console.log('Quick button clicked:', buttonText);
-    console.log('Booking completed:', bookingCompleted);
-    
     // Check if booking is already completed
     if (bookingCompleted && containsBookingKeywords(buttonText)) {
-      console.log('Booking already completed, skipping calendar');
       // Don't trigger calendar again, just send the message
       setIsOpen(true);
       setIsInputActive(true);
@@ -537,15 +520,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     // Simple check: if button contains "call" or "demo", show calendar
     const shouldShowCalendar = containsBookingKeywords(buttonText);
     
-    console.log('Should show calendar:', shouldShowCalendar, 'for button:', buttonText);
-    console.log('Booking keywords check:', {
-      buttonText,
-      containsCall: buttonText.toLowerCase().includes('call'),
-      containsDemo: buttonText.toLowerCase().includes('demo'),
-      containsBook: buttonText.toLowerCase().includes('book'),
-      containsSchedule: buttonText.toLowerCase().includes('schedule'),
-    });
-    
     setIsOpen(true);
     setIsInputActive(true);
     setIsExpanded(false);
@@ -560,11 +534,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     sendMessage(userMessage, messageCount + 1, [...usedButtons, buttonText]);
     
     if (shouldShowCalendar && !bookingCompleted) {
-      console.log('Setting pendingCalendar to true for quick button:', buttonText);
       // Set flag to show calendar after AI response completes (handled in useEffect)
       setPendingCalendar(true);
-    } else {
-      console.log('NOT setting pendingCalendar:', { shouldShowCalendar, bookingCompleted });
     }
   };
 
@@ -642,8 +613,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.+?)\*/g, '<em>$1</em>');
   };
-
-  console.log('ChatWidget render', { isOpen, isExpanded, showQuickButtons, hasConfig: !!config, quickButtonsCount: config?.quickButtons?.length });
   
   const shouldShowBlur = (isExpanded || showQuickButtons) && !isOpen;
   
@@ -699,18 +668,14 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         <div 
           className={`${styles.searchbar} ${isExpanded ? styles.searchbarExpanded : ''}`}
           onMouseDown={(e) => {
-            console.log('Searchbar mousedown', { isExpanded, showQuickButtons, isOpen });
             // Don't prevent default - let click event fire
           }}
           onClick={(e) => {
-            console.log('=== SEARCHBAR CLICKED ===', { isExpanded, showQuickButtons, isOpen, hasQuickButtons: config?.quickButtons?.length });
             e.stopPropagation();
             // Always expand and show quick buttons on click
-            console.log('Setting states to true');
             setIsExpanded(true);
             setShowQuickButtons(true);
             setIsInputActive(true);
-            console.log('States set');
             // Focus input
             setTimeout(() => {
               inputRef.current?.focus();
@@ -734,7 +699,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             }, 50);
           }}
           onTouchStart={(e) => {
-            console.log('Searchbar touchstart');
             setIsExpanded(true);
             setShowQuickButtons(true);
             setIsInputActive(true);
@@ -743,7 +707,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         >
           <div className={styles.searchIcon} onClick={(e) => {
             e.stopPropagation();
-            console.log('Search icon clicked');
             setIsExpanded(true);
             setShowQuickButtons(true);
             setTimeout(() => {
@@ -761,13 +724,11 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             onChange={(e) => setInputValue(e.target.value)}
             onClick={(e) => {
               e.stopPropagation();
-              console.log('Input clicked');
               setIsExpanded(true);
               setShowQuickButtons(true);
               setIsInputActive(true);
             }}
             onFocus={(e) => {
-              console.log('Input focused', { isExpanded, showQuickButtons });
               setIsExpanded(true);
               setShowQuickButtons(true);
               setIsInputActive(true);
@@ -949,7 +910,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                               
                               if (shouldShowCalendar && !bookingCompleted) {
                                 // Set flag to show calendar after AI response completes (handled in useEffect)
-                                console.log('Setting pendingCalendar to true for:', followUp);
                                 setPendingCalendar(true);
                               }
                             }}

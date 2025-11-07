@@ -14,8 +14,8 @@ export function InfinityLoader() {
       .then((data) => {
         setAnimationData(data);
       })
-      .catch((error) => {
-        console.error('Error loading typing animation:', error);
+      .catch(() => {
+        // Silently fail and use fallback
       });
   }, []);
 

@@ -52,7 +52,6 @@ export async function POST(request: NextRequest) {
     // Parse date - use the date string directly to avoid timezone conversion issues
     // date should be in format "YYYY-MM-DD"
     const dateStr = date.split('T')[0]; // Extract YYYY-MM-DD if time is included
-    console.log('Booking date received:', date, '-> Parsed as:', dateStr);
 
     // Parse time (format: "HH:MM" or "HH:MM AM/PM")
     let hour: number, minute: number;
@@ -102,14 +101,6 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    console.log('Creating event:', {
-      calendarId: CALENDAR_ID,
-      summary: event.summary,
-      start: event.start.dateTime,
-      end: event.end.dateTime,
-      timeZone: TIMEZONE
-    });
-
     let createdEvent;
     let hasAttendees = false;
     
@@ -120,33 +111,7 @@ export async function POST(request: NextRequest) {
       });
       
       hasAttendees = true;
-      
-      console.log('Event created successfully:', {
-        eventId: createdEvent.data.id,
-        htmlLink: createdEvent.data.htmlLink,
-        start: createdEvent.data.start?.dateTime,
-        end: createdEvent.data.end?.dateTime,
-        calendarId: CALENDAR_ID,
-        organizer: createdEvent.data.organizer?.email,
-        creator: createdEvent.data.creator?.email,
-        attendees: createdEvent.data.attendees?.map((a: any) => a.email)
-      });
-      
-      // Verify the event was created in the correct calendar
-      if (createdEvent.data.organizer?.email && createdEvent.data.organizer.email !== CALENDAR_ID) {
-        console.warn(`WARNING: Event organizer is ${createdEvent.data.organizer.email}, but expected ${CALENDAR_ID}`);
-      }
-      
-      // Check if attendees were added
-      if (createdEvent.data.attendees && createdEvent.data.attendees.length > 0) {
-        console.log('Attendees added successfully:', createdEvent.data.attendees.map((a: any) => a.email));
-      } else {
-        console.warn('No attendees in created event - may require Domain-Wide Delegation');
-      }
     } catch (calendarError: any) {
-      console.error('Calendar API error:', calendarError);
-      console.error('Calendar ID:', CALENDAR_ID);
-      console.error('Service Account Email:', serviceAccountEmail);
       
       let errorMessage = 'Failed to create calendar event';
       let details = calendarError.message || 'Unknown error';
@@ -160,7 +125,6 @@ export async function POST(request: NextRequest) {
       } else if (calendarError.code === 403 || details.includes('Forbidden')) {
         if (details.includes('Domain-Wide Delegation') || details.includes('attendees')) {
           // Try creating event without attendees as fallback
-          console.warn('Cannot add attendees, creating event without attendees...');
           try {
             const { attendees, ...eventWithoutAttendees } = event;
             
@@ -171,14 +135,8 @@ export async function POST(request: NextRequest) {
             
             hasAttendees = false;
             
-            console.log('Event created without attendees:', {
-              eventId: createdEvent.data.id,
-              htmlLink: createdEvent.data.htmlLink
-            });
-            
             // Continue to return success response below
           } catch (fallbackError: any) {
-            console.error('Failed to create event even without attendees:', fallbackError);
             return NextResponse.json(
               { 
                 error: 'Failed to create calendar event',
@@ -241,8 +199,6 @@ export async function POST(request: NextRequest) {
       ...(hasAttendees ? {} : { warning: 'Attendee email added to description. Domain-Wide Delegation required to add attendees automatically.' })
     });
   } catch (error: any) {
-    console.error('Error creating calendar event:', error);
-    console.error('Error stack:', error.stack);
     return NextResponse.json(
       { 
         error: error.message || 'Failed to create booking',
