@@ -105,7 +105,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [usedButtons, setUsedButtons] = useState<string[]>([]);
   const [isDesktop, setIsDesktop] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const SEARCHBAR_BASE_OFFSET = 20;
+  const SEARCHBAR_BASE_OFFSET = 60;
+  const SEARCHBAR_KEYBOARD_OFFSET = 20;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -266,7 +267,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
       // Adjust searchbar position when keyboard is visible
       if (searchbarWrapperRef.current && calculatedKeyboardHeight > 0) {
-        const newBottom = calculatedKeyboardHeight + SEARCHBAR_BASE_OFFSET;
+        const newBottom = calculatedKeyboardHeight + SEARCHBAR_KEYBOARD_OFFSET;
         searchbarWrapperRef.current.style.setProperty('bottom', `${newBottom}px`, 'important');
         searchbarWrapperRef.current.style.setProperty('transition', 'none', 'important');
       } else if (searchbarWrapperRef.current && calculatedKeyboardHeight === 0) {
