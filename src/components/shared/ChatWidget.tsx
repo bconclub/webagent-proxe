@@ -96,6 +96,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [showQuickButtons, setShowQuickButtons] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isInputActive, setIsInputActive] = useState(false);
+  const [isSearchbarHovered, setIsSearchbarHovered] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [showCalendly, setShowCalendly] = useState<string | null>(null);
@@ -114,13 +115,25 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const hasDraggedRef = useRef<boolean>(false);
 
   // Keep searchbarWrapper fixed at bottom at all times
-  // On mobile, position above keyboard when it appears
   useEffect(() => {
     const fixSearchbarPosition = () => {
       if (!searchbarWrapperRef.current) return;
       
-      if (window.innerWidth >= 769) {
-        // Desktop: keep at bottom, centered horizontally
+      const isMobile = window.innerWidth < 769;
+      
+      if (isMobile) {
+        // Mobile: Full width at bottom with 40px padding
+        searchbarWrapperRef.current.style.setProperty('position', 'fixed', 'important');
+        searchbarWrapperRef.current.style.setProperty('bottom', '40px', 'important');
+        searchbarWrapperRef.current.style.setProperty('left', '20px', 'important');
+        searchbarWrapperRef.current.style.setProperty('right', '20px', 'important');
+        searchbarWrapperRef.current.style.setProperty('top', 'auto', 'important');
+        searchbarWrapperRef.current.style.setProperty('transform', 'none', 'important');
+        searchbarWrapperRef.current.style.setProperty('-webkit-transform', 'none', 'important');
+        searchbarWrapperRef.current.style.setProperty('width', 'auto', 'important');
+        searchbarWrapperRef.current.style.setProperty('z-index', '9999', 'important');
+      } else {
+        // Desktop: Centered at bottom
         searchbarWrapperRef.current.style.setProperty('position', 'fixed', 'important');
         searchbarWrapperRef.current.style.setProperty('bottom', '40px', 'important');
         searchbarWrapperRef.current.style.setProperty('top', 'auto', 'important');
@@ -128,31 +141,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         searchbarWrapperRef.current.style.setProperty('right', 'auto', 'important');
         searchbarWrapperRef.current.style.setProperty('transform', 'translateX(-50%)', 'important');
         searchbarWrapperRef.current.style.setProperty('-webkit-transform', 'translateX(-50%)', 'important');
-        searchbarWrapperRef.current.style.setProperty('z-index', '9999', 'important');
-      } else {
-        // Mobile: position above keyboard when it appears
-        const inputIsFocused = document.activeElement === inputRef.current;
-        const shouldTrackKeyboard = inputIsFocused || isInputActive || isExpanded || showQuickButtons;
-        let bottomValue = '40px';
-        
-        // Use Visual Viewport API to detect keyboard on mobile
-        if (window.visualViewport && shouldTrackKeyboard) {
-          const viewport = window.visualViewport;
-          const windowHeight = window.innerHeight;
-          const viewportHeight = viewport.height;
-          
-          // Check if keyboard is visible (viewport height is significantly smaller)
-          if (viewportHeight < windowHeight * 0.75) {
-            // Keyboard is visible, position search bar above it
-            const keyboardHeight = windowHeight - viewportHeight;
-            // Position with some padding above keyboard (20px padding)
-            bottomValue = `${keyboardHeight + 20}px`;
-          }
-        }
-        
-        searchbarWrapperRef.current.style.setProperty('position', 'fixed', 'important');
-        searchbarWrapperRef.current.style.setProperty('bottom', bottomValue, 'important');
-        searchbarWrapperRef.current.style.setProperty('top', 'auto', 'important');
         searchbarWrapperRef.current.style.setProperty('z-index', '9999', 'important');
       }
     };
@@ -163,43 +151,26 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     // Fix on resize
     window.addEventListener('resize', fixSearchbarPosition);
     
-    // Listen to visual viewport changes (keyboard appearance/disappearance on mobile)
-    const handleViewportResize = () => {
-      if (window.innerWidth < 769) {
-        fixSearchbarPosition();
-      }
-    };
-    
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', handleViewportResize);
-      window.visualViewport.addEventListener('scroll', handleViewportResize);
-    }
-    
     // Fix periodically to prevent any CSS from overriding
     const interval = setInterval(fixSearchbarPosition, 200);
     
     return () => {
       clearInterval(interval);
       window.removeEventListener('resize', fixSearchbarPosition);
-      if (window.visualViewport) {
-        window.visualViewport.removeEventListener('resize', handleViewportResize);
-        window.visualViewport.removeEventListener('scroll', handleViewportResize);
-      }
     };
   }, [isOpen, isExpanded, showQuickButtons, isInputActive]); // Run when these states change
 
-  // Check if desktop on mount and resize, and apply centering styles
+  // Apply styles based on device type
   useEffect(() => {
-    const checkDesktop = () => {
+    const applyDeviceStyles = () => {
       const desktop = window.innerWidth >= 769;
       setIsDesktop(desktop);
       
-      // Directly set styles on the element to override CSS
       if (chatboxContainerRef.current && isOpen) {
-        if (desktop) {
-          // Use setTimeout to ensure DOM is ready
-          setTimeout(() => {
-            if (chatboxContainerRef.current) {
+        setTimeout(() => {
+          if (chatboxContainerRef.current) {
+            if (desktop) {
+              // Desktop: Centered with fixed width
               chatboxContainerRef.current.style.setProperty('position', 'fixed', 'important');
               chatboxContainerRef.current.style.setProperty('top', '50%', 'important');
               chatboxContainerRef.current.style.setProperty('left', '50%', 'important');
@@ -209,25 +180,49 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               chatboxContainerRef.current.style.setProperty('bottom', 'auto', 'important');
               chatboxContainerRef.current.style.setProperty('width', '380px', 'important');
               chatboxContainerRef.current.style.setProperty('max-width', '380px', 'important');
+            } else {
+              // Mobile: Fullscreen
+              chatboxContainerRef.current.style.setProperty('position', 'fixed', 'important');
+              chatboxContainerRef.current.style.setProperty('top', '0', 'important');
+              chatboxContainerRef.current.style.setProperty('left', '0', 'important');
+              chatboxContainerRef.current.style.setProperty('right', '0', 'important');
+              chatboxContainerRef.current.style.setProperty('bottom', '0', 'important');
+              chatboxContainerRef.current.style.setProperty('transform', 'none', 'important');
+              chatboxContainerRef.current.style.setProperty('-webkit-transform', 'none', 'important');
+              chatboxContainerRef.current.style.setProperty('width', '100%', 'important');
+              chatboxContainerRef.current.style.setProperty('max-width', '100%', 'important');
+              chatboxContainerRef.current.style.setProperty('height', '100vh', 'important');
+              chatboxContainerRef.current.style.setProperty('max-height', '100vh', 'important');
             }
-          }, 0);
-        } else {
-          // Clear desktop styles on mobile
-          if (chatboxContainerRef.current) {
-            chatboxContainerRef.current.style.removeProperty('top');
-            chatboxContainerRef.current.style.removeProperty('left');
-            chatboxContainerRef.current.style.removeProperty('transform');
-            chatboxContainerRef.current.style.removeProperty('-webkit-transform');
-            chatboxContainerRef.current.style.removeProperty('right');
-            chatboxContainerRef.current.style.removeProperty('bottom');
           }
-        }
+        }, 0);
       }
     };
-    checkDesktop();
-    window.addEventListener('resize', checkDesktop);
-    return () => window.removeEventListener('resize', checkDesktop);
+    applyDeviceStyles();
+    window.addEventListener('resize', applyDeviceStyles);
+    return () => window.removeEventListener('resize', applyDeviceStyles);
   }, [isOpen]);
+
+  // Lock body scroll when searchbar is hovered or clicked
+  useEffect(() => {
+    if (isSearchbarHovered || isInputActive) {
+      // Store original overflow
+      const originalOverflow = document.body.style.overflow;
+      const originalPosition = document.body.style.position;
+      
+      // Lock body scroll
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      
+      return () => {
+        // Restore original overflow
+        document.body.style.overflow = originalOverflow;
+        document.body.style.position = originalPosition;
+        document.body.style.width = '';
+      };
+    }
+  }, [isSearchbarHovered, isInputActive]);
 
 
   const { messages, isLoading, sendMessage, handleQuickButton, clearMessages } = useChat({
@@ -635,12 +630,14 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           ref={searchbarWrapperRef} 
           className={styles.searchbarWrapper}
           onMouseEnter={() => {
+            setIsSearchbarHovered(true);
             if (!isOpen && config?.quickButtons && config.quickButtons.length > 0) {
               setIsExpanded(true);
               setShowQuickButtons(true);
             }
           }}
           onMouseLeave={() => {
+            setIsSearchbarHovered(false);
             if (!isOpen && !isInputActive && !inputValue.trim()) {
               setIsExpanded(false);
               setShowQuickButtons(false);
@@ -679,23 +676,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             // Focus input
             setTimeout(() => {
               inputRef.current?.focus();
-              // On mobile, ensure search bar positions above keyboard after focus
-              if (window.innerWidth < 769 && window.visualViewport && inputRef.current) {
-                const updatePosition = () => {
-                  if (searchbarWrapperRef.current && window.visualViewport) {
-                    const viewport = window.visualViewport;
-                    const windowHeight = window.innerHeight;
-                    const viewportHeight = viewport.height;
-                    
-                    if (viewportHeight < windowHeight * 0.75) {
-                      const keyboardHeight = windowHeight - viewportHeight;
-                      searchbarWrapperRef.current.style.setProperty('bottom', `${keyboardHeight + 20}px`, 'important');
-                    }
-                  }
-                };
-                setTimeout(updatePosition, 150);
-                setTimeout(updatePosition, 400);
-              }
             }, 50);
           }}
           onTouchStart={(e) => {
@@ -732,26 +712,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               setIsExpanded(true);
               setShowQuickButtons(true);
               setIsInputActive(true);
-              
-              // On mobile, ensure search bar stays above keyboard
-              if (window.innerWidth < 769 && window.visualViewport) {
-                const updatePosition = () => {
-                  if (searchbarWrapperRef.current) {
-                    const viewport = window.visualViewport!;
-                    const windowHeight = window.innerHeight;
-                    const viewportHeight = viewport.height;
-                    
-                    if (viewportHeight < windowHeight * 0.75) {
-                      const keyboardHeight = windowHeight - viewportHeight;
-                      searchbarWrapperRef.current.style.setProperty('bottom', `${keyboardHeight + 20}px`, 'important');
-                    }
-                  }
-                };
-                
-                // Update position after a short delay to allow keyboard to appear
-                setTimeout(updatePosition, 100);
-                setTimeout(updatePosition, 300);
-              }
             }}
             onBlur={handleInputBlur}
             onKeyPress={(e) => {
