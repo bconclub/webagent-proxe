@@ -114,9 +114,12 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const hasDraggedRef = useRef<boolean>(false);
 
   // Keep searchbarWrapper fixed at bottom at all times
+  // On mobile, position above keyboard when it appears
   useEffect(() => {
     const fixSearchbarPosition = () => {
-      if (searchbarWrapperRef.current && window.innerWidth >= 769) {
+      if (!searchbarWrapperRef.current) return;
+      
+      if (window.innerWidth >= 769) {
         // Desktop: keep at bottom, centered horizontally
         searchbarWrapperRef.current.style.setProperty('position', 'fixed', 'important');
         searchbarWrapperRef.current.style.setProperty('bottom', '40px', 'important');
@@ -126,11 +129,31 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         searchbarWrapperRef.current.style.setProperty('transform', 'translateX(-50%)', 'important');
         searchbarWrapperRef.current.style.setProperty('-webkit-transform', 'translateX(-50%)', 'important');
         searchbarWrapperRef.current.style.setProperty('z-index', '9999', 'important');
-      } else if (searchbarWrapperRef.current) {
-        // Mobile: keep at bottom
+      } else {
+        // Mobile: position above keyboard when it appears
+        const inputIsFocused = document.activeElement === inputRef.current;
+        const shouldTrackKeyboard = inputIsFocused || isInputActive || isExpanded || showQuickButtons;
+        let bottomValue = '40px';
+        
+        // Use Visual Viewport API to detect keyboard on mobile
+        if (window.visualViewport && shouldTrackKeyboard) {
+          const viewport = window.visualViewport;
+          const windowHeight = window.innerHeight;
+          const viewportHeight = viewport.height;
+          
+          // Check if keyboard is visible (viewport height is significantly smaller)
+          if (viewportHeight < windowHeight * 0.75) {
+            // Keyboard is visible, position search bar above it
+            const keyboardHeight = windowHeight - viewportHeight;
+            // Position with some padding above keyboard (20px padding)
+            bottomValue = `${keyboardHeight + 20}px`;
+          }
+        }
+        
         searchbarWrapperRef.current.style.setProperty('position', 'fixed', 'important');
-        searchbarWrapperRef.current.style.setProperty('bottom', '40px', 'important');
+        searchbarWrapperRef.current.style.setProperty('bottom', bottomValue, 'important');
         searchbarWrapperRef.current.style.setProperty('top', 'auto', 'important');
+        searchbarWrapperRef.current.style.setProperty('z-index', '9999', 'important');
       }
     };
     
@@ -140,14 +163,30 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     // Fix on resize
     window.addEventListener('resize', fixSearchbarPosition);
     
+    // Listen to visual viewport changes (keyboard appearance/disappearance on mobile)
+    const handleViewportResize = () => {
+      if (window.innerWidth < 769) {
+        fixSearchbarPosition();
+      }
+    };
+    
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportResize);
+      window.visualViewport.addEventListener('scroll', handleViewportResize);
+    }
+    
     // Fix periodically to prevent any CSS from overriding
     const interval = setInterval(fixSearchbarPosition, 200);
     
     return () => {
       clearInterval(interval);
       window.removeEventListener('resize', fixSearchbarPosition);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleViewportResize);
+        window.visualViewport.removeEventListener('scroll', handleViewportResize);
+      }
     };
-  }, [isOpen]); // Also run when isOpen changes
+  }, [isOpen, isExpanded, showQuickButtons, isInputActive]); // Run when these states change
 
   // Check if desktop on mount and resize, and apply centering styles
   useEffect(() => {
@@ -669,16 +708,35 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             console.log('Setting states to true');
             setIsExpanded(true);
             setShowQuickButtons(true);
+            setIsInputActive(true);
             console.log('States set');
             // Focus input
             setTimeout(() => {
               inputRef.current?.focus();
+              // On mobile, ensure search bar positions above keyboard after focus
+              if (window.innerWidth < 769 && window.visualViewport && inputRef.current) {
+                const updatePosition = () => {
+                  if (searchbarWrapperRef.current && window.visualViewport) {
+                    const viewport = window.visualViewport;
+                    const windowHeight = window.innerHeight;
+                    const viewportHeight = viewport.height;
+                    
+                    if (viewportHeight < windowHeight * 0.75) {
+                      const keyboardHeight = windowHeight - viewportHeight;
+                      searchbarWrapperRef.current.style.setProperty('bottom', `${keyboardHeight + 20}px`, 'important');
+                    }
+                  }
+                };
+                setTimeout(updatePosition, 150);
+                setTimeout(updatePosition, 400);
+              }
             }, 50);
           }}
           onTouchStart={(e) => {
             console.log('Searchbar touchstart');
             setIsExpanded(true);
             setShowQuickButtons(true);
+            setIsInputActive(true);
           }}
           style={{ cursor: 'pointer' }}
         >
@@ -705,40 +763,33 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               console.log('Input clicked');
               setIsExpanded(true);
               setShowQuickButtons(true);
+              setIsInputActive(true);
             }}
             onFocus={(e) => {
               console.log('Input focused', { isExpanded, showQuickButtons });
               setIsExpanded(true);
               setShowQuickButtons(true);
-              // Scroll input into view above keyboard on mobile
-              const scrollInputIntoView = () => {
-                const input = e.target;
-                if (input) {
-                  if (window.visualViewport) {
-                    const viewport = window.visualViewport;
-                    const inputRect = input.getBoundingClientRect();
+              setIsInputActive(true);
+              
+              // On mobile, ensure search bar stays above keyboard
+              if (window.innerWidth < 769 && window.visualViewport) {
+                const updatePosition = () => {
+                  if (searchbarWrapperRef.current) {
+                    const viewport = window.visualViewport!;
+                    const windowHeight = window.innerHeight;
                     const viewportHeight = viewport.height;
-                    const inputBottom = inputRect.bottom;
                     
-                    if (inputBottom > viewportHeight) {
-                      input.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'center',
-                        inline: 'nearest' 
-                      });
+                    if (viewportHeight < windowHeight * 0.75) {
+                      const keyboardHeight = windowHeight - viewportHeight;
+                      searchbarWrapperRef.current.style.setProperty('bottom', `${keyboardHeight + 20}px`, 'important');
                     }
-                  } else {
-                    input.scrollIntoView({ 
-                      behavior: 'smooth', 
-                      block: 'center',
-                      inline: 'nearest' 
-                    });
                   }
-                }
-              };
-              requestAnimationFrame(() => {
-                setTimeout(scrollInputIntoView, 150);
-              });
+                };
+                
+                // Update position after a short delay to allow keyboard to appear
+                setTimeout(updatePosition, 100);
+                setTimeout(updatePosition, 300);
+              }
             }}
             onBlur={handleInputBlur}
             onKeyPress={(e) => {
