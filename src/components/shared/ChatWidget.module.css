@@ -111,7 +111,7 @@
   backdrop-filter: blur(40px) saturate(180%);
   -webkit-backdrop-filter: blur(40px) saturate(180%);
   border-radius: 28px;
-  padding: 8px 16px;
+  padding: 14px 16px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -982,7 +982,7 @@
 /* Mobile styles */
 @media (max-width: 768px) {
   .searchbarWrapper {
-    bottom: 20px !important;
+    bottom: 40px !important;
     left: 20px !important;
     right: 20px !important;
     transform: none !important;

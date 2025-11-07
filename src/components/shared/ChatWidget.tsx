@@ -129,7 +129,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       } else if (searchbarWrapperRef.current) {
         // Mobile: keep at bottom
         searchbarWrapperRef.current.style.setProperty('position', 'fixed', 'important');
-        searchbarWrapperRef.current.style.setProperty('bottom', '20px', 'important');
+        searchbarWrapperRef.current.style.setProperty('bottom', '40px', 'important');
         searchbarWrapperRef.current.style.setProperty('top', 'auto', 'important');
       }
     };
