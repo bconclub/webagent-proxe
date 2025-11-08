@@ -25,7 +25,12 @@ export function useChatStream({ brand, apiUrl, onMessageComplete }: UseChatStrea
   const streamingQueueRef = useRef<string[]>([]);
   const isStreamingCharsRef = useRef<boolean>(false);
 
-  const sendMessage = useCallback(async (message: string, messageCount: number = 0, usedButtons: string[] = []) => {
+  const sendMessage = useCallback(async (
+    message: string,
+    messageCount: number = 0,
+    usedButtons: string[] = [],
+    metadata: Record<string, unknown> = {}
+  ) => {
     // Cancel any ongoing stream
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -72,6 +77,7 @@ export function useChatStream({ brand, apiUrl, onMessageComplete }: UseChatStrea
           brand,
           messageCount,
           usedButtons,
+          metadata,
         }),
         signal: controller.signal,
       });

@@ -1,11 +1,28 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useChat } from '@/src/hooks/useChat';
+import type { Message } from '@/src/hooks/useChatStream';
 import { InfinityLoader } from './InfinityLoader';
 import { BookingCalendarWidget } from './BookingCalendarWidget';
 import type { BrandConfig } from '@/src/configs';
 import styles from './ChatWidget.module.css';
+import {
+  ensureSession,
+  updateSessionProfile,
+  storeMessage,
+  fetchRecentMessages,
+  fetchSummary,
+  upsertSummary,
+  type SessionRecord,
+} from '@/src/lib/chatSessions';
+import {
+  getStoredSessionId,
+  storeSessionId,
+  getStoredUser,
+  storeUserProfile,
+  type LocalUserProfile,
+} from '@/src/lib/chatLocalStorage';
 
 interface ChatWidgetProps {
   brand: string;
@@ -105,8 +122,29 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [usedButtons, setUsedButtons] = useState<string[]>([]);
   const [isDesktop, setIsDesktop] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [sessionRecord, setSessionRecord] = useState<SessionRecord | null>(null);
+  const [externalSessionId, setExternalSessionId] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<LocalUserProfile>({});
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
+  const [showEmailPrompt, setShowEmailPrompt] = useState(false);
+  const [showPhonePrompt, setShowPhonePrompt] = useState(false);
+  const [emailPromptDismissed, setEmailPromptDismissed] = useState(false);
+  const [phonePromptDismissed, setPhonePromptDismissed] = useState(false);
+  const [hasAskedName, setHasAskedName] = useState(false);
+  const [hasAskedEmail, setHasAskedEmail] = useState(false);
+  const [hasAskedPhone, setHasAskedPhone] = useState(false);
+  const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
+  const [pendingButtons, setPendingButtons] = useState<string[]>([]);
+  const [pendingRequirement, setPendingRequirement] = useState<'email' | 'phone' | null>(null);
+  const [conversationSummary, setConversationSummary] = useState<string>('');
+  const [recentHistory, setRecentHistory] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const [nameInput, setNameInput] = useState('');
+  const [emailInput, setEmailInput] = useState('');
+  const [phoneInput, setPhoneInput] = useState('');
   const SEARCHBAR_BASE_OFFSET = 60;
   const SEARCHBAR_KEYBOARD_OFFSET = 20;
+  const EMAIL_PROMPT_THRESHOLD = 7;
+  const PHONE_PROMPT_THRESHOLD = 10;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -116,6 +154,561 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const dragStartX = useRef<number>(0);
   const dragStartScrollLeft = useRef<number>(0);
   const hasDraggedRef = useRef<boolean>(false);
+  const interactionCountRef = useRef<number>(0);
+  const historyRef = useRef<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const brandKey: 'proxe' | 'windchasers' = brand?.toLowerCase() === 'windchasers' ? 'windchasers' : 'proxe';
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const initializeSession = async () => {
+      try {
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[ChatWidget] Initialising session', { brandProp: brand, brandKey });
+        }
+
+        let storedId = getStoredSessionId(brandKey);
+        if (!storedId) {
+          storedId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+          storeSessionId(storedId, brandKey);
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('[ChatWidget] Generated new session id', { storedId, brandKey });
+          }
+        }
+        if (cancelled) return;
+        setExternalSessionId(storedId);
+
+        const storedUser = getStoredUser(brandKey);
+        if (storedUser && !cancelled) {
+          setUserProfile(storedUser);
+          if (typeof storedUser.emailSkipped === 'boolean') {
+            setEmailPromptDismissed(storedUser.emailSkipped);
+          }
+          if (typeof storedUser.phoneSkipped === 'boolean') {
+            setPhonePromptDismissed(storedUser.phoneSkipped);
+          }
+          if (typeof storedUser.promptedName === 'boolean') {
+            setHasAskedName(storedUser.promptedName);
+          }
+          if (typeof storedUser.promptedEmail === 'boolean') {
+            setHasAskedEmail(storedUser.promptedEmail);
+          }
+          if (typeof storedUser.promptedPhone === 'boolean') {
+            setHasAskedPhone(storedUser.promptedPhone);
+          }
+        }
+
+        const record = await ensureSession(storedId, brandKey);
+        if (!record) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('[ChatWidget] Unable to ensure session in Supabase', {
+              storedId,
+              brandKey,
+              recordPresent: Boolean(record),
+              cancelled,
+            });
+          }
+          return;
+        }
+        if (cancelled) return;
+
+        setSessionRecord(record);
+
+        // Sync profile differences back to Supabase/local storage
+        const updates: LocalUserProfile = { ...storedUser };
+        let needsUpdate = false;
+        if (record.userName && record.userName !== storedUser?.name) {
+          updates.name = record.userName;
+          needsUpdate = true;
+        }
+        if (record.email && record.email !== storedUser?.email) {
+          updates.email = record.email;
+          needsUpdate = true;
+        }
+        if (record.phone && record.phone !== storedUser?.phone) {
+          updates.phone = record.phone;
+          needsUpdate = true;
+        }
+        if (needsUpdate) {
+          storeUserProfile(updates, brandKey);
+          setUserProfile(updates);
+          if (updates.name) {
+            setHasAskedName(true);
+          }
+          if (updates.email) {
+            setHasAskedEmail(true);
+          }
+          if (updates.phone) {
+            setHasAskedPhone(true);
+          }
+        }
+
+        const [summaryRow, recentMessages] = await Promise.all([
+          fetchSummary(record.id, brandKey),
+          fetchRecentMessages(record.id, 3, brandKey),
+        ]);
+
+        if (!cancelled) {
+          setConversationSummary(summaryRow?.summary ?? '');
+          if (recentMessages.length > 0) {
+            const history = recentMessages
+              .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
+              .map((msg) => ({
+                role: msg.role as 'user' | 'assistant',
+                content: msg.content,
+              }));
+            setRecentHistory(history.slice(-6));
+            interactionCountRef.current = Math.floor(history.filter((msg) => msg.role === 'assistant').length);
+            if (process.env.NODE_ENV !== 'production') {
+              console.log('[ChatWidget] Restored history', {
+                historyLength: history.length,
+                assistantMessages: interactionCountRef.current,
+                hasSummary: Boolean(summaryRow?.summary),
+              });
+            }
+          } else if (process.env.NODE_ENV !== 'production') {
+            console.log('[ChatWidget] No prior messages for session', { sessionId: record.id });
+          }
+        } else if (process.env.NODE_ENV !== 'production') {
+          console.log('[ChatWidget] No prior messages for session', { sessionId: record.id });
+        }
+      } catch (error) {
+        console.error('[ChatWidget] Failed to initialise session', error);
+      }
+    };
+
+    initializeSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (showNamePrompt) {
+      setNameInput(userProfile.name || '');
+    }
+  }, [showNamePrompt, userProfile.name]);
+
+  useEffect(() => {
+    if (showEmailPrompt) {
+      setEmailInput(userProfile.email || '');
+    }
+  }, [showEmailPrompt, userProfile.email]);
+
+  useEffect(() => {
+    if (showPhonePrompt) {
+      setPhoneInput(userProfile.phone || '');
+    }
+  }, [showPhonePrompt, userProfile.phone]);
+
+  const applyLocalProfile = useCallback((updates: LocalUserProfile) => {
+    setUserProfile((prev) => {
+      const merged: LocalUserProfile = { ...prev, ...updates };
+      storeUserProfile(merged, brandKey);
+      return merged;
+    });
+
+    if (typeof updates.emailSkipped === 'boolean') {
+      setEmailPromptDismissed(updates.emailSkipped);
+    }
+    if (typeof updates.phoneSkipped === 'boolean') {
+      setPhonePromptDismissed(updates.phoneSkipped);
+    }
+    if (typeof updates.promptedName === 'boolean') {
+      setHasAskedName(updates.promptedName);
+    }
+    if (typeof updates.promptedEmail === 'boolean') {
+      setHasAskedEmail(updates.promptedEmail);
+    }
+    if (typeof updates.promptedPhone === 'boolean') {
+      setHasAskedPhone(updates.promptedPhone);
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'name')) {
+      if (updates.name) {
+        setHasAskedName(true);
+      }
+      setShowNamePrompt(false);
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'email')) {
+      if (updates.email) {
+        setHasAskedEmail(true);
+      }
+      setShowEmailPrompt(false);
+      if (updates.email) {
+        setEmailPromptDismissed(false);
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'phone')) {
+      if (updates.phone) {
+        setHasAskedPhone(true);
+      }
+      setShowPhonePrompt(false);
+      if (updates.phone) {
+        setPhonePromptDismissed(false);
+      }
+    }
+  }, [brandKey]);
+
+  const persistUserProfile = useCallback(async (updates: LocalUserProfile, options: { sync?: boolean } = {}) => {
+    const { sync = true } = options;
+    applyLocalProfile(updates);
+
+    if (!sync || !externalSessionId) {
+      return;
+    }
+
+    const supabaseUpdates: { userName?: string; phone?: string | null; email?: string | null } = {};
+    if (Object.prototype.hasOwnProperty.call(updates, 'name')) {
+      supabaseUpdates.userName = updates.name;
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'email')) {
+      supabaseUpdates.email = updates.email ?? null;
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'phone')) {
+      supabaseUpdates.phone = updates.phone ?? null;
+    }
+    if (Object.keys(supabaseUpdates).length > 0) {
+      await updateSessionProfile(externalSessionId, supabaseUpdates, brandKey);
+    }
+  }, [applyLocalProfile, externalSessionId, brandKey]);
+
+  const handleContactDraft = useCallback((data: { name?: string; email?: string; phone?: string }) => {
+    const updates: LocalUserProfile = {};
+    if (data.name && data.name.trim()) {
+      updates.name = data.name.trim();
+      updates.promptedName = true;
+    }
+    if (data.email && data.email.trim()) {
+      updates.email = data.email.trim();
+      updates.promptedEmail = true;
+    }
+    if (data.phone && data.phone.trim()) {
+      updates.phone = data.phone.trim();
+      updates.promptedPhone = true;
+    }
+    if (Object.keys(updates).length > 0) {
+      applyLocalProfile(updates);
+    }
+  }, [applyLocalProfile]);
+
+  const handleContactPersist = useCallback(async (data: { name?: string; email?: string; phone?: string }) => {
+    const updates: LocalUserProfile = {};
+    if (data.name && data.name.trim()) {
+      updates.name = data.name.trim();
+      updates.promptedName = true;
+    }
+    if (data.email && data.email.trim()) {
+      updates.email = data.email.trim();
+      updates.promptedEmail = true;
+    }
+    if (data.phone && data.phone.trim()) {
+      updates.phone = data.phone.trim();
+      updates.promptedPhone = true;
+    }
+    if (Object.keys(updates).length > 0) {
+      await persistUserProfile(updates);
+    }
+  }, [persistUserProfile]);
+
+  const appendHistory = (entry: { role: 'user' | 'assistant'; content: string }) => {
+    historyRef.current = [...historyRef.current, entry].slice(-6);
+    setRecentHistory(historyRef.current);
+  };
+
+  const recordMessage = async (role: 'user' | 'assistant', content: string) => {
+    if (sessionRecord) {
+      await storeMessage(sessionRecord.id, role, content, brandKey);
+    } else if (process.env.NODE_ENV !== 'production') {
+      console.warn('[ChatWidget] Unable to store message, missing sessionRecord');
+    }
+  };
+
+  const buildRequestPayload = () => ({
+    session: {
+      externalId: externalSessionId,
+      supabaseId: sessionRecord?.id ?? null,
+      brand: brandKey,
+      user: {
+        name: userProfile.name ?? null,
+        email: userProfile.email ?? null,
+        phone: userProfile.phone ?? null,
+      },
+    },
+    memory: {
+      summary: conversationSummary,
+      recentHistory: historyRef.current,
+    },
+  });
+
+  const queuePendingMessage = (message: string, buttons: string[], requirement: 'email' | 'phone') => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[ChatWidget] Queueing pending message', { message, buttons });
+    }
+    setPendingUserMessage(message);
+    setPendingButtons(buttons);
+    setPendingRequirement(requirement);
+    // Ensure chat panel is visible while we collect required details
+    setIsOpen(true);
+    setIsInputActive(true);
+    setIsExpanded(true);
+    setShowQuickButtons(false);
+  };
+
+  const requestNameBeforeProceed = () => {
+    if (!userProfile.name && !hasAskedName) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[ChatWidget] Requesting name before proceeding');
+      }
+      applyLocalProfile({ promptedName: true });
+      setShowNamePrompt(true);
+      setIsOpen(true);
+      setIsInputActive(true);
+      setIsExpanded(true);
+      setShowQuickButtons(false);
+    }
+    return false;
+  };
+
+  const requestEmailBeforeProceed = (message: string, buttons: string[]) => {
+    if (!userProfile.email && !emailPromptDismissed && !hasAskedEmail && interactionCountRef.current >= EMAIL_PROMPT_THRESHOLD) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[ChatWidget] Requesting email before proceeding');
+      }
+      queuePendingMessage(message, buttons, 'email');
+      applyLocalProfile({ promptedEmail: true });
+      setHasAskedEmail(true);
+      setShowEmailPrompt(true);
+      return true;
+    }
+    return false;
+  };
+
+  const requestPhoneBeforeProceed = (message: string, buttons: string[]) => {
+    if (!userProfile.phone && !phonePromptDismissed && !hasAskedPhone && interactionCountRef.current >= PHONE_PROMPT_THRESHOLD) {
+      queuePendingMessage(message, buttons, 'phone');
+      applyLocalProfile({ promptedPhone: true });
+      setHasAskedPhone(true);
+      setShowPhonePrompt(true);
+      return true;
+    }
+    return false;
+  };
+
+  const submitMessage = async (rawMessage: string, buttons: string[] = usedButtons) => {
+    const trimmed = rawMessage.trim();
+    if (!trimmed) return;
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[ChatWidget] Submitting message', { trimmed, buttons });
+    }
+
+    const nextCount = messageCount + 1;
+    let contextualMessage = trimmed;
+
+    const isBookingRepeat = bookingCompleted && containsBookingKeywords(trimmed);
+    if (isBookingRepeat) {
+      contextualMessage = `[Booking already scheduled] ${trimmed}`;
+    }
+
+    setInputValue('');
+    setMessageCount(nextCount);
+
+    if (containsBookingKeywords(trimmed) && !bookingCompleted) {
+      setPendingCalendar(true);
+    }
+
+    setIsOpen(true);
+    setIsInputActive(true);
+    setIsExpanded(false);
+    setShowQuickButtons(false);
+
+    appendHistory({ role: 'user', content: contextualMessage });
+    recordMessage('user', contextualMessage);
+
+    sendMessage(contextualMessage, nextCount, buttons, buildRequestPayload());
+  };
+
+  useEffect(() => {
+    if (!pendingUserMessage || !pendingRequirement) return;
+
+    const hasEmail = Boolean(userProfile.email && userProfile.email.trim());
+    const hasPhone = Boolean(userProfile.phone && userProfile.phone.trim());
+
+    const requirementSatisfied =
+      (pendingRequirement === 'email' && (hasEmail || emailPromptDismissed)) ||
+      (pendingRequirement === 'phone' && (hasPhone || phonePromptDismissed));
+
+    if (requirementSatisfied) {
+      const message = pendingUserMessage;
+      const buttons = pendingButtons.length ? pendingButtons : usedButtons;
+      setPendingUserMessage(null);
+      setPendingButtons([]);
+      setPendingRequirement(null);
+      submitMessage(message, buttons);
+    }
+  }, [
+    pendingUserMessage,
+    pendingRequirement,
+    pendingButtons,
+    usedButtons,
+    userProfile.email,
+    userProfile.phone,
+    emailPromptDismissed,
+    phonePromptDismissed,
+    submitMessage,
+  ]);
+
+  const flushPendingMessage = () => {
+    if (!pendingUserMessage) return;
+    const message = pendingUserMessage;
+    const buttons = pendingButtons.length ? pendingButtons : usedButtons;
+    setPendingUserMessage(null);
+    setPendingButtons([]);
+    setPendingRequirement(null);
+    submitMessage(message, buttons);
+  };
+
+  const handleNameSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!nameInput.trim()) return;
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[ChatWidget] Name submitted', { name: nameInput.trim() });
+    }
+    await persistUserProfile({
+      name: nameInput.trim(),
+      phoneSkipped: userProfile.phoneSkipped,
+      promptedName: true,
+    });
+    setNameInput('');
+    setShowNamePrompt(false);
+    flushPendingMessage();
+  };
+
+  const handleEmailSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!emailInput.trim()) return;
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[ChatWidget] Email submitted');
+    }
+    await persistUserProfile({
+      email: emailInput.trim(),
+      emailSkipped: false,
+      promptedEmail: true,
+    });
+    setEmailInput('');
+    setShowEmailPrompt(false);
+    flushPendingMessage();
+  };
+
+  const handleEmailSkip = () => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[ChatWidget] Email prompt skipped');
+    }
+    persistUserProfile({ emailSkipped: true, promptedEmail: true }, { sync: false });
+    setEmailInput('');
+    setShowEmailPrompt(false);
+    flushPendingMessage();
+  };
+
+  const handlePhoneSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!phoneInput.trim()) return;
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[ChatWidget] Phone submitted');
+    }
+    await persistUserProfile({
+      phone: phoneInput.trim(),
+      phoneSkipped: false,
+      promptedPhone: true,
+    });
+    setPhoneInput('');
+    setShowPhonePrompt(false);
+    flushPendingMessage();
+  };
+
+  const handlePhoneSkip = () => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[ChatWidget] Phone prompt skipped');
+    }
+    persistUserProfile({ phoneSkipped: true, promptedPhone: true }, { sync: false });
+    setShowPhonePrompt(false);
+    flushPendingMessage();
+  };
+
+  const summarizeConversation = async (lastMessageTimestamp: string) => {
+    if (!externalSessionId || historyRef.current.length === 0) return;
+    try {
+      const response = await fetch('/api/chat/summarize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          summary: conversationSummary,
+          history: historyRef.current,
+          brand,
+          session: {
+            externalId: externalSessionId,
+            supabaseId: sessionRecord?.id ?? null,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to summarize conversation (${response.status})`);
+      }
+
+      const data = await response.json();
+      if (data.summary && typeof data.summary === 'string') {
+        setConversationSummary(data.summary);
+        if (sessionRecord) {
+          await upsertSummary(sessionRecord.id, data.summary, lastMessageTimestamp, brandKey);
+        }
+      }
+    } catch (error) {
+      console.error('[ChatWidget] Failed to summarize conversation', error);
+    }
+  };
+
+  const handleAssistantMessageComplete = async (message: Message) => {
+    if (message.text) {
+      appendHistory({ role: 'assistant', content: message.text });
+      await recordMessage('assistant', message.text);
+    }
+
+    interactionCountRef.current += 1;
+
+    const lastMessageTimestamp = new Date().toISOString();
+
+    const emailThresholdReached =
+      !userProfile.email &&
+      !emailPromptDismissed &&
+      !hasAskedEmail &&
+      interactionCountRef.current >= EMAIL_PROMPT_THRESHOLD;
+    const phoneThresholdReached =
+      !userProfile.phone &&
+      !phonePromptDismissed &&
+      !hasAskedPhone &&
+      interactionCountRef.current >= PHONE_PROMPT_THRESHOLD;
+
+    if (emailThresholdReached) {
+      applyLocalProfile({ promptedEmail: true });
+      setHasAskedEmail(true);
+      setShowEmailPrompt(true);
+    }
+
+    if (phoneThresholdReached) {
+      applyLocalProfile({ promptedPhone: true });
+      setHasAskedPhone(true);
+      setShowPhonePrompt(true);
+    }
+
+    const shouldSummarize = interactionCountRef.current > 0 && interactionCountRef.current % 5 === 0;
+    if (shouldSummarize) {
+      await summarizeConversation(lastMessageTimestamp);
+    }
+  };
 
   // Keep searchbarWrapper fixed at bottom at all times
   useEffect(() => {
@@ -305,9 +898,10 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   }, [isOpen]);
 
 
-  const { messages, isLoading, sendMessage, handleQuickButton, clearMessages } = useChat({
+  const { messages, isLoading, sendMessage, clearMessages } = useChat({
     brand,
     apiUrl,
+    onMessageComplete: handleAssistantMessageComplete,
   });
 
   useEffect(() => {
@@ -351,10 +945,16 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   }, [messages, isOpen, pendingCalendar, showCalendly, bookingCompleted]);
 
   // Handle booking completion
-  const handleBookingComplete = (bookingData: any) => {
+  const handleBookingComplete = useCallback((bookingData: any) => {
     setBookingCompleted(true);
-    // Optionally send a message to the chat about the booking
-  };
+    if (bookingData) {
+      void handleContactPersist({
+        name: bookingData.name,
+        email: bookingData.email,
+        phone: bookingData.phone,
+      });
+    }
+  }, [handleContactPersist]);
 
   // Handle mobile keyboard appearance for chat input
   useEffect(() => {
@@ -528,45 +1128,14 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   };
 
   const handleSend = () => {
-    if (!inputValue.trim() || isLoading) return;
     const message = inputValue.trim();
-    
-    // Check if user is trying to book again and booking is already completed
-    if (bookingCompleted && containsBookingKeywords(message)) {
-      // Prepend context to let API know booking is already done
-      const contextualMessage = `[Booking already scheduled] ${message}`;
-      setInputValue('');
-      setMessageCount((prev) => prev + 1);
-      
-      if (!isOpen) {
-        setIsOpen(true);
-        setIsInputActive(true);
-        setIsExpanded(false);
-        setShowQuickButtons(false);
-        setTimeout(() => sendMessage(contextualMessage, messageCount + 1, usedButtons), 100);
-      } else {
-        sendMessage(contextualMessage, messageCount + 1, usedButtons);
-      }
-      return;
-    }
-    
-    setInputValue('');
-    setMessageCount((prev) => prev + 1);
-    
-    // Check if message contains booking keywords
-    if (containsBookingKeywords(message) && !bookingCompleted) {
-      setPendingCalendar(true);
-    }
-    
-    if (!isOpen) {
-      setIsOpen(true);
-      setIsInputActive(true);
-      setIsExpanded(false);
-      setShowQuickButtons(false);
-      setTimeout(() => sendMessage(message, messageCount + 1, usedButtons), 100);
-    } else {
-      sendMessage(message, messageCount + 1, usedButtons);
-    }
+    if (!message) return;
+
+    requestNameBeforeProceed();
+    if (requestEmailBeforeProceed(message, usedButtons)) return;
+    if (requestPhoneBeforeProceed(message, usedButtons)) return;
+
+    submitMessage(message, usedButtons);
   };
 
   const handleQuickButtonClick = (buttonText: string, e?: React.MouseEvent) => {
@@ -574,44 +1143,29 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       e.preventDefault();
       e.stopPropagation();
     }
-    
-    // Check if booking is already completed
-    if (bookingCompleted && containsBookingKeywords(buttonText)) {
-      // Don't trigger calendar again, just send the message
-      setIsOpen(true);
-      setIsInputActive(true);
-      setIsExpanded(false);
-      setShowQuickButtons(false);
-      setUsedButtons((prev) => [...prev, buttonText]);
-      const userMessage = buttonText;
-      setMessageCount((prev) => prev + 1);
-      sendMessage(userMessage, messageCount + 1, [...usedButtons, buttonText]);
-      return;
+
+    const message = buttonText.trim();
+    if (!message) return;
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[ChatWidget] Quick button clicked', { buttonText, message });
     }
-    
-    // Close any open calendar widget first
+
+    const nextButtons = [...usedButtons, buttonText];
+
+    requestNameBeforeProceed();
+    if (requestEmailBeforeProceed(message, nextButtons)) return;
+
     setShowCalendly(null);
-    
-    // Simple check: if button contains "call" or "demo", show calendar
-    const shouldShowCalendar = containsBookingKeywords(buttonText);
-    
     setIsOpen(true);
     setIsInputActive(true);
     setIsExpanded(false);
     setShowQuickButtons(false);
-    
-    // Track used button
-    setUsedButtons((prev) => [...prev, buttonText]);
-    
-    // Always send user message with button text first (this creates user message bubble and starts new AI response)
-    const userMessage = buttonText;
-    setMessageCount((prev) => prev + 1);
-    sendMessage(userMessage, messageCount + 1, [...usedButtons, buttonText]);
-    
-    if (shouldShowCalendar && !bookingCompleted) {
-      // Set flag to show calendar after AI response completes (handled in useEffect)
-      setPendingCalendar(true);
-    }
+    setUsedButtons(nextButtons);
+
+    if (requestPhoneBeforeProceed(message, nextButtons)) return;
+
+    submitMessage(message, nextButtons);
   };
 
   const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -817,12 +1371,15 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     );
   }
 
+  const isDetailPromptActive = showNamePrompt || showEmailPrompt || showPhonePrompt;
+
   return (
     <div 
       ref={chatboxContainerRef}
       className={styles.chatboxContainer}
     >
-      <div className={styles.chatHeader}>
+      <div className={`${styles.chatContent} ${isDetailPromptActive ? styles.chatContentBlurred : ''}`}>
+        <div className={styles.chatHeader}>
         <div className={styles.brandName}>
           <div className={styles.avatar}>
             {brand === 'proxe' ? <PROXELogo /> : ICONS.ai(brand, config)}
@@ -835,27 +1392,51 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             onClick={() => {
               setIsOpen(false);
               setIsInputActive(false);
+              setIsExpanded(false);
+              setShowQuickButtons(false);
               setShowCalendly(null);
               setPendingCalendar(false);
               setBookingCompleted(false);
               setUsedButtons([]);
               setMessageCount(0);
               clearMessages();
+              historyRef.current = [];
+              setRecentHistory([]);
+              setConversationSummary('');
+              interactionCountRef.current = 0;
+              setPendingUserMessage(null);
+              setPendingButtons([]);
+              setShowNamePrompt(false);
+              setShowEmailPrompt(false);
+              setShowPhonePrompt(false);
+              setHasAskedName(false);
+              setHasAskedEmail(false);
+              setHasAskedPhone(false);
+              setEmailPromptDismissed(false);
+              setPhonePromptDismissed(false);
+              setInputValue('');
+              setNameInput('');
+              setEmailInput('');
+              setPhoneInput('');
+              setUserProfile({});
+              storeUserProfile({}, brandKey);
             }}
             title="Reset chat"
           >
             {ICONS.reset}
           </button>
-          <button className={styles.closeBtn} onClick={() => {
-            setIsOpen(false);
-            setIsInputActive(false);
-            setShowCalendly(null);
-            setPendingCalendar(false);
-            setBookingCompleted(false);
-            setUsedButtons([]);
-            setMessageCount(0);
-            clearMessages();
-          }}>
+          <button
+            className={styles.closeBtn}
+            onClick={() => {
+              setIsOpen(false);
+              setIsInputActive(false);
+              setIsExpanded(false);
+              setShowQuickButtons(false);
+              setIsSearchbarHovered(false);
+              setShowCalendly(null);
+              setPendingCalendar(false);
+            }}
+          >
             {ICONS.close}
           </button>
         </div>
@@ -919,40 +1500,11 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                           const buttonAccentIndex = (accentIndex + followUpIndex) % 7;
                           const buttonAccentClass = `accent-${buttonAccentIndex}`;
                           
-                          // Simple check: if button contains "call" or "demo", show calendar
-                          const shouldShowCalendar = containsBookingKeywords(followUp);
-                          
                           return (
                           <button
                             key={followUpIndex}
                             className={`${styles.followUpBtn} ${styles[buttonAccentClass]}`}
-                            onClick={() => {
-                              // Check if booking is already completed
-                              if (bookingCompleted && shouldShowCalendar) {
-                                // Don't trigger calendar again, just send the message
-                                setUsedButtons((prev) => [...prev, followUp]);
-                                const userMessage = followUp;
-                                setMessageCount((prev) => prev + 1);
-                                sendMessage(userMessage, messageCount + 1, [...usedButtons, followUp]);
-                                return;
-                              }
-                              
-                              // Close any open calendar widget first
-                              setShowCalendly(null);
-                              
-                              // Track used button
-                              setUsedButtons((prev) => [...prev, followUp]);
-                              
-                              // Always send user message with button text first (this creates user message bubble and starts new AI response)
-                              const userMessage = followUp;
-                              setMessageCount((prev) => prev + 1);
-                              sendMessage(userMessage, messageCount + 1, [...usedButtons, followUp]);
-                              
-                              if (shouldShowCalendar && !bookingCompleted) {
-                                // Set flag to show calendar after AI response completes (handled in useEffect)
-                                setPendingCalendar(true);
-                              }
-                            }}
+                            onClick={() => handleQuickButtonClick(followUp)}
                           >
                             {followUp}
                           </button>
@@ -1002,6 +1554,11 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                     brand={brand}
                     config={config}
                     onBookingComplete={handleBookingComplete}
+                    prefillName={userProfile.name || ''}
+                    prefillEmail={userProfile.email || ''}
+                    prefillPhone={userProfile.phone || ''}
+                    onContactDraft={handleContactDraft}
+                    onContactSubmit={handleContactPersist}
                   />
                 </div>
               </div>
@@ -1065,6 +1622,80 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       <div className={styles.chatFooter}>
         Agent Powered By <a href="https://goproxe.com" target="_blank" rel="noopener noreferrer">PROXe</a>
       </div>
+      </div>
+
+      {showNamePrompt && (
+        <div className={styles.detailPromptOverlay}>
+          <div className={styles.detailPromptCard}>
+            <h3 className={styles.detailPromptTitle}>Let’s get acquainted</h3>
+            <p className={styles.detailPromptSubtitle}>What should we call you?</p>
+            <form onSubmit={handleNameSubmit} className={styles.detailPromptForm}>
+              <input
+                autoFocus
+                className={styles.detailPromptInput}
+                placeholder="Your name"
+                value={nameInput}
+                onChange={(event) => setNameInput(event.target.value)}
+              />
+              <button type="submit" className={styles.detailPromptPrimary}>
+                Continue
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showEmailPrompt && (
+        <div className={styles.detailPromptOverlay}>
+          <div className={styles.detailPromptCard}>
+            <h3 className={styles.detailPromptTitle}>Where can we reach you?</h3>
+            <p className={styles.detailPromptSubtitle}>Share your email so we can follow up.</p>
+            <form onSubmit={handleEmailSubmit} className={styles.detailPromptForm}>
+              <input
+                autoFocus
+                className={styles.detailPromptInput}
+                placeholder="name@example.com"
+                type="email"
+                value={emailInput}
+                onChange={(event) => setEmailInput(event.target.value)}
+              />
+              <div className={styles.detailPromptActions}>
+                <button type="button" className={styles.detailPromptSecondary} onClick={handleEmailSkip}>
+                  Skip for now
+                </button>
+                <button type="submit" className={styles.detailPromptPrimary}>
+                  Save
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showPhonePrompt && (
+        <div className={styles.detailPromptOverlay}>
+          <div className={styles.detailPromptCard}>
+            <h3 className={styles.detailPromptTitle}>Stay in touch</h3>
+            <p className={styles.detailPromptSubtitle}>Share your phone number so we can follow up.</p>
+            <form onSubmit={handlePhoneSubmit} className={styles.detailPromptForm}>
+              <input
+                className={styles.detailPromptInput}
+                placeholder="Phone number"
+                value={phoneInput}
+                onChange={(event) => setPhoneInput(event.target.value)}
+              />
+              <div className={styles.detailPromptActions}>
+                <button type="button" className={styles.detailPromptSecondary} onClick={handlePhoneSkip}>
+                  Skip for now
+                </button>
+                <button type="submit" className={styles.detailPromptPrimary}>
+                  Save
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

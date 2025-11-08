@@ -63,7 +63,7 @@ export default function HomePage() {
       <Header />
       <section className={styles.heroSection}>
         <BlurText
-          text="AI Agents That Run Your Business Better"
+          text="AI Systems That Run Your Business Better"
           delay={150}
           animateBy="words"
           direction="top"

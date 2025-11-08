@@ -50,11 +50,17 @@ Create `.env.local`:
 # Required: Claude API Key for chat functionality
 CLAUDE_API_KEY=sk-ant-api03-your-key-here
 
-# Required: Supabase URLs and keys for knowledge base
-PROXE_SUPABASE_URL=your-proxe-supabase-url
-PROXE_SUPABASE_ANON_KEY=your-proxe-supabase-key
-SUPABASE_URL=your-windchasers-supabase-url
-SUPABASE_ANON_KEY=your-windchasers-supabase-key
+# Required: Supabase projects (frontend widgets use NEXT_PUBLIC_* keys)
+NEXT_PUBLIC_PROXE_SUPABASE_URL=https://zboanatspldypfrtrkfp.supabase.co
+NEXT_PUBLIC_PROXE_SUPABASE_ANON_KEY=your-proxe-anon-key
+NEXT_PUBLIC_WINDCHASERS_SUPABASE_URL=https://your-windchaser.supabase.co
+NEXT_PUBLIC_WINDCHASERS_SUPABASE_ANON_KEY=your-windchaser-anon-key
+
+# Optional (server-only keys if you prefer to keep anon keys off the client)
+PROXE_SUPABASE_URL=https://zboanatspldypfrtrkfp.supabase.co
+PROXE_SUPABASE_ANON_KEY=your-proxe-service-or-anon-key
+WINDCHASERS_SUPABASE_URL=https://your-windchaser.supabase.co
+WINDCHASERS_SUPABASE_ANON_KEY=your-windchaser-service-or-anon-key
 
 # Required: Google Calendar API credentials
 GOOGLE_CALENDAR_ID=your-calendar-id
@@ -80,6 +86,18 @@ Application will be available at `http://localhost:3002`
 - **PROXe Brand**: http://localhost:3002/
 - **Wind Chasers Brand**: http://localhost:3002/windchasers
 
+## Chat Session Storage
+
+The chat widget persists conversations and compressed memory in Supabase. Apply the SQL in [`supabase/chat_schema.sql`](./supabase/chat_schema.sql) to your Supabase project (via the SQL editor or migrations) before running locally.
+
+During a live session the browser also caches lightweight data in `localStorage`:
+
+- `proxe.chat.sessionId` – UUID used to reference the Supabase session row.
+- `proxe.chat.user` – JSON blob with `{ name, phone }` captured from the user.
+- `proxe.chat.draftMessages` – Last few unsent messages (cleared on successful send).
+
+These keys allow instant resume while Supabase writes complete or if the network is offline.
+
 ## Deployment to Vercel
 
 Vercel automatically detects Next.js and provides zero-configuration deployment when connected to your Git repository. No Root Directory configuration needed!
@@ -104,10 +122,9 @@ Vercel automatically detects Next.js and provides zero-configuration deployment 
    
    **Required:**
    - `CLAUDE_API_KEY`: Your Anthropic Claude API key (get from [console.anthropic.com](https://console.anthropic.com/))
-   - `PROXE_SUPABASE_URL`: PROXe Supabase URL
-   - `PROXE_SUPABASE_ANON_KEY`: PROXe Supabase anonymous key
-   - `SUPABASE_URL`: Wind Chasers Supabase URL
-   - `SUPABASE_ANON_KEY`: Wind Chasers Supabase anonymous key
+   - `NEXT_PUBLIC_PROXE_SUPABASE_URL` / `NEXT_PUBLIC_PROXE_SUPABASE_ANON_KEY`
+   - `NEXT_PUBLIC_WINDCHASERS_SUPABASE_URL` / `NEXT_PUBLIC_WINDCHASERS_SUPABASE_ANON_KEY`
+   - Optionally: server-only `PROXE_SUPABASE_*` and `WINDCHASERS_SUPABASE_*` if you proxy Supabase calls
    - `GOOGLE_CALENDAR_ID`: Google Calendar ID for bookings
    - `GOOGLE_SERVICE_ACCOUNT_EMAIL`: Google service account email
    - `GOOGLE_PRIVATE_KEY`: Google service account private key
@@ -129,10 +146,9 @@ The project uses standard Next.js structure:
 ### Required Environment Variables
 
 - `CLAUDE_API_KEY` - Anthropic Claude API key (get from [console.anthropic.com](https://console.anthropic.com/))
-- `PROXE_SUPABASE_URL` - PROXe Supabase URL
-- `PROXE_SUPABASE_ANON_KEY` - PROXe Supabase anonymous key
-- `SUPABASE_URL` - Wind Chasers Supabase URL
-- `SUPABASE_ANON_KEY` - Wind Chasers Supabase anonymous key
+- `NEXT_PUBLIC_PROXE_SUPABASE_URL` / `NEXT_PUBLIC_PROXE_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_WINDCHASERS_SUPABASE_URL` / `NEXT_PUBLIC_WINDCHASERS_SUPABASE_ANON_KEY`
+- Optionally `PROXE_SUPABASE_URL` / `PROXE_SUPABASE_ANON_KEY` and `WINDCHASERS_SUPABASE_URL` / `WINDCHASERS_SUPABASE_ANON_KEY` if you prefer to keep anon keys server-side
 - `GOOGLE_CALENDAR_ID` - Google Calendar ID for bookings
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL` - Google service account email
 - `GOOGLE_PRIVATE_KEY` - Google service account private key

@@ -1,21 +1,20 @@
 import { NextRequest } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
-import { getProxeSystemPrompt } from '@/src/api/prompts/proxe-prompt';
-import { getWindChasersSystemPrompt } from '@/src/api/prompts/windchasers-prompt';
 import { getBrandConfig } from '@/src/configs';
+import { buildPrompt } from '@/src/lib/promptBuilder';
 
 export const runtime = 'nodejs'; // Use Node.js runtime for streaming support
 
 // Initialize Supabase clients
-const proxeSupabaseUrl = process.env.PROXE_SUPABASE_URL;
-const proxeSupabaseKey = process.env.PROXE_SUPABASE_ANON_KEY;
+const proxeSupabaseUrl = process.env.PROXE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const proxeSupabaseKey = process.env.PROXE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const proxeSupabase = proxeSupabaseUrl && proxeSupabaseKey
   ? createClient(proxeSupabaseUrl, proxeSupabaseKey)
   : null;
 
-const windchasersSupabaseUrl = process.env.SUPABASE_URL || 'https://nfnwmkxgfgqgorwgonwf.supabase.co';
-const windchasersSupabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mbndta3hnZmdxZ29yd2dvbndmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwOTU4MTcsImV4cCI6MjA3NTY3MTgxN30.fTwOPszajAM_MhulX4cPGWzzYchfHMaBNkCs_6S4ZYQ';
+const windchasersSupabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://nfnwmkxgfgqgorwgonwf.supabase.co';
+const windchasersSupabaseKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mbndta3hnZmdxZ29yd2dvbndmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwOTU4MTcsImV4cCI6MjA3NTY3MTgxN30.fTwOPszajAM_MhulX4cPGWzzYchfHMaBNkCs_6S4ZYQ';
 const windchasersSupabase = createClient(windchasersSupabaseUrl, windchasersSupabaseKey);
 
 // Initialize Claude API
@@ -257,7 +256,25 @@ function isSimilarToAny(newButton: string, existingButtons: string[]): boolean {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    let { message, messageCount = 0, brand = 'proxe', usedButtons = [] } = body;
+    let { message, messageCount = 0, brand = 'proxe', usedButtons = [], metadata = {} } = body;
+
+    const sessionMetadata = metadata.session || {};
+    const memoryMetadata = metadata.memory || {};
+    const userProfile = sessionMetadata.user || {};
+    const summary: string = typeof memoryMetadata.summary === 'string' ? memoryMetadata.summary : '';
+    const recentHistory: { role: 'user' | 'assistant'; content: string }[] = Array.isArray(memoryMetadata.recentHistory)
+      ? memoryMetadata.recentHistory
+          .filter(
+            (entry: any) =>
+              entry &&
+              (entry.role === 'user' || entry.role === 'assistant') &&
+              typeof entry.content === 'string'
+          )
+          .map((entry: any) => ({
+            role: entry.role,
+            content: entry.content,
+          }))
+      : [];
 
     if (!message || message.trim() === '') {
       return Response.json({ error: 'Message is required' }, { status: 400 });
@@ -286,23 +303,32 @@ export async function POST(request: NextRequest) {
     const relevantDocs = await searchKnowledgeBase(message, normalizedBrand, 3);
 
     // Format context
-    let context = '';
+    let knowledgeContext = '';
     if (relevantDocs.length > 0) {
-      context = 'Based on our knowledge base:\n\n';
-      relevantDocs.forEach((doc, index) => {
-        context += `${index + 1}. ${doc.content}\n`;
-      });
+      knowledgeContext = relevantDocs
+        .map((doc, index) => `${index + 1}. ${doc.content}`)
+        .join('\n');
     } else {
-      context = 'No specific information found in knowledge base. Provide general helpful response.';
+      knowledgeContext = 'No relevant snippets found.';
     }
 
     // Check if this is the third message (before using it)
     const isThirdMessage = messageCount === 3;
 
-    // Get system prompt
-    const systemPrompt = normalizedBrand === 'proxe'
-      ? getProxeSystemPrompt(context)
-      : getWindChasersSystemPrompt(context, 'cold');
+    const { systemPrompt, userPrompt } = buildPrompt({
+      brand: normalizedBrand,
+      userName: typeof userProfile?.name === 'string' ? userProfile.name : undefined,
+      summary,
+      history: recentHistory,
+      knowledgeBase: knowledgeContext,
+      message,
+      bookingAlreadyScheduled: isBookingAlreadyScheduled,
+    });
+
+    const additionalGuidance = isThirdMessage
+      ? '\n\nGuidance: This is the third user interaction. Encourage them to schedule a call in a single sentence.'
+      : '';
+    const finalUserPrompt = `${userPrompt}${additionalGuidance}`;
 
     // Use streaming for all brands
     const encoder = new TextEncoder();
@@ -319,11 +345,11 @@ export async function POST(request: NextRequest) {
 
           const anthropicStream = await anthropic.messages.stream({
             model: 'claude-sonnet-4-20250514',
-            max_tokens: 1024,
+            max_tokens: 768,
             system: systemPrompt,
             messages: [{
               role: 'user',
-              content: `${message}\n\n[REMINDER: Answer their question directly. Use the knowledge base context. Be concise (1-3 sentences). If they want more details, they'll ask.${isThirdMessage ? ' IMPORTANT: After 3 messages, suggest booking a call to discuss further.' : ''}${isBookingAlreadyScheduled ? ' IMPORTANT: The user is trying to book again, but a booking is already scheduled. Politely inform them that their booking is already scheduled and they can check the calendar above to view or modify their appointment.' : ''}]`
+              content: finalUserPrompt,
             }],
           });
 

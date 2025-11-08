@@ -9,6 +9,11 @@ interface BookingCalendarWidgetProps {
   onBookingComplete?: (bookingData: BookingData) => void;
   brand?: string;
   config?: BrandConfig;
+  prefillName?: string;
+  prefillEmail?: string;
+  prefillPhone?: string;
+  onContactDraft?: (data: { name?: string; email?: string; phone?: string }) => void;
+  onContactSubmit?: (data: { name?: string; email?: string; phone?: string }) => void;
 }
 
 interface BookingData {
@@ -35,7 +40,17 @@ const AVAILABLE_SLOTS = [
   '6:00 PM',
 ];
 
-export function BookingCalendarWidget({ onClose, onBookingComplete, brand, config }: BookingCalendarWidgetProps) {
+export function BookingCalendarWidget({
+  onClose,
+  onBookingComplete,
+  brand,
+  config,
+  prefillName,
+  prefillEmail,
+  prefillPhone,
+  onContactDraft,
+  onContactSubmit,
+}: BookingCalendarWidgetProps) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [showTimeSlots, setShowTimeSlots] = useState(false);
@@ -46,10 +61,29 @@ export function BookingCalendarWidget({ onClose, onBookingComplete, brand, confi
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isWarning, setIsWarning] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
+    name: prefillName || '',
+    email: prefillEmail || '',
+    phone: prefillPhone || '',
   });
+  useEffect(() => {
+    setFormData((prev) => {
+      const next = {
+        ...prev,
+        name: prefillName !== undefined ? prefillName : prev.name,
+        email: prefillEmail !== undefined ? prefillEmail : prev.email,
+        phone: prefillPhone !== undefined ? prefillPhone : prev.phone,
+      };
+      return next;
+    });
+
+    const draftPayload: { name?: string; email?: string; phone?: string } = {};
+    if (prefillName) draftPayload.name = prefillName;
+    if (prefillEmail) draftPayload.email = prefillEmail;
+    if (prefillPhone) draftPayload.phone = prefillPhone;
+    if (onContactDraft && Object.keys(draftPayload).length > 0) {
+      onContactDraft(draftPayload);
+    }
+  }, [prefillName, prefillEmail, prefillPhone, onContactDraft]);
 
   const today = new Date();
   const [currentDate, setCurrentDate] = useState(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
@@ -215,6 +249,13 @@ export function BookingCalendarWidget({ onClose, onBookingComplete, brand, confi
       };
 
       setShowConfirmation(true);
+      if (onContactSubmit) {
+        await onContactSubmit({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+        });
+      }
       
       if (onBookingComplete) {
         onBookingComplete(bookingData);
@@ -225,10 +266,25 @@ export function BookingCalendarWidget({ onClose, onBookingComplete, brand, confi
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
+    const { name, value } = e.target;
+    const nextForm = {
       ...formData,
-      [e.target.name]: e.target.value,
-    });
+      [name]: value,
+    };
+    setFormData(nextForm);
+    if (onContactDraft) {
+      const payload: { name?: string; email?: string; phone?: string } = {};
+      if (name === 'name') {
+        payload.name = value;
+      } else if (name === 'email') {
+        payload.email = value;
+      } else if (name === 'phone') {
+        payload.phone = value;
+      }
+      if (Object.keys(payload).length > 0) {
+        onContactDraft(payload);
+      }
+    }
   };
 
   // Get days of current month
