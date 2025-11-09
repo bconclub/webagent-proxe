@@ -133,9 +133,10 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [hasAskedName, setHasAskedName] = useState(false);
   const [hasAskedEmail, setHasAskedEmail] = useState(false);
   const [hasAskedPhone, setHasAskedPhone] = useState(false);
+  const [hasReceivedFirstResponse, setHasReceivedFirstResponse] = useState(false);
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const [pendingButtons, setPendingButtons] = useState<string[]>([]);
-  const [pendingRequirement, setPendingRequirement] = useState<'email' | 'phone' | null>(null);
+  const [pendingRequirement, setPendingRequirement] = useState<'name' | 'email' | 'phone' | null>(null);
   const [conversationSummary, setConversationSummary] = useState<string>('');
   const [recentHistory, setRecentHistory] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
   const [nameInput, setNameInput] = useState('');
@@ -441,7 +442,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     },
   });
 
-  const queuePendingMessage = (message: string, buttons: string[], requirement: 'email' | 'phone') => {
+  const queuePendingMessage = (message: string, buttons: string[], requirement: 'name' | 'email' | 'phone') => {
     if (process.env.NODE_ENV !== 'production') {
       console.log('[ChatWidget] Queueing pending message', { message, buttons });
     }
@@ -455,17 +456,20 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     setShowQuickButtons(false);
   };
 
-  const requestNameBeforeProceed = () => {
-    if (!userProfile.name && !hasAskedName) {
+  const requestNameBeforeProceed = (message: string, buttons: string[]) => {
+    if (
+      hasReceivedFirstResponse &&
+      !userProfile.name &&
+      !hasAskedName &&
+      !showNamePrompt
+    ) {
       if (process.env.NODE_ENV !== 'production') {
         console.log('[ChatWidget] Requesting name before proceeding');
       }
-      applyLocalProfile({ promptedName: true });
+      setHasAskedName(true);
+      queuePendingMessage(message, buttons, 'name');
       setShowNamePrompt(true);
-      setIsOpen(true);
-      setIsInputActive(true);
-      setIsExpanded(true);
-      setShowQuickButtons(false);
+      return true;
     }
     return false;
   };
@@ -532,10 +536,12 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   useEffect(() => {
     if (!pendingUserMessage || !pendingRequirement) return;
 
+    const hasName = Boolean(userProfile.name && userProfile.name.trim());
     const hasEmail = Boolean(userProfile.email && userProfile.email.trim());
     const hasPhone = Boolean(userProfile.phone && userProfile.phone.trim());
 
     const requirementSatisfied =
+      (pendingRequirement === 'name' && hasName) ||
       (pendingRequirement === 'email' && (hasEmail || emailPromptDismissed)) ||
       (pendingRequirement === 'phone' && (hasPhone || phonePromptDismissed));
 
@@ -552,6 +558,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     pendingRequirement,
     pendingButtons,
     usedButtons,
+    userProfile.name,
     userProfile.email,
     userProfile.phone,
     emailPromptDismissed,
@@ -675,6 +682,10 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     if (message.text) {
       appendHistory({ role: 'assistant', content: message.text });
       await recordMessage('assistant', message.text);
+    }
+
+    if (!hasReceivedFirstResponse) {
+      setHasReceivedFirstResponse(true);
     }
 
     interactionCountRef.current += 1;
@@ -1131,7 +1142,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     const message = inputValue.trim();
     if (!message) return;
 
-    requestNameBeforeProceed();
+    if (requestNameBeforeProceed(message, usedButtons)) return;
     if (requestEmailBeforeProceed(message, usedButtons)) return;
     if (requestPhoneBeforeProceed(message, usedButtons)) return;
 
@@ -1153,7 +1164,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
     const nextButtons = [...usedButtons, buttonText];
 
-    requestNameBeforeProceed();
+    if (requestNameBeforeProceed(message, nextButtons)) return;
     if (requestEmailBeforeProceed(message, nextButtons)) return;
 
     setShowCalendly(null);
@@ -1406,12 +1417,14 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               interactionCountRef.current = 0;
               setPendingUserMessage(null);
               setPendingButtons([]);
+              setPendingRequirement(null);
               setShowNamePrompt(false);
               setShowEmailPrompt(false);
               setShowPhonePrompt(false);
               setHasAskedName(false);
               setHasAskedEmail(false);
               setHasAskedPhone(false);
+              setHasReceivedFirstResponse(false);
               setEmailPromptDismissed(false);
               setPhonePromptDismissed(false);
               setInputValue('');
