@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useChat } from '@/src/hooks/useChat';
 import type { Message } from '@/src/hooks/useChatStream';
 import { InfinityLoader } from './InfinityLoader';
@@ -1255,6 +1255,24 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   };
   
   const shouldShowBlur = (isExpanded || showQuickButtons) && !isOpen;
+
+  const detailPromptOverlayStyle = useMemo<React.CSSProperties | undefined>(() => {
+    if (isDesktop) return undefined;
+
+    const basePadding = 24;
+    const bottomPadding =
+      keyboardHeight > 0
+        ? `calc(${keyboardHeight + SEARCHBAR_KEYBOARD_OFFSET + 24}px + env(safe-area-inset-bottom, 0px))`
+        : `calc(${basePadding}px + env(safe-area-inset-bottom, 0px))`;
+
+    return {
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'flex-end',
+      padding: '20px',
+      paddingBottom: bottomPadding,
+    };
+  }, [isDesktop, keyboardHeight, SEARCHBAR_KEYBOARD_OFFSET]);
   
   if (!isOpen) {
     return (
@@ -1638,7 +1656,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       </div>
 
       {showNamePrompt && (
-        <div className={styles.detailPromptOverlay}>
+        <div className={styles.detailPromptOverlay} style={detailPromptOverlayStyle}>
           <div className={styles.detailPromptCard}>
             <h3 className={styles.detailPromptTitle}>Let’s get acquainted</h3>
             <p className={styles.detailPromptSubtitle}>What should we call you?</p>
@@ -1659,7 +1677,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       )}
 
       {showEmailPrompt && (
-        <div className={styles.detailPromptOverlay}>
+        <div className={styles.detailPromptOverlay} style={detailPromptOverlayStyle}>
           <div className={styles.detailPromptCard}>
             <h3 className={styles.detailPromptTitle}>Where can we reach you?</h3>
             <p className={styles.detailPromptSubtitle}>Share your email so we can follow up.</p>
@@ -1686,7 +1704,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       )}
 
       {showPhonePrompt && (
-        <div className={styles.detailPromptOverlay}>
+        <div className={styles.detailPromptOverlay} style={detailPromptOverlayStyle}>
           <div className={styles.detailPromptCard}>
             <h3 className={styles.detailPromptTitle}>Stay in touch</h3>
             <p className={styles.detailPromptSubtitle}>Share your phone number so we can follow up.</p>

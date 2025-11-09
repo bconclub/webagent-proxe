@@ -63,13 +63,13 @@ export default function HomePage() {
       <Header />
       <section className={styles.heroSection}>
         <BlurText
-          text="AI Systems That Run Your Business Better"
+          text="Intelligence That Run Your Business Better"
           delay={150}
           animateBy="words"
           direction="top"
           className={styles.heroTitle}
         />
-        <p className={styles.heroSubtitle}>Every <b>Customer</b> touch point automated with PROXe</p>
+        <p className={styles.heroSubtitle}>One AI Brain. Every channel. Zero blind spots.</p>
       </section>
       <section className={styles.solutionsSection}>
         <h2 className={styles.sectionHeading}>Choose Your PROXe</h2>

@@ -34,13 +34,13 @@ export default function ProxePage() {
       <Header />
       <section className={styles.heroSection}>
         <BlurText
-          text="AI Agents That Run Your Business Better"
+          text="Intelligence That Run Your Business Better"
           delay={150}
           animateBy="words"
           direction="top"
           className={styles.heroTitle}
         />
-        <p className={styles.heroSubtitle}>Every <b>Customer</b> touch point automated with PROXe</p>
+        <p className={styles.heroSubtitle}>One AI Brain. Every channel. Zero blind spots.</p>
       </section>
       <BrandChatWidget brand="proxe" apiUrl={apiUrl} />
     </main>
