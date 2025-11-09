@@ -63,7 +63,7 @@ export default function HomePage() {
       <Header />
       <section className={styles.heroSection}>
         <BlurText
-          text="Intelligence That Run Your Business Better"
+          text="Intelligence That Runs Your Business Better"
           delay={150}
           animateBy="words"
           direction="top"

@@ -146,6 +146,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [phoneInput, setPhoneInput] = useState('');
   const SEARCHBAR_BASE_OFFSET = 60;
   const SEARCHBAR_KEYBOARD_OFFSET = 20;
+  const SEARCHBAR_KEYBOARD_GAP = 10;
   const EMAIL_PROMPT_THRESHOLD = 7;
   const PHONE_PROMPT_THRESHOLD = 10;
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1017,9 +1018,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
       // Adjust searchbar position when keyboard is visible
       if (searchbarWrapperRef.current && calculatedKeyboardHeight > 0) {
-        const offset = calculatedKeyboardHeight + SEARCHBAR_KEYBOARD_OFFSET;
-        searchbarWrapperRef.current.style.setProperty('transform', `translateY(-${offset}px)`, 'important');
-        searchbarWrapperRef.current.style.setProperty('bottom', `${SEARCHBAR_BASE_OFFSET}px`, 'important');
+        const gapValue = `calc(${SEARCHBAR_KEYBOARD_GAP}px + env(safe-area-inset-bottom, 0px))`;
+        searchbarWrapperRef.current.style.removeProperty('transform');
+        searchbarWrapperRef.current.style.setProperty('bottom', gapValue, 'important');
       } else if (searchbarWrapperRef.current && calculatedKeyboardHeight === 0) {
         // Keyboard is hidden, restore original position
         searchbarWrapperRef.current.style.removeProperty('transform');
@@ -1439,8 +1440,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   }, [isDesktop, keyboardHeight, SEARCHBAR_KEYBOARD_OFFSET]);
   
   if (!isOpen) {
-    const hasHistory = messages.length > 0 || recentHistory.length > 0;
-    const shouldAutoOpenChat = hasEverOpenedRef.current || hasHistory;
+    const hasConversation = messages.length > 0;
+    const shouldAutoOpenChat = hasEverOpenedRef.current && hasConversation;
 
     return (
       <>
@@ -1461,7 +1462,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           className={styles.searchbarWrapper}
           onMouseEnter={() => {
             setIsSearchbarHovered(true);
-            if (!isOpen && !hasHistory && config?.quickButtons && config.quickButtons.length > 0) {
+            if (!isOpen && !hasConversation && config?.quickButtons && config.quickButtons.length > 0) {
               setIsExpanded(true);
               setShowQuickButtons(true);
             }
@@ -1475,7 +1476,11 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           }}
         >
         {isExpanded && showQuickButtons && config?.quickButtons && config.quickButtons.length > 0 && (
-          <div ref={quickButtonsRef} className={styles.quickButtons}>
+          <div
+            ref={quickButtonsRef}
+            className={styles.quickButtons}
+            data-scroll-lock="allow"
+          >
             {config.quickButtons.map((buttonText, index) => (
               <button
                 key={index}
