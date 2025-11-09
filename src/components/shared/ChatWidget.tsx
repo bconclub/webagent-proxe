@@ -151,6 +151,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
   const quickButtonsRef = useRef<HTMLDivElement>(null);
+  const hasEverOpenedRef = useRef(false);
   const chatboxContainerRef = useRef<HTMLDivElement>(null);
   const searchbarWrapperRef = useRef<HTMLDivElement>(null);
   const namePromptInputRef = useRef<HTMLInputElement>(null);
@@ -830,8 +831,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               chatboxContainerRef.current.style.setProperty('-webkit-transform', 'none', 'important');
               chatboxContainerRef.current.style.setProperty('width', '100%', 'important');
               chatboxContainerRef.current.style.setProperty('max-width', '100%', 'important');
-              chatboxContainerRef.current.style.setProperty('height', '100vh', 'important');
-              chatboxContainerRef.current.style.setProperty('max-height', '100vh', 'important');
+              chatboxContainerRef.current.style.setProperty('height', 'auto', 'important');
+              chatboxContainerRef.current.style.setProperty('max-height', 'none', 'important');
             }
           }
         }, 0);
@@ -844,7 +845,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
   // Lock body scroll when searchbar is hovered or clicked
   useEffect(() => {
-    if (isSearchbarHovered || isInputActive) {
+    const shouldLock = isSearchbarHovered || isInputActive || isOpen;
+
+    if (shouldLock) {
       // Store original overflow and scroll position
       const originalOverflow = document.body.style.overflow;
       const originalPosition = document.body.style.position;
@@ -882,7 +885,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         document.removeEventListener('touchmove', preventScroll);
       };
     }
-  }, [isSearchbarHovered, isInputActive]);
+  }, [isSearchbarHovered, isInputActive, isOpen]);
 
   // Handle keyboard appearance and adjust searchbar position
   useEffect(() => {
@@ -902,26 +905,23 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
       // Adjust searchbar position when keyboard is visible
       if (searchbarWrapperRef.current && calculatedKeyboardHeight > 0) {
-        const newBottom = calculatedKeyboardHeight + SEARCHBAR_KEYBOARD_OFFSET;
-        searchbarWrapperRef.current.style.setProperty('bottom', `${newBottom}px`, 'important');
-        searchbarWrapperRef.current.style.setProperty('transition', 'none', 'important');
-      } else if (searchbarWrapperRef.current && calculatedKeyboardHeight === 0) {
-        // Keyboard is hidden, restore original position with smooth transition
+        const offset = calculatedKeyboardHeight + SEARCHBAR_KEYBOARD_OFFSET;
+        searchbarWrapperRef.current.style.setProperty('transform', `translateY(-${offset}px)`, 'important');
         searchbarWrapperRef.current.style.setProperty('bottom', `${SEARCHBAR_BASE_OFFSET}px`, 'important');
-        searchbarWrapperRef.current.style.setProperty('transition', 'bottom 0.2s ease-out', 'important');
+      } else if (searchbarWrapperRef.current && calculatedKeyboardHeight === 0) {
+        // Keyboard is hidden, restore original position
+        searchbarWrapperRef.current.style.removeProperty('transform');
+        searchbarWrapperRef.current.style.setProperty('bottom', `${SEARCHBAR_BASE_OFFSET}px`, 'important');
       }
 
       // Adjust chat container height when keyboard is visible (mobile only)
       if (isOpen && chatboxContainerRef.current && window.innerWidth < 769) {
         if (calculatedKeyboardHeight > 0) {
-          // Keyboard is visible - adjust container to account for keyboard
-          const adjustedHeight = viewportHeight;
-          chatboxContainerRef.current.style.setProperty('height', `${adjustedHeight}px`, 'important');
-          chatboxContainerRef.current.style.setProperty('max-height', `${adjustedHeight}px`, 'important');
+          chatboxContainerRef.current.style.setProperty('height', `${viewportHeight}px`, 'important');
+          chatboxContainerRef.current.style.setProperty('max-height', `${viewportHeight}px`, 'important');
         } else {
-          // Keyboard is hidden - restore full height
-          chatboxContainerRef.current.style.setProperty('height', '100dvh', 'important');
-          chatboxContainerRef.current.style.setProperty('max-height', '100dvh', 'important');
+          chatboxContainerRef.current.style.removeProperty('height');
+          chatboxContainerRef.current.style.removeProperty('max-height');
         }
       }
     };
@@ -1287,6 +1287,12 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   
   const shouldShowBlur = (isExpanded || showQuickButtons) && !isOpen;
 
+  useEffect(() => {
+    if (isOpen) {
+      hasEverOpenedRef.current = true;
+    }
+  }, [isOpen]);
+
   const detailPromptOverlayStyle = useMemo<React.CSSProperties | undefined>(() => {
     if (isDesktop) return undefined;
 
@@ -1298,10 +1304,11 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
     return {
       position: 'fixed',
-      top: 0,
+      top: 'auto',
       left: 0,
       right: 0,
       bottom: 0,
+      height: 'auto',
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'flex-end',
@@ -1312,6 +1319,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   }, [isDesktop, keyboardHeight, SEARCHBAR_KEYBOARD_OFFSET]);
   
   if (!isOpen) {
+    const hasHistory = messages.length > 0 || recentHistory.length > 0;
+    const shouldAutoOpenChat = hasEverOpenedRef.current || hasHistory;
+
     return (
       <>
         {shouldShowBlur && (
@@ -1331,7 +1341,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           className={styles.searchbarWrapper}
           onMouseEnter={() => {
             setIsSearchbarHovered(true);
-            if (!isOpen && config?.quickButtons && config.quickButtons.length > 0) {
+            if (!isOpen && !hasHistory && config?.quickButtons && config.quickButtons.length > 0) {
               setIsExpanded(true);
               setShowQuickButtons(true);
             }
@@ -1369,29 +1379,57 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           }}
           onClick={(e) => {
             e.stopPropagation();
-            // Always expand and show quick buttons on click
-            setIsExpanded(true);
-            setShowQuickButtons(true);
-            setIsInputActive(true);
-            // Focus input
-            setTimeout(() => {
-              inputRef.current?.focus();
-            }, 50);
+            if (shouldAutoOpenChat) {
+              setIsOpen(true);
+              setIsExpanded(false);
+              setShowQuickButtons(false);
+              setIsInputActive(true);
+              setTimeout(() => {
+                chatInputRef.current?.focus();
+              }, 50);
+            } else {
+              setIsExpanded(true);
+              setShowQuickButtons(true);
+              setIsInputActive(true);
+              setTimeout(() => {
+                inputRef.current?.focus();
+              }, 50);
+            }
           }}
           onTouchStart={(e) => {
-            setIsExpanded(true);
-            setShowQuickButtons(true);
-            setIsInputActive(true);
+            if (shouldAutoOpenChat) {
+              setIsOpen(true);
+              setIsExpanded(false);
+              setShowQuickButtons(false);
+              setIsInputActive(true);
+              setTimeout(() => {
+                chatInputRef.current?.focus();
+              }, 50);
+            } else {
+              setIsExpanded(true);
+              setShowQuickButtons(true);
+              setIsInputActive(true);
+            }
           }}
           style={{ cursor: 'pointer' }}
         >
           <div className={styles.searchIcon} onClick={(e) => {
             e.stopPropagation();
-            setIsExpanded(true);
-            setShowQuickButtons(true);
-            setTimeout(() => {
-              inputRef.current?.focus();
-            }, 50);
+            if (shouldAutoOpenChat) {
+              setIsOpen(true);
+              setIsExpanded(false);
+              setShowQuickButtons(false);
+              setIsInputActive(true);
+              setTimeout(() => {
+                chatInputRef.current?.focus();
+              }, 50);
+            } else {
+              setIsExpanded(true);
+              setShowQuickButtons(true);
+              setTimeout(() => {
+                inputRef.current?.focus();
+              }, 50);
+            }
           }}>
             {ICONS.search}
           </div>
@@ -1404,14 +1442,34 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             onChange={(e) => setInputValue(e.target.value)}
             onClick={(e) => {
               e.stopPropagation();
-              setIsExpanded(true);
-              setShowQuickButtons(true);
-              setIsInputActive(true);
+              if (shouldAutoOpenChat) {
+                setIsOpen(true);
+                setIsExpanded(false);
+                setShowQuickButtons(false);
+                setIsInputActive(true);
+                setTimeout(() => {
+                  chatInputRef.current?.focus();
+                }, 50);
+              } else {
+                setIsExpanded(true);
+                setShowQuickButtons(true);
+                setIsInputActive(true);
+              }
             }}
             onFocus={(e) => {
-              setIsExpanded(true);
-              setShowQuickButtons(true);
-              setIsInputActive(true);
+              if (shouldAutoOpenChat) {
+                setIsOpen(true);
+                setIsExpanded(false);
+                setShowQuickButtons(false);
+                setIsInputActive(true);
+                setTimeout(() => {
+                  chatInputRef.current?.focus();
+                }, 50);
+              } else {
+                setIsExpanded(true);
+                setShowQuickButtons(true);
+                setIsInputActive(true);
+              }
             }}
             onBlur={handleInputBlur}
             onKeyPress={(e) => {
@@ -1473,6 +1531,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               setPendingUserMessage(null);
               setPendingButtons([]);
               setPendingRequirement(null);
+          hasEverOpenedRef.current = false;
               setShowNamePrompt(false);
               setShowEmailPrompt(false);
               setShowPhonePrompt(false);
@@ -1648,28 +1707,17 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             onChange={(e) => setInputValue(e.target.value)}
             onFocus={(e) => {
               // Scroll input into view above keyboard on mobile
-              const scrollInputIntoView = () => {
+    const scrollInputIntoView = () => {
                 const input = e.target;
                 if (input) {
                   if (window.visualViewport) {
-                    const viewport = window.visualViewport;
-                    const inputRect = input.getBoundingClientRect();
-                    const viewportHeight = viewport.height;
-                    const inputBottom = inputRect.bottom;
-                    
-                    if (inputBottom > viewportHeight) {
-                      input.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'center',
-                        inline: 'nearest' 
-                      });
-                    }
-                  } else {
-                    input.scrollIntoView({ 
-                      behavior: 'smooth', 
-                      block: 'center',
-                      inline: 'nearest' 
-                    });
+          return; // rely on visual viewport adjustments
+        } else {
+          input.scrollIntoView({
+            behavior: 'smooth',
+            block: 'end',
+            inline: 'nearest'
+          });
                   }
                 }
               };
