@@ -14,6 +14,16 @@ export function useChat({ brand, apiUrl, onMessageComplete }: UseChatOptions) {
     onMessageComplete,
   });
 
+  const sendMessageWithMetadata = useCallback(
+    (
+      message: string,
+      messageCount: number = 0,
+      usedButtons: string[] = [],
+      metadata: Record<string, unknown> = {}
+    ) => sendMessage(message, messageCount, usedButtons, metadata),
+    [sendMessage]
+  );
+
   const handleQuickButton = useCallback(
     (buttonText: string, messageCount: number = 0, usedButtons: string[] = []) => {
       sendMessage(buttonText, messageCount, usedButtons);
@@ -32,7 +42,7 @@ export function useChat({ brand, apiUrl, onMessageComplete }: UseChatOptions) {
     messages,
     isLoading,
     error,
-    sendMessage,
+    sendMessage: sendMessageWithMetadata,
     handleQuickButton,
     handleFollowUp,
     clearMessages,

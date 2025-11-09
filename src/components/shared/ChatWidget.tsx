@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useChat } from '@/src/hooks/useChat';
 import type { Message } from '@/src/hooks/useChatStream';
 import { InfinityLoader } from './InfinityLoader';
-import { BookingCalendarWidget } from './BookingCalendarWidget';
+import { BookingCalendarWidget, type BookingCalendarWidgetProps } from './BookingCalendarWidget';
 import type { BrandConfig } from '@/src/configs';
 import styles from './ChatWidget.module.css';
 import {
@@ -117,6 +117,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [messageCount, setMessageCount] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [showCalendly, setShowCalendly] = useState<string | null>(null);
+  const [calendarAnchorId, setCalendarAnchorId] = useState<string | null>(null);
   const [pendingCalendar, setPendingCalendar] = useState(false);
   const [bookingCompleted, setBookingCompleted] = useState(false);
   const [usedButtons, setUsedButtons] = useState<string[]>([]);
@@ -153,6 +154,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const quickButtonsRef = useRef<HTMLDivElement>(null);
   const hasEverOpenedRef = useRef(false);
   const chatboxContainerRef = useRef<HTMLDivElement>(null);
+  const messagesAreaRef = useRef<HTMLDivElement>(null);
   const searchbarWrapperRef = useRef<HTMLDivElement>(null);
   const namePromptInputRef = useRef<HTMLInputElement>(null);
   const emailPromptInputRef = useRef<HTMLInputElement>(null);
@@ -466,6 +468,12 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     },
   });
 
+  const closeCalendarWidget = useCallback(() => {
+    setShowCalendly(null);
+    setPendingCalendar(false);
+    setCalendarAnchorId(null);
+  }, []);
+
   const queuePendingMessage = (message: string, buttons: string[], requirement: 'name' | 'email' | 'phone') => {
     if (process.env.NODE_ENV !== 'production') {
       console.log('[ChatWidget] Queueing pending message', { message, buttons });
@@ -527,6 +535,10 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const submitMessage = async (rawMessage: string, buttons: string[] = usedButtons) => {
     const trimmed = rawMessage.trim();
     if (!trimmed) return;
+
+    if (showCalendly) {
+      closeCalendarWidget();
+    }
 
     if (process.env.NODE_ENV !== 'production') {
       console.log('[ChatWidget] Submitting message', { trimmed, buttons });
@@ -615,7 +627,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     setNamePromptDismissed(false);
     setNameInput('');
     setShowNamePrompt(false);
-    flushPendingMessage();
   };
 
   const handleNameDismiss = () => {
@@ -637,7 +648,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     });
     setEmailInput('');
     setShowEmailPrompt(false);
-    flushPendingMessage();
   };
 
   const handleEmailSkip = () => {
@@ -647,7 +657,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     persistUserProfile({ emailSkipped: true, promptedEmail: true }, { sync: false });
     setEmailInput('');
     setShowEmailPrompt(false);
-    flushPendingMessage();
   };
 
   const handlePhoneSubmit = async (event: React.FormEvent) => {
@@ -663,7 +672,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     });
     setPhoneInput('');
     setShowPhonePrompt(false);
-    flushPendingMessage();
   };
 
   const handlePhoneSkip = () => {
@@ -672,7 +680,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     }
     persistUserProfile({ phoneSkipped: true, promptedPhone: true }, { sync: false });
     setShowPhonePrompt(false);
-    flushPendingMessage();
   };
 
   const summarizeConversation = async (lastMessageTimestamp: string) => {
@@ -846,46 +853,151 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   // Lock body scroll when searchbar is hovered or clicked
   useEffect(() => {
     const shouldLock = isSearchbarHovered || isInputActive || isOpen;
+    if (!shouldLock) return;
 
-    if (shouldLock) {
-      // Store original overflow and scroll position
-      const originalOverflow = document.body.style.overflow;
-      const originalPosition = document.body.style.position;
-      const originalTop = document.body.style.top;
-      const scrollY = window.scrollY;
-      
-      // Lock body scroll
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.width = '100%';
-      document.body.style.left = '0';
-      document.body.style.right = '0';
-      
-      // Prevent touch move on mobile
-      const preventScroll = (e: TouchEvent) => {
-        if (e.target && searchbarWrapperRef.current && !searchbarWrapperRef.current.contains(e.target as Node)) {
-          e.preventDefault();
+    const bodyStyle = document.body.style;
+    const htmlStyle = document.documentElement.style;
+    const originalOverflow = bodyStyle.overflow;
+    const originalPosition = bodyStyle.position;
+    const originalTop = bodyStyle.top;
+    const originalWidth = bodyStyle.width;
+    const originalLeft = bodyStyle.left;
+    const originalRight = bodyStyle.right;
+    const originalHtmlOverflow = htmlStyle.overflow;
+    const originalHtmlOverscroll = htmlStyle.overscrollBehavior;
+    const scrollY = window.scrollY;
+
+    bodyStyle.overflow = 'hidden';
+    bodyStyle.position = 'fixed';
+    bodyStyle.top = `-${scrollY}px`;
+    bodyStyle.width = '100%';
+    bodyStyle.left = '0';
+    bodyStyle.right = '0';
+    htmlStyle.overflow = 'hidden';
+    htmlStyle.overscrollBehavior = 'none';
+
+    const scrollableContainers = new Set<HTMLElement>();
+    const messagesContainer = messagesAreaRef.current;
+    if (messagesContainer) scrollableContainers.add(messagesContainer);
+
+    const dynamicallyMarkedScrollables = document.querySelectorAll<HTMLElement>('[data-scroll-lock="allow"]');
+    dynamicallyMarkedScrollables.forEach((element) => {
+      scrollableContainers.add(element);
+    });
+
+    const getScrollableContainer = (node: Node | null): HTMLElement | null => {
+      if (!(node instanceof Element)) {
+        return null;
+      }
+
+      const scrollable = node.closest<HTMLElement>('[data-scroll-lock="allow"]');
+      if (scrollable && scrollableContainers.has(scrollable)) {
+        return scrollable;
+      }
+      return null;
+    };
+
+    let lastTouchY = 0;
+    let activeScrollable: HTMLElement | null = null;
+
+    const handleTouchStart = (event: TouchEvent) => {
+      const target = event.target;
+      const targetNode = target instanceof Node ? target : null;
+      activeScrollable = getScrollableContainer(targetNode);
+      lastTouchY = event.touches[0]?.clientY ?? 0;
+
+      // Allow tap interactions; scroll locking handled during touchmove
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      const target = event.target;
+      const targetNode = target instanceof Node ? target : null;
+      const scrollable = activeScrollable ?? getScrollableContainer(targetNode);
+
+      if (!scrollable) {
+        event.preventDefault();
+        return;
+      }
+
+      const currentY = event.touches[0]?.clientY ?? 0;
+      const deltaY = lastTouchY - currentY;
+      lastTouchY = currentY;
+
+      const maxScrollTop = scrollable.scrollHeight - scrollable.clientHeight;
+      const currentScrollTop = scrollable.scrollTop;
+
+      const isScrollingDown = deltaY > 0;
+      const isScrollingUp = deltaY < 0;
+
+      const atTop = currentScrollTop <= 0;
+      const atBottom = currentScrollTop >= maxScrollTop;
+
+      if ((atTop && isScrollingUp) || (atBottom && isScrollingDown)) {
+        const parentScrollable = messagesAreaRef.current;
+        if (parentScrollable && parentScrollable !== scrollable) {
+          activeScrollable = parentScrollable;
+          parentScrollable.scrollTop += deltaY;
+          return;
         }
-      };
-      
-      document.addEventListener('touchmove', preventScroll, { passive: false });
-      
-      return () => {
-        // Restore original overflow and scroll position
-        document.body.style.overflow = originalOverflow;
-        document.body.style.position = originalPosition;
-        document.body.style.top = originalTop;
-        document.body.style.width = '';
-        document.body.style.left = '';
-        document.body.style.right = '';
-        
-        window.scrollTo(0, scrollY);
-        
-        document.removeEventListener('touchmove', preventScroll);
-      };
-    }
-  }, [isSearchbarHovered, isInputActive, isOpen]);
+        activeScrollable = null;
+        return;
+      }
+    };
+
+    const handleTouchEnd = () => {
+      activeScrollable = null;
+    };
+
+    const preventWheel = (event: WheelEvent) => {
+      if (window.innerWidth >= 769) return;
+
+      const target = event.target;
+      const targetNode = target instanceof Node ? target : null;
+      const scrollable = getScrollableContainer(targetNode);
+
+      if (!scrollable) {
+        event.preventDefault();
+        return;
+      }
+
+      const maxScrollTop = scrollable.scrollHeight - scrollable.clientHeight;
+      const currentScrollTop = scrollable.scrollTop;
+
+      if (
+        (currentScrollTop <= 0 && event.deltaY < 0) ||
+        (currentScrollTop >= maxScrollTop && event.deltaY > 0)
+      ) {
+        const parentScrollable = messagesAreaRef.current;
+        if (parentScrollable && parentScrollable !== scrollable) {
+          parentScrollable.scrollTop += event.deltaY;
+        }
+        return;
+      }
+    };
+
+    document.addEventListener('touchstart', handleTouchStart, { passive: false, capture: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
+    document.addEventListener('wheel', preventWheel, { passive: false, capture: true });
+
+    return () => {
+      bodyStyle.overflow = originalOverflow;
+      bodyStyle.position = originalPosition;
+      bodyStyle.top = originalTop;
+      bodyStyle.width = originalWidth;
+      bodyStyle.left = originalLeft;
+      bodyStyle.right = originalRight;
+      htmlStyle.overflow = originalHtmlOverflow;
+      htmlStyle.overscrollBehavior = originalHtmlOverscroll;
+
+      window.scrollTo(0, scrollY);
+
+      document.removeEventListener('touchstart', handleTouchStart, true);
+      document.removeEventListener('touchmove', handleTouchMove, true);
+      document.removeEventListener('touchend', handleTouchEnd, true);
+      document.removeEventListener('wheel', preventWheel, true);
+    };
+  }, [isSearchbarHovered, isInputActive, isOpen, showCalendly]);
 
   // Handle keyboard appearance and adjust searchbar position
   useEffect(() => {
@@ -975,6 +1087,11 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           setBookingCompleted(true); // Mark booking as completed
           const calendarMessageId = `calendar-${Date.now()}`;
           setShowCalendly(calendarMessageId);
+          if (lastMessage?.id) {
+            setCalendarAnchorId(lastMessage.id);
+          } else {
+            setCalendarAnchorId(null);
+          }
         }, 500);
         
         return () => clearTimeout(timer);
@@ -1198,7 +1315,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     if (requestNameBeforeProceed(message, nextButtons)) return;
     if (requestEmailBeforeProceed(message, nextButtons)) return;
 
-    setShowCalendly(null);
+    closeCalendarWidget();
     setIsOpen(true);
     setIsInputActive(true);
     setIsExpanded(false);
@@ -1211,6 +1328,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   };
 
   const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    if (showCalendly) {
+      closeCalendarWidget();
+    }
     setIsInputActive(true);
     if (!isOpen) {
       setIsExpanded(true);
@@ -1518,8 +1638,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               setIsInputActive(false);
               setIsExpanded(false);
               setShowQuickButtons(false);
-              setShowCalendly(null);
-              setPendingCalendar(false);
+              closeCalendarWidget();
               setBookingCompleted(false);
               setUsedButtons([]);
               setMessageCount(0);
@@ -1548,6 +1667,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               setPhoneInput('');
               setUserProfile({});
               storeUserProfile({}, brandKey);
+              setIsSearchbarHovered(false);
             }}
             title="Reset chat"
           >
@@ -1561,8 +1681,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               setIsExpanded(false);
               setShowQuickButtons(false);
               setIsSearchbarHovered(false);
-              setShowCalendly(null);
-              setPendingCalendar(false);
+              closeCalendarWidget();
             }}
           >
             {ICONS.close}
@@ -1570,7 +1689,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         </div>
       </div>
       <div 
+        ref={messagesAreaRef}
         className={styles.messagesArea}
+        data-scroll-lock="allow"
         onClick={(e) => {
           // Only close calendar if clicking directly on the messages area, not on messages or buttons
           const target = e.target as HTMLElement;
@@ -1580,8 +1701,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           
           if (!isClickOnMessage && !isClickOnButton && !isClickOnCalendar) {
             // Close calendar widget when clicking in empty messages area (clicking away)
-            setShowCalendly(null);
-            setPendingCalendar(false);
+            closeCalendarWidget();
           }
         }}
       >
@@ -1591,83 +1711,81 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           const accentClass = `accent-${accentIndex}`;
           
           return (
-          <div key={message.id} className={`${styles.message} ${styles[message.type]} ${styles[accentClass]}`}>
-            <div className={styles.messageContent}>
-              <div className={styles.bubble}>
-                {message.isStreaming && !message.text ? (
-                  <InfinityLoader />
-                ) : (
-                  <div className={styles.bubbleContent}>
-                    {/* Header with avatar and name inside the bubble */}
-                    <div className={styles.bubbleHeader}>
-                      <div className={styles.bubbleAvatar}>
-                        {message.type === 'ai' ? ICONS.ai(brand, config) : ICONS.user}
+          <React.Fragment key={message.id}>
+            <div className={`${styles.message} ${styles[message.type]} ${styles[accentClass]}`}>
+              <div className={styles.messageContent}>
+                <div className={styles.bubble}>
+                  {message.isStreaming && !message.text ? (
+                    <InfinityLoader />
+                  ) : (
+                    <div className={styles.bubbleContent}>
+                      {/* Header with avatar and name inside the bubble */}
+                      <div className={styles.bubbleHeader}>
+                        <div className={styles.bubbleAvatar}>
+                          {message.type === 'ai' ? ICONS.ai(brand, config) : ICONS.user}
+                        </div>
+                        <span className={styles.bubbleName}>
+                          {message.type === 'ai' ? config.name : 'You'}
+                        </span>
                       </div>
-                      <span className={styles.bubbleName}>
-                        {message.type === 'ai' ? config.name : 'You'}
-                      </span>
-                    </div>
-                    
-                    {/* Message content */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'nowrap', gap: '8px', width: '100%' }}>
-                      <div
-                        className={styles.messageText}
-                        style={{ flex: '1 1 auto', minWidth: 0 }}
-                        dangerouslySetInnerHTML={{ __html: formatText(message.text) }}
-                      />
-                      {message.isStreaming && message.text && (
-                        <span className={styles.streamingCursor}>▋</span>
+                      
+                      {/* Message content */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'nowrap', gap: '8px', width: '100%' }}>
+                        <div
+                          className={styles.messageText}
+                          style={{ flex: '1 1 auto', minWidth: 0 }}
+                          dangerouslySetInnerHTML={{ __html: formatText(message.text) }}
+                        />
+                        {message.isStreaming && message.text && (
+                          <span className={styles.streamingCursor}>▋</span>
+                        )}
+                      </div>
+                      
+                      {/* Follow-up buttons inside the bubble for AI messages */}
+                      {message.type === 'ai' && message.followUps && message.followUps.length > 0 && !message.isStreaming && message.hasStreamed === true && !showCalendly && (
+                        <div className={styles.followUpButtons}>
+                          {message.followUps.map((followUp, followUpIndex) => {
+                            // Rotate through accent colors for follow-up buttons
+                            const buttonAccentIndex = (accentIndex + followUpIndex) % 7;
+                            const buttonAccentClass = `accent-${buttonAccentIndex}`;
+                            
+                            return (
+                            <button
+                              key={followUpIndex}
+                              className={`${styles.followUpBtn} ${styles[buttonAccentClass]}`}
+                              onClick={() => handleQuickButtonClick(followUp)}
+                            >
+                              {followUp}
+                            </button>
+                            );
+                          })}
+                        </div>
                       )}
                     </div>
-                    
-                    {/* Follow-up buttons inside the bubble for AI messages */}
-                    {message.type === 'ai' && message.followUps && message.followUps.length > 0 && !message.isStreaming && message.hasStreamed === true && !showCalendly && (
-                      <div className={styles.followUpButtons}>
-                        {message.followUps.map((followUp, followUpIndex) => {
-                          // Rotate through accent colors for follow-up buttons
-                          const buttonAccentIndex = (accentIndex + followUpIndex) % 7;
-                          const buttonAccentClass = `accent-${buttonAccentIndex}`;
-                          
-                          return (
-                          <button
-                            key={followUpIndex}
-                            className={`${styles.followUpBtn} ${styles[buttonAccentClass]}`}
-                            onClick={() => handleQuickButtonClick(followUp)}
-                          >
-                            {followUp}
-                          </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-          );
-        })}
-        
-        {/* Google Calendar widget - always render in a separate bubble after messages */}
-        {showCalendly && (
-          <div 
-            className={`${styles.message} ${styles.ai} ${styles['accent-0']}`}
-            onClick={(e) => e.stopPropagation()}
-            ref={(el) => {
-              // Scroll widget into view when it appears
-              if (el) {
-                requestAnimationFrame(() => {
-                  setTimeout(() => {
-                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                  }, 100);
-                });
-              }
-            }}
-          >
-            <div className={styles.messageContent}>
-              <div className={styles.bubble}>
-                <div className={styles.bubbleContent}>
-                  {/* Header with avatar and name inside the bubble */}
+
+            {showCalendly && calendarAnchorId === message.id && (
+              <div 
+                key={showCalendly}
+                className={`${styles.message} ${styles.ai} ${styles['accent-0']}`}
+                onClick={(e) => e.stopPropagation()}
+                ref={(el) => {
+                  if (el) {
+                    requestAnimationFrame(() => {
+                      setTimeout(() => {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                      }, 100);
+                    });
+                  }
+                }}
+              >
+                <div className={styles.messageContent}>
+                  <div className={styles.bubble}>
+                    <div className={styles.bubbleContent}>
+                      {/* Header with avatar and name inside the bubble */}
                   <div className={styles.bubbleHeader}>
                     <div className={styles.bubbleAvatar}>
                       {ICONS.ai(brand, config)}
@@ -1675,24 +1793,42 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                     <span className={styles.bubbleName}>
                       {config.name}
                     </span>
+                    <button
+                      type="button"
+                      className={styles.calendarCloseBtn}
+                      onClick={closeCalendarWidget}
+                      aria-label="Close booking widget"
+                    >
+                      {ICONS.close}
+                    </button>
                   </div>
-                  
-                  {/* Custom Google Calendar widget */}
-                  <BookingCalendarWidget
-                    brand={brand}
-                    config={config}
-                    onBookingComplete={handleBookingComplete}
-                    prefillName={userProfile.name || ''}
-                    prefillEmail={userProfile.email || ''}
-                    prefillPhone={userProfile.phone || ''}
-                    onContactDraft={handleContactDraft}
-                    onContactSubmit={handleContactPersist}
-                  />
+                      
+                      {/* Custom Google Calendar widget */}
+                  <div
+                    className={styles.calendarScrollArea}
+                    data-scroll-lock="allow"
+                  >
+                        <BookingCalendarWidget
+                          {...({
+                            brand,
+                            config,
+                            onBookingComplete: handleBookingComplete,
+                            prefillName: userProfile.name || '',
+                            prefillEmail: userProfile.email || '',
+                            prefillPhone: userProfile.phone || '',
+                            onContactDraft: handleContactDraft,
+                            onContactSubmit: handleContactPersist,
+                          } satisfies BookingCalendarWidgetProps)}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
+          </React.Fragment>
+          );
+        })}
         
         <div ref={messagesEndRef} />
       </div>
@@ -1706,6 +1842,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onFocus={(e) => {
+              if (showCalendly) {
+                closeCalendarWidget();
+              }
               // Scroll input into view above keyboard on mobile
     const scrollInputIntoView = () => {
                 const input = e.target;

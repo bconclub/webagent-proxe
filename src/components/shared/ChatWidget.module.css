@@ -724,6 +724,35 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.calendarCloseBtn {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.calendarCloseBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.calendarCloseBtn:active {
+  transform: scale(0.95);
+}
+
+.calendarCloseBtn svg {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
 .bubbleAvatar {
   width: 32px;
   height: 32px;
@@ -754,6 +783,7 @@
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
+  flex: 1;
 }
 
 .message.user .bubble {
@@ -1195,6 +1225,13 @@
   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
+.calendarScrollArea {
+  max-height: 540px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Mobile styles - Fullscreen */
 @media (max-width: 768px) {
   .searchbarWrapper {
@@ -1259,7 +1296,8 @@
     flex: 1 1 0 !important;
     min-height: 0 !important;
     max-height: none !important;
-    overflow: hidden !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
     padding: 16px;
     padding-left: max(16px, env(safe-area-inset-left, 16px));
     padding-right: max(16px, env(safe-area-inset-right, 16px));
@@ -1325,6 +1363,10 @@
     min-height: 500px;
     max-height: calc(100dvh - 300px);
     overflow: hidden;
+  }
+
+  .calendarScrollArea {
+    max-height: calc(100dvh - 240px);
   }
 
   .calendarEmbed {

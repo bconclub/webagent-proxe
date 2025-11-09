@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import styles from './BookingCalendarWidget.module.css';
 import type { BrandConfig } from '@/src/configs';
 
-interface BookingCalendarWidgetProps {
+export interface BookingCalendarWidgetProps {
   onClose?: () => void;
   onBookingComplete?: (bookingData: BookingData) => void;
   brand?: string;
@@ -13,7 +13,7 @@ interface BookingCalendarWidgetProps {
   prefillEmail?: string;
   prefillPhone?: string;
   onContactDraft?: (data: { name?: string; email?: string; phone?: string }) => void;
-  onContactSubmit?: (data: { name?: string; email?: string; phone?: string }) => void;
+  onContactSubmit?: (data: { name?: string; email?: string; phone?: string }) => void | Promise<void>;
 }
 
 interface BookingData {
