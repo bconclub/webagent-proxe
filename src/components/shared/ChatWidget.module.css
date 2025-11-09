@@ -1000,6 +1000,28 @@
   text-align: left;
 }
 
+.detailPromptHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.detailPromptClose {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.2s ease;
+}
+
+.detailPromptClose:hover {
+  color: #ffffff;
+}
+
 .detailPromptTitle {
   margin: 0;
   font-size: 20px;
@@ -1277,7 +1299,7 @@
     padding-left: max(16px, env(safe-area-inset-left, 16px)) !important;
     padding-right: max(16px, env(safe-area-inset-right, 16px)) !important;
     padding-top: 6px !important;
-    padding-bottom: max(14px, env(safe-area-inset-bottom, 14px)) !important;
+    padding-bottom: max(24px, env(safe-area-inset-bottom, 14px)) !important;
     margin-top: 0 !important;
     margin-bottom: 0 !important;
     background: rgba(0, 0, 0, 0.85) !important;

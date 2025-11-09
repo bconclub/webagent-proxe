@@ -130,6 +130,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [showPhonePrompt, setShowPhonePrompt] = useState(false);
   const [emailPromptDismissed, setEmailPromptDismissed] = useState(false);
   const [phonePromptDismissed, setPhonePromptDismissed] = useState(false);
+  const [namePromptDismissed, setNamePromptDismissed] = useState(false);
   const [hasAskedName, setHasAskedName] = useState(false);
   const [hasAskedEmail, setHasAskedEmail] = useState(false);
   const [hasAskedPhone, setHasAskedPhone] = useState(false);
@@ -152,6 +153,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const quickButtonsRef = useRef<HTMLDivElement>(null);
   const chatboxContainerRef = useRef<HTMLDivElement>(null);
   const searchbarWrapperRef = useRef<HTMLDivElement>(null);
+  const namePromptInputRef = useRef<HTMLInputElement>(null);
+  const emailPromptInputRef = useRef<HTMLInputElement>(null);
+  const phonePromptInputRef = useRef<HTMLInputElement>(null);
   const dragStartX = useRef<number>(0);
   const dragStartScrollLeft = useRef<number>(0);
   const hasDraggedRef = useRef<boolean>(false);
@@ -292,16 +296,34 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   }, [showNamePrompt, userProfile.name]);
 
   useEffect(() => {
+    if (showNamePrompt && namePromptInputRef.current) {
+      namePromptInputRef.current.focus();
+    }
+  }, [showNamePrompt]);
+
+  useEffect(() => {
     if (showEmailPrompt) {
       setEmailInput(userProfile.email || '');
     }
   }, [showEmailPrompt, userProfile.email]);
 
   useEffect(() => {
+    if (showEmailPrompt && emailPromptInputRef.current) {
+      emailPromptInputRef.current.focus();
+    }
+  }, [showEmailPrompt]);
+
+  useEffect(() => {
     if (showPhonePrompt) {
       setPhoneInput(userProfile.phone || '');
     }
   }, [showPhonePrompt, userProfile.phone]);
+
+  useEffect(() => {
+    if (showPhonePrompt && phonePromptInputRef.current) {
+      phonePromptInputRef.current.focus();
+    }
+  }, [showPhonePrompt]);
 
   const applyLocalProfile = useCallback((updates: LocalUserProfile) => {
     setUserProfile((prev) => {
@@ -328,6 +350,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     if (Object.prototype.hasOwnProperty.call(updates, 'name')) {
       if (updates.name) {
         setHasAskedName(true);
+        setNamePromptDismissed(false);
       }
       setShowNamePrompt(false);
     }
@@ -461,6 +484,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       hasReceivedFirstResponse &&
       !userProfile.name &&
       !hasAskedName &&
+    !namePromptDismissed &&
       !showNamePrompt
     ) {
       if (process.env.NODE_ENV !== 'production') {
@@ -587,7 +611,14 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       phoneSkipped: userProfile.phoneSkipped,
       promptedName: true,
     });
+    setNamePromptDismissed(false);
     setNameInput('');
+    setShowNamePrompt(false);
+    flushPendingMessage();
+  };
+
+  const handleNameDismiss = () => {
+    setNamePromptDismissed(true);
     setShowNamePrompt(false);
     flushPendingMessage();
   };
@@ -1262,15 +1293,21 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     const basePadding = 24;
     const bottomPadding =
       keyboardHeight > 0
-        ? `calc(${keyboardHeight + SEARCHBAR_KEYBOARD_OFFSET + 24}px + env(safe-area-inset-bottom, 0px))`
+        ? `calc(${keyboardHeight + SEARCHBAR_KEYBOARD_OFFSET + 32}px + env(safe-area-inset-bottom, 0px))`
         : `calc(${basePadding}px + env(safe-area-inset-bottom, 0px))`;
 
     return {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'flex-end',
       padding: '20px',
       paddingBottom: bottomPadding,
+      pointerEvents: 'auto',
     };
   }, [isDesktop, keyboardHeight, SEARCHBAR_KEYBOARD_OFFSET]);
   
@@ -1443,6 +1480,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               setHasAskedEmail(false);
               setHasAskedPhone(false);
               setHasReceivedFirstResponse(false);
+              setNamePromptDismissed(false);
               setEmailPromptDismissed(false);
               setPhonePromptDismissed(false);
               setInputValue('');
@@ -1658,19 +1696,30 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       {showNamePrompt && (
         <div className={styles.detailPromptOverlay} style={detailPromptOverlayStyle}>
           <div className={styles.detailPromptCard}>
-            <h3 className={styles.detailPromptTitle}>Let’s get acquainted</h3>
+            <div className={styles.detailPromptHeader}>
+              <h3 className={styles.detailPromptTitle}>Let’s get acquainted</h3>
+              <button
+                type="button"
+                className={styles.detailPromptClose}
+                onClick={handleNameDismiss}
+                aria-label="Close name prompt"
+              >
+                ×
+              </button>
+            </div>
             <p className={styles.detailPromptSubtitle}>What should we call you?</p>
             <form onSubmit={handleNameSubmit} className={styles.detailPromptForm}>
               <input
                 autoFocus
+                ref={namePromptInputRef}
                 className={styles.detailPromptInput}
                 placeholder="Your name"
                 value={nameInput}
                 onChange={(event) => setNameInput(event.target.value)}
               />
-              <button type="submit" className={styles.detailPromptPrimary}>
-                Continue
-              </button>
+            <button type="submit" className={styles.detailPromptPrimary}>
+              Continue
+            </button>
             </form>
           </div>
         </div>
@@ -1679,11 +1728,22 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       {showEmailPrompt && (
         <div className={styles.detailPromptOverlay} style={detailPromptOverlayStyle}>
           <div className={styles.detailPromptCard}>
-            <h3 className={styles.detailPromptTitle}>Where can we reach you?</h3>
+            <div className={styles.detailPromptHeader}>
+              <h3 className={styles.detailPromptTitle}>Where can we reach you?</h3>
+              <button
+                type="button"
+                className={styles.detailPromptClose}
+                onClick={handleEmailSkip}
+                aria-label="Close email prompt"
+              >
+                ×
+              </button>
+            </div>
             <p className={styles.detailPromptSubtitle}>Share your email so we can follow up.</p>
             <form onSubmit={handleEmailSubmit} className={styles.detailPromptForm}>
               <input
                 autoFocus
+                ref={emailPromptInputRef}
                 className={styles.detailPromptInput}
                 placeholder="name@example.com"
                 type="email"
@@ -1706,10 +1766,22 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       {showPhonePrompt && (
         <div className={styles.detailPromptOverlay} style={detailPromptOverlayStyle}>
           <div className={styles.detailPromptCard}>
-            <h3 className={styles.detailPromptTitle}>Stay in touch</h3>
+            <div className={styles.detailPromptHeader}>
+              <h3 className={styles.detailPromptTitle}>Stay in touch</h3>
+              <button
+                type="button"
+                className={styles.detailPromptClose}
+                onClick={handlePhoneSkip}
+                aria-label="Close phone prompt"
+              >
+                ×
+              </button>
+            </div>
             <p className={styles.detailPromptSubtitle}>Share your phone number so we can follow up.</p>
             <form onSubmit={handlePhoneSubmit} className={styles.detailPromptForm}>
               <input
+                autoFocus
+                ref={phonePromptInputRef}
                 className={styles.detailPromptInput}
                 placeholder="Phone number"
                 value={phoneInput}
