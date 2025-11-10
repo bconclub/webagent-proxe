@@ -33,7 +33,7 @@ export default function HomePage() {
     },
     {
       id: 'social',
-      title: 'Content\nPROXe',
+      title: 'Social\nPROXe',
       icon: VideoAiIcon,
     },
   ];

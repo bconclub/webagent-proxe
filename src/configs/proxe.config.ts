@@ -74,6 +74,7 @@ export interface BrandConfig {
     buttonActive: string;
   };
   quickButtons: string[];
+  exploreButtons?: string[];
   followUpButtons: string[]; // Default follow-up buttons
   firstMessageButtons?: string[]; // Buttons specifically for first message
 }
@@ -139,7 +140,8 @@ export const proxeConfig: BrandConfig = {
     buttonActive: 'rgba(91, 26, 140, 0.3)',
   },
   quickButtons: ['What\'s PROXe', 'Deploy PROXe', 'PROXe Pricing', 'Book a Demo'],
-  followUpButtons: ['Deploy PROXe', 'Book PROXe Demo', 'Industries Served', 'Get PROXe Pricing', 'Schedule a Call'],
-  firstMessageButtons: ['Book a Demo', 'PROXe Pricing', 'Industries Served'], // Buttons for first message only
+  exploreButtons: ['Web PROXe', 'WhatsApp PROXe', 'Voice PROXe', 'Social PROXe'],
+  followUpButtons: ['Deploy PROXe', 'Book PROXe Demo', 'Explore PROXe', 'Get PROXe Pricing', 'Schedule a Call'],
+  firstMessageButtons: ['Book a Demo', 'Explore PROXe', 'PROXe Pricing'], // Buttons for first message only
 };
 

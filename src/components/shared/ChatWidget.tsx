@@ -144,6 +144,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [nameInput, setNameInput] = useState('');
   const [emailInput, setEmailInput] = useState('');
   const [phoneInput, setPhoneInput] = useState('');
+  const [dynamicQuickButtons, setDynamicQuickButtons] = useState<string[] | null>(null);
+  const [exploreButtons, setExploreButtons] = useState<string[] | null>(null);
   const SEARCHBAR_BASE_OFFSET = 60;
   const SEARCHBAR_KEYBOARD_OFFSET = 20;
   const SEARCHBAR_KEYBOARD_GAP = 10;
@@ -166,6 +168,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const interactionCountRef = useRef<number>(0);
   const historyRef = useRef<{ role: 'user' | 'assistant'; content: string }[]>([]);
   const brandKey: 'proxe' | 'windchasers' = brand?.toLowerCase() === 'windchasers' ? 'windchasers' : 'proxe';
+  const quickButtonOptions = dynamicQuickButtons ?? config?.quickButtons ?? [];
+  const hasQuickButtons = quickButtonOptions.length > 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -555,6 +559,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
     setInputValue('');
     setMessageCount(nextCount);
+    setExploreButtons(null);
+    setDynamicQuickButtons(null);
 
     if (containsBookingKeywords(trimmed) && !bookingCompleted) {
       setPendingCalendar(true);
@@ -1312,6 +1318,22 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     }
 
     const nextButtons = [...usedButtons, buttonText];
+    const isExploreRequest = message.toLowerCase() === 'explore proxe';
+    const exploreOptions = config?.exploreButtons ?? [];
+
+    if (isExploreRequest && exploreOptions.length > 0) {
+      closeCalendarWidget();
+      setIsOpen(true);
+      setIsExpanded(false);
+      setShowQuickButtons(false);
+      setIsInputActive(false);
+      setUsedButtons(nextButtons);
+      setExploreButtons(exploreOptions);
+      return;
+    }
+
+    setExploreButtons(null);
+    setDynamicQuickButtons(null);
 
     if (requestNameBeforeProceed(message, nextButtons)) return;
     if (requestEmailBeforeProceed(message, nextButtons)) return;
@@ -1462,7 +1484,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           className={styles.searchbarWrapper}
           onMouseEnter={() => {
             setIsSearchbarHovered(true);
-            if (!isOpen && !hasConversation && config?.quickButtons && config.quickButtons.length > 0) {
+            if (!isOpen && !hasConversation && hasQuickButtons) {
               setIsExpanded(true);
               setShowQuickButtons(true);
             }
@@ -1475,13 +1497,13 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             }
           }}
         >
-        {isExpanded && showQuickButtons && config?.quickButtons && config.quickButtons.length > 0 && (
+        {isExpanded && showQuickButtons && hasQuickButtons && (
           <div
             ref={quickButtonsRef}
             className={styles.quickButtons}
             data-scroll-lock="allow"
           >
-            {config.quickButtons.map((buttonText, index) => (
+            {quickButtonOptions.map((buttonText, index) => (
               <button
                 key={index}
                 className={styles.quickBtn}
@@ -1673,6 +1695,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               setUserProfile({});
               storeUserProfile({}, brandKey);
               setIsSearchbarHovered(false);
+              setDynamicQuickButtons(null);
+              setExploreButtons(null);
             }}
             title="Reset chat"
           >
@@ -1687,6 +1711,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               setShowQuickButtons(false);
               setIsSearchbarHovered(false);
               closeCalendarWidget();
+              setDynamicQuickButtons(null);
+              setExploreButtons(null);
             }}
           >
             {ICONS.close}
@@ -1834,6 +1860,55 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           </React.Fragment>
           );
         })}
+
+        {exploreButtons && exploreButtons.length > 0 && (
+          <div
+            className={`${styles.message} ${styles.ai} ${styles['accent-0']}`}
+            ref={(el) => {
+              if (el) {
+                requestAnimationFrame(() => {
+                  setTimeout(() => {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                  }, 100);
+                });
+              }
+            }}
+          >
+            <div className={styles.messageContent}>
+              <div className={styles.bubble}>
+                <div className={styles.bubbleContent}>
+                  <div className={styles.bubbleHeader}>
+                    <div className={styles.bubbleAvatar}>
+                      {ICONS.ai(brand, config)}
+                    </div>
+                    <span className={styles.bubbleName}>
+                      {config.name}
+                    </span>
+                  </div>
+                  <p className={styles.exploreTitle}>Choose your PROXe</p>
+                  <div className={styles.exploreButtonGroup}>
+                    {exploreButtons.map((option, optionIndex) => {
+                      const buttonAccentIndex = optionIndex % 7;
+                      const buttonAccentClass = `accent-${buttonAccentIndex}`;
+                      return (
+                        <button
+                          key={optionIndex}
+                          className={`${styles.followUpBtn} ${styles[buttonAccentClass]}`}
+                          onClick={() => {
+                            setExploreButtons(null);
+                            handleQuickButtonClick(option);
+                          }}
+                        >
+                          {option}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         
         <div ref={messagesEndRef} />
       </div>

@@ -383,7 +383,14 @@ export async function POST(request: NextRequest) {
           const usedButtonsLower = (usedButtons || []).map((b: string) => b.toLowerCase());
           
           // After 3 messages, always suggest booking a call
-          if (isThirdMessage) {
+          const isAskingWhatProxe =
+            lowerMessage.includes("what's proxe") ||
+            lowerMessage.includes('what is proxe') ||
+            lowerMessage.includes('whats proxe');
+          
+          if (isAskingWhatProxe) {
+            followUpsArray = ['Book a Demo', 'Explore PROXe', 'PROXe Pricing'];
+          } else if (isThirdMessage) {
             followUpsArray = ['Schedule a Call'];
           } 
           // First message: use specific 3 buttons

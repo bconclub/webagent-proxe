@@ -903,8 +903,8 @@
   color: var(--text-button, var(--text-primary));
   border-radius: 10px;
   cursor: pointer;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 400;
   text-align: left;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
@@ -946,6 +946,20 @@
   border-color: var(--border-glow);
   box-shadow: 0 4px 12px var(--glass-shadow);
   opacity: 1;
+}
+
+.exploreTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+
+.exploreButtonGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .inputArea {
