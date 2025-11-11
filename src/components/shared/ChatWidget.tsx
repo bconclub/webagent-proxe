@@ -153,7 +153,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [exploreButtons, setExploreButtons] = useState<string[] | null>(null);
   const SEARCHBAR_BASE_OFFSET = 60;
   const SEARCHBAR_KEYBOARD_OFFSET = 20;
-  const SEARCHBAR_KEYBOARD_GAP = 10;
+  const SEARCHBAR_KEYBOARD_GAP = 5;
   const EMAIL_PROMPT_THRESHOLD = 5;
   const PHONE_PROMPT_THRESHOLD = 7;
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -944,12 +944,20 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     const originalHtmlOverscroll = htmlStyle.overscrollBehavior;
     const scrollY = window.scrollY;
 
-    bodyStyle.overflow = 'hidden';
-    bodyStyle.position = 'fixed';
-    bodyStyle.top = `-${scrollY}px`;
-    bodyStyle.width = '100%';
-    bodyStyle.left = '0';
-    bodyStyle.right = '0';
+    // Only apply aggressive position:fixed lock when chat is NOT fully open
+    // When chat IS open, just prevent scrolling without shifting the page
+    if (!isOpen) {
+      // Searchbar expanded state - use position fixed to prevent background scroll
+      bodyStyle.overflow = 'hidden';
+      bodyStyle.position = 'fixed';
+      bodyStyle.top = `-${scrollY}px`;
+      bodyStyle.width = '100%';
+      bodyStyle.left = '0';
+      bodyStyle.right = '0';
+    } else {
+      // Chat is open - just hide overflow without position fixed to avoid cutting off bubbles
+      bodyStyle.overflow = 'hidden';
+    }
     htmlStyle.overflow = 'hidden';
     htmlStyle.overscrollBehavior = 'none';
 
@@ -1067,7 +1075,10 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       htmlStyle.overflow = originalHtmlOverflow;
       htmlStyle.overscrollBehavior = originalHtmlOverscroll;
 
-      window.scrollTo(0, scrollY);
+      // Only restore scroll position if we used position fixed
+      if (!isOpen) {
+        window.scrollTo(0, scrollY);
+      }
 
       document.removeEventListener('touchstart', handleTouchStart, true);
       document.removeEventListener('touchmove', handleTouchMove, true);
@@ -1103,14 +1114,72 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         searchbarWrapperRef.current.style.setProperty('bottom', `${SEARCHBAR_BASE_OFFSET}px`, 'important');
       }
 
-      // Adjust chat container height when keyboard is visible (mobile only)
-      if (isOpen && chatboxContainerRef.current && window.innerWidth < 769) {
+      // Adjust input area and chat container when keyboard is visible (mobile only)
+      if (isOpen && window.innerWidth < 769) {
+        const inputAreaElement = chatboxContainerRef.current?.querySelector(`.${styles.inputArea}`) as HTMLElement;
+        const footerElement = chatboxContainerRef.current?.querySelector(`.${styles.chatFooter}`) as HTMLElement;
+        const messagesArea = messagesAreaRef.current;
+        
         if (calculatedKeyboardHeight > 0) {
-          chatboxContainerRef.current.style.setProperty('height', `${viewportHeight}px`, 'important');
-          chatboxContainerRef.current.style.setProperty('max-height', `${viewportHeight}px`, 'important');
+          // Keyboard is visible - adjust layout without cutting off top
+          if (chatboxContainerRef.current) {
+            // Keep container at full height but adjust its internal layout
+            chatboxContainerRef.current.style.setProperty('height', '100vh', 'important');
+            chatboxContainerRef.current.style.setProperty('height', '100dvh', 'important');
+            chatboxContainerRef.current.style.setProperty('max-height', '100vh', 'important');
+            chatboxContainerRef.current.style.setProperty('max-height', '100dvh', 'important');
+            chatboxContainerRef.current.style.setProperty('overscroll-behavior', 'none', 'important');
+          }
+          
+          // Adjust messages area to account for keyboard
+          if (messagesArea) {
+            const inputHeight = inputAreaElement?.offsetHeight || 60;
+            messagesArea.style.setProperty('padding-bottom', `${inputHeight + 10}px`, 'important');
+          }
+          
+          if (inputAreaElement) {
+            inputAreaElement.style.setProperty('position', 'fixed', 'important');
+            inputAreaElement.style.setProperty('bottom', '5px', 'important');
+            inputAreaElement.style.setProperty('left', '0', 'important');
+            inputAreaElement.style.setProperty('right', '0', 'important');
+            inputAreaElement.style.setProperty('transform', 'translateZ(0)', 'important');
+            inputAreaElement.style.setProperty('-webkit-transform', 'translateZ(0)', 'important');
+            inputAreaElement.style.setProperty('z-index', '9999', 'important');
+          }
+          
+          // Hide footer when keyboard is visible to prevent jumping
+          if (footerElement) {
+            footerElement.style.setProperty('display', 'none', 'important');
+          }
         } else {
-          chatboxContainerRef.current.style.removeProperty('height');
-          chatboxContainerRef.current.style.removeProperty('max-height');
+          // Keyboard is hidden - restore normal position
+          if (chatboxContainerRef.current) {
+            chatboxContainerRef.current.style.setProperty('height', '100vh', 'important');
+            chatboxContainerRef.current.style.setProperty('height', '100dvh', 'important');
+            chatboxContainerRef.current.style.setProperty('max-height', '100vh', 'important');
+            chatboxContainerRef.current.style.setProperty('max-height', '100dvh', 'important');
+            chatboxContainerRef.current.style.setProperty('overscroll-behavior', 'none', 'important');
+          }
+          
+          // Restore messages area padding
+          if (messagesArea) {
+            messagesArea.style.setProperty('padding-bottom', '100px', 'important');
+          }
+          
+          if (inputAreaElement) {
+            inputAreaElement.style.removeProperty('position');
+            inputAreaElement.style.removeProperty('bottom');
+            inputAreaElement.style.removeProperty('left');
+            inputAreaElement.style.removeProperty('right');
+            inputAreaElement.style.removeProperty('transform');
+            inputAreaElement.style.removeProperty('-webkit-transform');
+            inputAreaElement.style.removeProperty('z-index');
+          }
+          
+          // Show footer when keyboard is hidden
+          if (footerElement) {
+            footerElement.style.removeProperty('display');
+          }
         }
       }
     };
