@@ -27,6 +27,13 @@ export default function HomePage() {
 
     const applyMatches = (matches: boolean) => {
       setIsMobile(matches);
+      // On mobile, set first card (web) as open by default
+      if (matches) {
+        setActiveSolution('web');
+      } else {
+        // On desktop, clear active solution
+        setActiveSolution(null);
+      }
     };
 
     applyMatches(mediaQuery.matches);
@@ -49,6 +56,23 @@ export default function HomePage() {
       }
     };
   }, []);
+
+  // Close card when clicking outside on desktop
+  useEffect(() => {
+    if (!isMobile && activeSolution) {
+      const handleClickOutside = (event: MouseEvent) => {
+        const target = event.target as HTMLElement;
+        if (!target.closest('[data-solution-id]')) {
+          setActiveSolution(null);
+        }
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isMobile, activeSolution]);
   const proxeSolutions = [
     {
       id: 'web',

@@ -5,6 +5,7 @@
   background: transparent;
   overflow-y: auto;
   scroll-behavior: smooth;
+  scroll-snap-type: y proximity;
 }
 
 .pageContainer::-webkit-scrollbar {
@@ -26,6 +27,8 @@
   padding: 120px 20px 100px;
   z-index: 1;
   text-align: center;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
 }
 
 .heroTitle {
@@ -116,6 +119,7 @@
   flex-direction: column;
   justify-content: center;
   gap: 24px;
+  scroll-snap-align: start;
 }
 
 .sectionHeading {
@@ -169,7 +173,7 @@
 .solutionCard[data-solution-id="web"] {
   box-shadow:
     0 18px 40px rgba(0, 0, 0, 0.35),
-    0 0 30px rgba(59, 130, 246, 0.2),
+    0 10px 8px -5px rgba(59, 130, 246, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
@@ -185,7 +189,7 @@
 .solutionCard[data-solution-id="web"]:hover {
   box-shadow:
     0 26px 48px rgba(0, 0, 0, 0.45),
-    0 0 40px rgba(59, 130, 246, 0.3),
+    0 10px 9px -6px rgba(59, 130, 246, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
@@ -275,14 +279,14 @@
 .solutionCard[data-solution-id="whatsapp"] {
   box-shadow:
     0 18px 40px rgba(0, 0, 0, 0.35),
-    0 0 30px rgba(132, 204, 22, 0.2),
+    0 10px 8px -5px rgba(132, 204, 22, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .solutionCard[data-solution-id="whatsapp"]:hover {
   box-shadow:
     0 26px 48px rgba(0, 0, 0, 0.45),
-    0 0 40px rgba(132, 204, 22, 0.3),
+    0 10px 9px -6px rgba(132, 204, 22, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
@@ -317,14 +321,14 @@
 .solutionCard[data-solution-id="voice"] {
   box-shadow:
     0 18px 40px rgba(0, 0, 0, 0.35),
-    0 0 30px rgba(254, 243, 199, 0.2),
+    0 10px 8px -5px rgba(254, 243, 199, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .solutionCard[data-solution-id="voice"]:hover {
   box-shadow:
     0 26px 48px rgba(0, 0, 0, 0.45),
-    0 0 40px rgba(254, 243, 199, 0.3),
+    0 10px 9px -6px rgba(254, 243, 199, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
@@ -359,14 +363,14 @@
 .solutionCard[data-solution-id="social"] {
   box-shadow:
     0 18px 40px rgba(0, 0, 0, 0.35),
-    0 0 30px rgba(236, 72, 153, 0.2),
+    0 10px 8px -5px rgba(236, 72, 153, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .solutionCard[data-solution-id="social"]:hover {
   box-shadow:
     0 26px 48px rgba(0, 0, 0, 0.45),
-    0 0 40px rgba(236, 72, 153, 0.3),
+    0 10px 9px -6px rgba(236, 72, 153, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
@@ -574,11 +578,17 @@
 }
 
 @media (max-width: 768px) {
+  .pageContainer {
+    scroll-snap-type: y proximity;
+  }
+
   .heroSection {
     padding: 120px 20px 80px;
     min-height: 100vh;
     justify-content: flex-start;
     align-items: center;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
   }
 
   .heroTitle {
@@ -608,6 +618,7 @@
     min-height: 100vh;
     padding: 100px 20px;
     gap: 20px;
+    scroll-snap-align: start;
   }
 
   .sectionHeading {
