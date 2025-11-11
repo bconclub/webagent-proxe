@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useState } from 'react';
+
 import { BrandChatWidget } from '@/src/components/brand/BrandChatWidget';
 import DarkVeil from '@/src/components/shared/DarkVeil';
 import Header from '@/src/components/shared/Header';
@@ -15,26 +17,87 @@ import {
 
 export default function HomePage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || undefined;
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [activeSolution, setActiveSolution] = useState<string | null>(null);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 768px)');
+
+    const applyMatches = (matches: boolean) => {
+      setIsMobile(matches);
+      if (!matches) {
+        setActiveSolution(null);
+      }
+    };
+
+    applyMatches(mediaQuery.matches);
+
+    const handleChange = (event: MediaQueryListEvent) => {
+      applyMatches(event.matches);
+    };
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleChange);
+    } else {
+      mediaQuery.addListener(handleChange);
+    }
+
+    return () => {
+      if (typeof mediaQuery.removeEventListener === 'function') {
+        mediaQuery.removeEventListener('change', handleChange);
+      } else {
+        mediaQuery.removeListener(handleChange);
+      }
+    };
+  }, []);
   const proxeSolutions = [
     {
       id: 'web',
-      title: 'Web\nPROXe',
+      title: 'Website PROXe',
       icon: BrowserIcon,
+      tagline: 'AI sales agent that lives on your site 24/7',
+      benefits: [
+        'Instant lead capture & qualification',
+        'Auto-books demos while you sleep',
+        'Hands hot buyers to your reps ready-to-close',
+      ],
+      ctaLabel: 'Learn more',
     },
     {
       id: 'whatsapp',
-      title: 'WhatsApp\nPROXe',
+      title: 'WhatsApp PROXe',
       icon: WhatsappIcon,
+      tagline: 'AI that runs your WhatsApp like a top SDR',
+      benefits: [
+        'Replies in < 3 s, any hour',
+        'Qualifies with auto-custom questions',
+        'Pushes booked calls straight to calendar',
+      ],
+      ctaLabel: 'Learn more',
     },
     {
       id: 'voice',
-      title: 'Voice\nPROXe',
+      title: 'Voice PROXe',
       icon: AiVoiceIcon,
+      tagline: 'AI phone rep who never puts anyone on hold',
+      benefits: [
+        'Answers, qualifies & schedules every call',
+        'Speaks 28 languages, local accent',
+        'Instantly syncs notes to CRM / WhatsApp',
+      ],
+      ctaLabel: 'Learn more',
     },
     {
       id: 'social',
-      title: 'Social\nPROXe',
+      title: 'Social PROXe',
       icon: VideoAiIcon,
+      tagline: 'AI social that claps back at every comment and inbox in seconds',
+      benefits: [
+        'Answers questions, qualifies leads, books calls in-chat',
+        'Keeps brand voice consistent at global scale',
+        'Turns social chatter into pipeline without lifting a finger',
+      ],
+      ctaLabel: 'Learn more',
     },
   ];
 
@@ -72,17 +135,69 @@ export default function HomePage() {
         <p className={styles.heroSubtitle}>One AI Brain. Every channel. Zero blind spots.</p>
       </section>
       <section className={styles.solutionsSection}>
-        <h2 className={styles.sectionHeading}>Choose Your PROXe</h2>
+        <h2 className={styles.sectionHeading}>Meet Our PROXes</h2>
         <p className={styles.sectionSubtitle}>
           Deploy the channel-first agent that matches the way your customers already interact.
         </p>
         <div className={styles.solutionsGrid}>
           {proxeSolutions.map((solution) => (
-            <article key={solution.id} className={styles.solutionCard}>
-              <div className={styles.solutionIcon} aria-hidden="true">
-                <HugeiconsIcon icon={solution.icon} size={39} />
+            <article
+              key={solution.id}
+              className={[
+                styles.solutionCard,
+                isMobile
+                  ? activeSolution === solution.id
+                    ? styles.solutionCardExpanded
+                    : styles.solutionCardCollapsed
+                  : styles.solutionCardExpanded,
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              role={isMobile ? 'button' : undefined}
+              tabIndex={isMobile ? 0 : undefined}
+              aria-expanded={isMobile ? activeSolution === solution.id : undefined}
+              onClick={() => {
+                if (!isMobile) return;
+                setActiveSolution((current) =>
+                  current === solution.id ? null : solution.id
+                );
+              }}
+              onKeyDown={(event) => {
+                if (!isMobile) return;
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  setActiveSolution((current) =>
+                    current === solution.id ? null : solution.id
+                  );
+                }
+              }}
+            >
+              <div className={styles.solutionHeader}>
+                <div className={styles.solutionIcon} aria-hidden="true">
+                  <HugeiconsIcon icon={solution.icon} size={39} />
+                </div>
+                <div className={styles.solutionHeadingGroup}>
+                  <h3 className={styles.solutionTitle}>{solution.title}</h3>
+                  <p className={styles.solutionTagline}>{solution.tagline}</p>
+                </div>
+                {isMobile && (
+                  <span className={styles.solutionToggleIcon} aria-hidden="true">
+                    {activeSolution === solution.id ? '−' : '+'}
+                  </span>
+                )}
               </div>
-              <h3 className={styles.solutionTitle}>{solution.title}</h3>
+              <div className={styles.solutionExpandable}>
+                <ul className={styles.solutionBenefitList}>
+                  {solution.benefits.map((benefit) => (
+                    <li key={benefit} className={styles.solutionBenefitItem}>
+                      {benefit}
+                    </li>
+                  ))}
+                </ul>
+                <a className={styles.solutionCta} href="#">
+                  {solution.ctaLabel}
+                </a>
+              </div>
             </article>
           ))}
         </div>

@@ -3,6 +3,7 @@ import { Exo_2 } from 'next/font/google'
 import '@/src/styles/globals.css'
 import '@/src/styles/themes/proxe.css'
 import '@/src/styles/themes/windchasers.css'
+import AnalyticsScripts from '@/src/components/shared/AnalyticsScripts'
 import LoadingBar from '@/src/components/shared/LoadingBar'
 
 const exo2 = Exo_2({
@@ -38,6 +39,7 @@ export default function RootLayout({
   return (
     <html lang="en" data-brand="proxe" data-theme="purple-frost" className={exo2.variable} suppressHydrationWarning>
       <body suppressHydrationWarning>
+        <AnalyticsScripts />
         <LoadingBar />
         {children}
       </body>
