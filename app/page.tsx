@@ -90,7 +90,7 @@ export default function HomePage() {
       id: 'social',
       title: 'Social PROXe',
       icon: VideoAiIcon,
-      tagline: 'AI social that claps back at every comment and inbox in seconds',
+      tagline: 'Social AI thats digs deep in to your DMs and comments',
       benefits: [
         'Answers questions, qualifies leads, books calls in-chat',
         'Keeps brand voice consistent at global scale',
@@ -102,6 +102,18 @@ export default function HomePage() {
 
   return (
     <main className={styles.pageContainer}>
+      <svg width="0" height="0" style={{ position: 'absolute' }}>
+        <defs>
+          <linearGradient id="webIconGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#3b82f6" />
+            <stop offset="100%" stopColor="#10b981" />
+          </linearGradient>
+          <linearGradient id="webIconGradientHover" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#2563eb" />
+            <stop offset="100%" stopColor="#059669" />
+          </linearGradient>
+        </defs>
+      </svg>
       <div 
         id="darkveil-container"
         className="darkveil-container"
@@ -142,6 +154,7 @@ export default function HomePage() {
           {proxeSolutions.map((solution) => (
             <article
               key={solution.id}
+              data-solution-id={solution.id}
               className={[
                 styles.solutionCard,
                 activeSolution === solution.id
@@ -173,9 +186,10 @@ export default function HomePage() {
                 </div>
                 <div className={styles.solutionHeadingGroup}>
                   <h3 className={styles.solutionTitle}>
-                    {solution.title.replace(' PROXe', '')}
-                    <br />
-                    PROXe
+                    <span className={styles.titleFirstPart}>
+                      {solution.title.replace(' PROXe', '')}
+                    </span>
+                    <span className={styles.titleSecondPart}>PROXe</span>
                   </h3>
                 </div>
                 <span className={styles.solutionToggleIcon} aria-hidden="true">
@@ -204,6 +218,12 @@ export default function HomePage() {
             </article>
           ))}
         </div>
+      </section>
+      <section className={styles.thirdSection}>
+        <h2 className={styles.sectionHeading}>Third Section</h2>
+        <p className={styles.sectionSubtitle}>
+          Add your content here
+        </p>
       </section>
       <BrandChatWidget brand="proxe" apiUrl={apiUrl} />
     </main>
