@@ -1226,11 +1226,19 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   }, [addAIMessage, setOnFormSubmit]);
 
   useEffect(() => {
-    // Scroll to bottom whenever messages update (including streaming)
-    if (isOpen && messagesEndRef.current) {
+    // Scroll behavior when messages update
+    if (isOpen) {
       // Use setTimeout to ensure DOM is updated
       setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        // On first message (1 or 2 messages total), scroll to TOP to show the first question
+        // For subsequent messages, scroll to bottom to show latest response
+        if (messages.length <= 2 && messagesAreaRef.current) {
+          // Scroll to top of messages area to show first question header
+          messagesAreaRef.current.scrollTop = 0;
+        } else if (messagesEndRef.current) {
+          // Scroll to bottom for subsequent messages
+          messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
       }, 0);
     }
     
@@ -1340,7 +1348,10 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     if (!isOpen) return;
 
     const handleMessageUpdate = () => {
-      if (messagesEndRef.current) {
+      // On first message, keep at top. For subsequent messages, scroll to bottom
+      if (messages.length <= 2 && messagesAreaRef.current) {
+        messagesAreaRef.current.scrollTop = 0;
+      } else if (messagesEndRef.current) {
         messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
       }
     };
@@ -1349,7 +1360,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     return () => {
       window.removeEventListener('message-updated', handleMessageUpdate);
     };
-  }, [isOpen]);
+  }, [isOpen, messages.length]);
 
   // Enable horizontal scrolling with mouse wheel and drag on desktop
   useEffect(() => {
