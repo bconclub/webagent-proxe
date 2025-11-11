@@ -1225,6 +1225,19 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     };
   }, [addAIMessage, setOnFormSubmit]);
 
+  // Ensure viewport starts at absolute top when chat widget first opens
+  useEffect(() => {
+    if (isOpen && messagesAreaRef.current) {
+      // Force scroll to absolute top when chat opens
+      messagesAreaRef.current.scrollTop = 0;
+      
+      // Also ensure the container itself is at top
+      if (chatboxContainerRef.current) {
+        chatboxContainerRef.current.scrollTop = 0;
+      }
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     // Scroll behavior when messages update
     if (isOpen) {
@@ -2088,7 +2101,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                   if (el) {
                     requestAnimationFrame(() => {
                       setTimeout(() => {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        el.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
                       }, 100);
                     });
                   }
