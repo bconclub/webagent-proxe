@@ -11,6 +11,7 @@ export interface LocalUserProfile {
   phoneSkipped?: boolean;
   email?: string;
   emailSkipped?: boolean;
+  websiteUrl?: string;
   promptedName?: boolean;
   promptedEmail?: boolean;
   promptedPhone?: boolean;

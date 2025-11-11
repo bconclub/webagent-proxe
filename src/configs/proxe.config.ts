@@ -142,6 +142,6 @@ export const proxeConfig: BrandConfig = {
   quickButtons: ['What\'s PROXe', 'Deploy PROXe', 'PROXe Pricing', 'Book a Demo'],
   exploreButtons: ['Web PROXe', 'WhatsApp PROXe', 'Voice PROXe', 'Social PROXe'],
   followUpButtons: ['Deploy PROXe', 'Book PROXe Demo', 'Explore PROXe', 'Get PROXe Pricing', 'Schedule a Call'],
-  firstMessageButtons: ['Book a Demo', 'Explore PROXe', 'PROXe Pricing'], // Buttons for first message only
+  firstMessageButtons: ['Book a Demo', 'Explore PROXe', 'Watch Video'], // Buttons for first message only
 };
 

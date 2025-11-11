@@ -2,9 +2,16 @@
 
 import { useState } from 'react';
 import styles from './Header.module.css';
+import { useDeployModal } from '@/src/contexts/DeployModalContext';
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { openModal } = useDeployModal();
+
+  const handleDeployClick = () => {
+    openModal();
+    setMenuOpen(false);
+  };
 
   return (
     <header className={styles.header}>
@@ -13,7 +20,7 @@ export default function Header() {
         <nav className={styles.nav}>
           <a href="#" className={styles.navLink}>PROXes</a>
           <a href="#" className={styles.navLink}>Pricing</a>
-          <button className={styles.deployButton}>Deploy</button>
+          <button className={styles.deployButton} onClick={handleDeployClick}>Deploy</button>
         </nav>
         <div className={styles.mobileNav}>
           <button 
@@ -24,7 +31,7 @@ export default function Header() {
           >
             <span className={styles.plusIcon}>+</span>
           </button>
-          <button className={styles.mobileDeployButton}>Deploy</button>
+          <button className={styles.mobileDeployButton} onClick={handleDeployClick}>Deploy</button>
         </div>
       </div>
       {menuOpen && (

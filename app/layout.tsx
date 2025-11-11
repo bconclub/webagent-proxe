@@ -5,6 +5,7 @@ import '@/src/styles/themes/proxe.css'
 import '@/src/styles/themes/windchasers.css'
 import AnalyticsScripts from '@/src/components/shared/AnalyticsScripts'
 import LoadingBar from '@/src/components/shared/LoadingBar'
+import { DeployModalProvider } from '@/src/contexts/DeployModalContext'
 
 const exo2 = Exo_2({
   weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
@@ -41,7 +42,9 @@ export default function RootLayout({
       <body suppressHydrationWarning>
         <AnalyticsScripts />
         <LoadingBar />
-        {children}
+        <DeployModalProvider>
+          {children}
+        </DeployModalProvider>
       </body>
     </html>
   )

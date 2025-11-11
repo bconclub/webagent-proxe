@@ -25,11 +25,36 @@ export function useChatStream({ brand, apiUrl, onMessageComplete }: UseChatStrea
   const streamingQueueRef = useRef<string[]>([]);
   const isStreamingCharsRef = useRef<boolean>(false);
 
+  const addUserMessage = useCallback((message: string) => {
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      type: 'user',
+      text: message,
+    };
+    setMessages((prev) => [...prev, userMessage]);
+    return userMessage;
+  }, []);
+
+  const addAIMessage = useCallback((message: string) => {
+    const aiMessage: Message = {
+      id: `ai-${Date.now()}`,
+      type: 'ai',
+      text: message,
+      isStreaming: false,
+      hasStreamed: true,
+      followUps: [],
+    };
+    setMessages((prev) => [...prev, aiMessage]);
+    return aiMessage;
+  }, []);
+
   const sendMessage = useCallback(async (
     message: string,
     messageCount: number = 0,
     usedButtons: string[] = [],
-    metadata: Record<string, unknown> = {}
+    metadata: Record<string, unknown> = {},
+    skipUserMessage: boolean = false,
+    displayMessage?: string
   ) => {
     // Cancel any ongoing stream
     if (abortControllerRef.current) {
@@ -39,13 +64,16 @@ export function useChatStream({ brand, apiUrl, onMessageComplete }: UseChatStrea
     setIsLoading(true);
     setError(null);
 
-    // Add user message
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      type: 'user',
-      text: message,
-    };
-    setMessages((prev) => [...prev, userMessage]);
+    // Add user message (unless skipUserMessage is true)
+    // Use displayMessage if provided, otherwise use message
+    if (!skipUserMessage) {
+      const userMessage: Message = {
+        id: `user-${Date.now()}`,
+        type: 'user',
+        text: displayMessage || message,
+      };
+      setMessages((prev) => [...prev, userMessage]);
+    }
 
     // Create loading message
     const loadingMessage: Message = {
@@ -314,6 +342,8 @@ export function useChatStream({ brand, apiUrl, onMessageComplete }: UseChatStrea
     error,
     sendMessage,
     clearMessages,
+    addUserMessage,
+    addAIMessage,
   };
 }
 

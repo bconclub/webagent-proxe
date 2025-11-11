@@ -1012,134 +1012,6 @@
   flex-direction: column;
 }
 
-.chatContentBlurred {
-  filter: blur(10px);
-  pointer-events: none;
-}
-
-.detailPromptOverlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(10, 6, 20, 0.4);
-  backdrop-filter: blur(18px) saturate(150%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  z-index: 1000;
-  border-radius: 25px;
-}
-
-.detailPromptCard {
-  width: min(340px, 100%);
-  border-radius: 20px;
-  padding: 24px;
-  background: rgba(20, 16, 36, 0.92);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(79, 13, 202, 0.25);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  text-align: left;
-}
-
-.detailPromptHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.detailPromptClose {
-  border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 22px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 4px;
-  transition: color 0.2s ease;
-}
-
-.detailPromptClose:hover {
-  color: #ffffff;
-}
-
-.detailPromptTitle {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: #f1ecff;
-}
-
-.detailPromptSubtitle {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.5;
-  color: rgba(241, 236, 255, 0.75);
-}
-
-.detailPromptForm {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.detailPromptInput {
-  width: 100%;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 12px 14px;
-  background: rgba(12, 10, 22, 0.7);
-  color: #ffffff;
-  font-size: 15px;
-  outline: none;
-  transition: border 0.2s ease, box-shadow 0.2s ease;
-}
-
-.detailPromptInput:focus {
-  border-color: rgba(79, 13, 202, 0.65);
-  box-shadow: 0 0 0 2px rgba(79, 13, 202, 0.2);
-}
-
-.detailPromptActions {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-}
-
-.detailPromptPrimary,
-.detailPromptSecondary {
-  border: none;
-  border-radius: 999px;
-  padding: 10px 18px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.detailPromptPrimary {
-  background: linear-gradient(135deg, rgba(79, 13, 202, 0.9), rgba(160, 59, 168, 0.9));
-  color: white;
-  box-shadow: 0 10px 24px rgba(79, 13, 202, 0.35);
-}
-
-.detailPromptPrimary:hover {
-  transform: translateY(-1px);
-}
-
-.detailPromptSecondary {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-}
-
-.detailPromptSecondary:hover {
-  transform: translateY(-1px);
-}
-
 .chatInputWrapper {
   flex: 1;
   position: relative;
@@ -1244,6 +1116,167 @@
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Video Container Styles */
+.videoContainer {
+  margin-top: 8px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Inline Prompt Card Styles */
+.inlinePromptClose {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  font-size: 20px;
+  line-height: 1;
+  padding: 0;
+}
+
+.inlinePromptClose:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+}
+
+.inlinePromptClose:active {
+  transform: scale(0.95);
+}
+
+.inlinePromptClose svg {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+.inlinePromptText {
+  margin: 8px 0 12px 0;
+  font-size: 16px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.inlinePromptForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+}
+
+.inlinePromptInputWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  position: relative;
+  border-radius: 12px;
+}
+
+/* Accent color gradient border - Brand specific */
+.inlinePromptInputWrapper::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 13px;
+  padding: 1px;
+  background-size: 200% 100%;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  z-index: -1;
+  pointer-events: none;
+  animation: accentBorderFlow 3s linear infinite;
+}
+
+/* PROXe - Purple accent gradient */
+[data-brand="proxe"] .inlinePromptInputWrapper::before,
+[data-theme="purple-frost"] .inlinePromptInputWrapper::before {
+  background: linear-gradient(90deg, 
+    #5B1A8C 0%, 
+    #A03BA8 25%,
+    #2B4A7D 50%,
+    #A03BA8 75%,
+    #5B1A8C 100%
+  );
+  background-size: 200% 100%;
+}
+
+/* Wind Chasers - Gold/Brown accent gradient */
+[data-brand="windchasers"] .inlinePromptInputWrapper::before,
+[data-theme="warm-frost"] .inlinePromptInputWrapper::before {
+  background: linear-gradient(90deg, 
+    #C4A574 0%, 
+    #D4B88A 25%,
+    #8B6B4A 50%,
+    #D4B88A 75%,
+    #C4A574 100%
+  );
+  background-size: 200% 100%;
+}
+
+.inlinePromptInput {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 15px;
+  color: var(--text-primary);
+  background: var(--bg-message-area);
+  font-family: inherit;
+  padding: 10px 12px;
+  border-radius: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.inlinePromptInput::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.inlinePromptSendBtn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.inlinePromptSendBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.inlinePromptSendBtn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.inlinePromptSendBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.inlinePromptSendBtn svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* Mobile styles - Fullscreen */

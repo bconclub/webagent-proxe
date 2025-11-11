@@ -6,6 +6,7 @@ import { BrandChatWidget } from '@/src/components/brand/BrandChatWidget';
 import DarkVeil from '@/src/components/shared/DarkVeil';
 import Header from '@/src/components/shared/Header';
 import BlurText from '@/src/components/shared/BlurText';
+import { useDeployModal } from '@/src/contexts/DeployModalContext';
 import styles from './page.module.css';
 import {
   HugeiconsIcon,
@@ -19,15 +20,13 @@ export default function HomePage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || undefined;
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [activeSolution, setActiveSolution] = useState<string | null>(null);
+  const { openModal } = useDeployModal();
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 768px)');
 
     const applyMatches = (matches: boolean) => {
       setIsMobile(matches);
-      if (!matches) {
-        setActiveSolution(null);
-      }
     };
 
     applyMatches(mediaQuery.matches);
@@ -145,25 +144,21 @@ export default function HomePage() {
               key={solution.id}
               className={[
                 styles.solutionCard,
-                isMobile
-                  ? activeSolution === solution.id
-                    ? styles.solutionCardExpanded
-                    : styles.solutionCardCollapsed
-                  : styles.solutionCardExpanded,
+                activeSolution === solution.id
+                  ? styles.solutionCardExpanded
+                  : styles.solutionCardCollapsed,
               ]
                 .filter(Boolean)
                 .join(' ')}
-              role={isMobile ? 'button' : undefined}
-              tabIndex={isMobile ? 0 : undefined}
-              aria-expanded={isMobile ? activeSolution === solution.id : undefined}
+              role="button"
+              tabIndex={0}
+              aria-expanded={activeSolution === solution.id}
               onClick={() => {
-                if (!isMobile) return;
                 setActiveSolution((current) =>
                   current === solution.id ? null : solution.id
                 );
               }}
               onKeyDown={(event) => {
-                if (!isMobile) return;
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault();
                   setActiveSolution((current) =>
@@ -178,14 +173,12 @@ export default function HomePage() {
                 </div>
                 <div className={styles.solutionHeadingGroup}>
                   <h3 className={styles.solutionTitle}>{solution.title}</h3>
-                  <p className={styles.solutionTagline}>{solution.tagline}</p>
                 </div>
-                {isMobile && (
-                  <span className={styles.solutionToggleIcon} aria-hidden="true">
-                    {activeSolution === solution.id ? '−' : '+'}
-                  </span>
-                )}
+                <span className={styles.solutionToggleIcon} aria-hidden="true">
+                  {activeSolution === solution.id ? '−' : '+'}
+                </span>
               </div>
+              <p className={styles.solutionTagline}>{solution.tagline}</p>
               <div className={styles.solutionExpandable}>
                 <ul className={styles.solutionBenefitList}>
                   {solution.benefits.map((benefit) => (
@@ -194,9 +187,15 @@ export default function HomePage() {
                     </li>
                   ))}
                 </ul>
-                <a className={styles.solutionCta} href="#">
+                <button 
+                  className={styles.solutionCta} 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openModal();
+                  }}
+                >
                   {solution.ctaLabel}
-                </a>
+                </button>
               </div>
             </article>
           ))}

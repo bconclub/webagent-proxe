@@ -389,7 +389,7 @@ export async function POST(request: NextRequest) {
             lowerMessage.includes('whats proxe');
           
           if (isAskingWhatProxe) {
-            followUpsArray = ['Book a Demo', 'Explore PROXe', 'PROXe Pricing'];
+            followUpsArray = firstMessageButtons; // Use configured first message buttons
           } else if (isThirdMessage) {
             followUpsArray = ['Schedule a Call'];
           } 

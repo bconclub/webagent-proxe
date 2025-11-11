@@ -8,7 +8,7 @@ interface UseChatOptions {
 }
 
 export function useChat({ brand, apiUrl, onMessageComplete }: UseChatOptions) {
-  const { messages, isLoading, error, sendMessage, clearMessages } = useChatStream({
+  const { messages, isLoading, error, sendMessage, clearMessages, addUserMessage, addAIMessage } = useChatStream({
     brand,
     apiUrl,
     onMessageComplete,
@@ -19,8 +19,10 @@ export function useChat({ brand, apiUrl, onMessageComplete }: UseChatOptions) {
       message: string,
       messageCount: number = 0,
       usedButtons: string[] = [],
-      metadata: Record<string, unknown> = {}
-    ) => sendMessage(message, messageCount, usedButtons, metadata),
+      metadata: Record<string, unknown> = {},
+      skipUserMessage: boolean = false,
+      displayMessage?: string
+    ) => sendMessage(message, messageCount, usedButtons, metadata, skipUserMessage, displayMessage),
     [sendMessage]
   );
 
@@ -46,6 +48,8 @@ export function useChat({ brand, apiUrl, onMessageComplete }: UseChatOptions) {
     handleQuickButton,
     handleFollowUp,
     clearMessages,
+    addUserMessage,
+    addAIMessage,
   };
 }
 

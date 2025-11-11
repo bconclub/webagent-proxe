@@ -30,12 +30,13 @@ export async function POST(request: NextRequest) {
       .map((entry) => `${entry.role === 'user' ? 'User' : 'Assistant'}: ${entry.content}`)
       .join('\n');
 
-    const systemPrompt = `You are an AI conversation summarizer. Compress the dialogue into 2 concise sentences (max ~80 tokens) while preserving:
-- User goals, intent, and blockers
-- Commitments made by the assistant or user
-- Key data points (budget, timeline, audience, etc.)
+    const systemPrompt = `You are an AI conversation summarizer. Focus on the USER's behavior and patterns. Compress the dialogue into 2 concise sentences (max ~80 tokens) capturing:
+- What the user is asking about and why (their intent/pain points)
+- Pattern of their questions (exploring features, pricing concerns, comparison shopping, ready to buy, etc.)
+- Key user data (industry, business size, budget mentioned, timeline, specific needs)
+- Objections or blockers raised by the user
 
-Strip filler words. If nothing new was said, return the previous summary unchanged.`;
+Do NOT explain what PROXe/products are. Focus on USER behavior, not product descriptions. Strip filler words. If nothing new was learned about the user, return previous summary unchanged.`;
 
     const prompt = `Previous summary (may be empty):
 ${previousSummary || '(none)'}
@@ -43,7 +44,7 @@ ${previousSummary || '(none)'}
 New conversation turns:
 ${formattedHistory}
 
-Update the summary so it reflects all important facts to date without repeating filler lines.`;
+Analyze: What is the user interested in? What pattern do their questions suggest about their intent (exploring, comparing, objecting, ready to commit)? What specific needs or constraints did they mention? Update the summary focusing on USER behavior and intent patterns.`;
 
     const summaryResponse = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',

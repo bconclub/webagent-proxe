@@ -6,6 +6,7 @@ export interface SessionRecord {
   userName: string | null;
   phone: string | null;
   email: string | null;
+  websiteUrl: string | null;
 }
 
 export interface StoredMessage {
@@ -31,6 +32,7 @@ function mapSession(row: any): SessionRecord {
     userName: row.user_name ?? null,
     phone: row.phone ?? null,
     email: row.email ?? null,
+    websiteUrl: row.website_url ?? null,
   };
 }
 
@@ -99,7 +101,7 @@ export async function ensureSession(
 
 export async function updateSessionProfile(
   externalSessionId: string,
-  profile: { userName?: string; phone?: string | null; email?: string | null },
+  profile: { userName?: string; phone?: string | null; email?: string | null; websiteUrl?: string | null },
   brand: 'proxe' | 'windchasers' = 'proxe'
 ) {
   const supabase = getSupabaseClient(brand);
@@ -117,6 +119,9 @@ export async function updateSessionProfile(
   }
   if (profile.email !== undefined) {
     updates.email = profile.email ? profile.email.trim() : null;
+  }
+  if (profile.websiteUrl !== undefined) {
+    updates.website_url = profile.websiteUrl ? profile.websiteUrl.trim() : null;
   }
   if (Object.keys(updates).length === 0) return;
 

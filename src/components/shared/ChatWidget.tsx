@@ -6,6 +6,7 @@ import type { Message } from '@/src/hooks/useChatStream';
 import { InfinityLoader } from './InfinityLoader';
 import { BookingCalendarWidget, type BookingCalendarWidgetProps } from './BookingCalendarWidget';
 import type { BrandConfig } from '@/src/configs';
+import { useDeployModal } from '@/src/contexts/DeployModalContext';
 import styles from './ChatWidget.module.css';
 import {
   ensureSession,
@@ -108,6 +109,7 @@ const ICONS = {
 };
 
 export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
+  const { openModal: openDeployModal, setOnFormSubmit } = useDeployModal();
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [showQuickButtons, setShowQuickButtons] = useState(false);
@@ -121,6 +123,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [pendingCalendar, setPendingCalendar] = useState(false);
   const [bookingCompleted, setBookingCompleted] = useState(false);
   const [usedButtons, setUsedButtons] = useState<string[]>([]);
+  const [showVideo, setShowVideo] = useState<string | null>(null);
+  const [videoAnchorId, setVideoAnchorId] = useState<string | null>(null);
   const [isDesktop, setIsDesktop] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [sessionRecord, setSessionRecord] = useState<SessionRecord | null>(null);
@@ -139,6 +143,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [pendingUserMessage, setPendingUserMessage] = useState<string | null>(null);
   const [pendingButtons, setPendingButtons] = useState<string[]>([]);
   const [pendingRequirement, setPendingRequirement] = useState<'name' | 'email' | 'phone' | null>(null);
+  const [skipAddingUserMessage, setSkipAddingUserMessage] = useState(false);
   const [conversationSummary, setConversationSummary] = useState<string>('');
   const [recentHistory, setRecentHistory] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
   const [nameInput, setNameInput] = useState('');
@@ -149,8 +154,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const SEARCHBAR_BASE_OFFSET = 60;
   const SEARCHBAR_KEYBOARD_OFFSET = 20;
   const SEARCHBAR_KEYBOARD_GAP = 10;
-  const EMAIL_PROMPT_THRESHOLD = 7;
-  const PHONE_PROMPT_THRESHOLD = 10;
+  const EMAIL_PROMPT_THRESHOLD = 5;
+  const PHONE_PROMPT_THRESHOLD = 7;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -242,6 +247,10 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           updates.phone = record.phone;
           needsUpdate = true;
         }
+        if (record.websiteUrl && record.websiteUrl !== storedUser?.websiteUrl) {
+          updates.websiteUrl = record.websiteUrl;
+          needsUpdate = true;
+        }
         if (needsUpdate) {
           storeUserProfile(updates, brandKey);
           setUserProfile(updates);
@@ -271,11 +280,12 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                 content: msg.content,
               }));
             setRecentHistory(history.slice(-6));
-            interactionCountRef.current = Math.floor(history.filter((msg) => msg.role === 'assistant').length);
+            // Don't count restored messages towards email/phone prompts - start fresh each session
+            interactionCountRef.current = 0;
             if (process.env.NODE_ENV !== 'production') {
               console.log('[ChatWidget] Restored history', {
                 historyLength: history.length,
-                assistantMessages: interactionCountRef.current,
+                assistantMessages: history.filter((msg) => msg.role === 'assistant').length,
                 hasSummary: Boolean(summaryRow?.summary),
               });
             }
@@ -390,7 +400,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       return;
     }
 
-    const supabaseUpdates: { userName?: string; phone?: string | null; email?: string | null } = {};
+    const supabaseUpdates: { userName?: string; phone?: string | null; email?: string | null; websiteUrl?: string | null } = {};
     if (Object.prototype.hasOwnProperty.call(updates, 'name')) {
       supabaseUpdates.userName = updates.name;
     }
@@ -399,6 +409,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     }
     if (Object.prototype.hasOwnProperty.call(updates, 'phone')) {
       supabaseUpdates.phone = updates.phone ?? null;
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'websiteUrl')) {
+      supabaseUpdates.websiteUrl = updates.websiteUrl ?? null;
     }
     if (Object.keys(supabaseUpdates).length > 0) {
       await updateSessionProfile(externalSessionId, supabaseUpdates, brandKey);
@@ -479,6 +492,11 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     setCalendarAnchorId(null);
   }, []);
 
+  const closeVideoWidget = useCallback(() => {
+    setShowVideo(null);
+    setVideoAnchorId(null);
+  }, []);
+
   const queuePendingMessage = (message: string, buttons: string[], requirement: 'name' | 'email' | 'phone') => {
     if (process.env.NODE_ENV !== 'production') {
       console.log('[ChatWidget] Queueing pending message', { message, buttons });
@@ -494,18 +512,34 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   };
 
   const requestNameBeforeProceed = (message: string, buttons: string[]) => {
+    // Ask for name on first message, before AI responds
     if (
-      hasReceivedFirstResponse &&
       !userProfile.name &&
       !hasAskedName &&
-    !namePromptDismissed &&
-      !showNamePrompt
+      !namePromptDismissed &&
+      !showNamePrompt &&
+      messageCount === 0 // First message
     ) {
       if (process.env.NODE_ENV !== 'production') {
-        console.log('[ChatWidget] Requesting name before proceeding');
+        console.log('[ChatWidget] Requesting name before first AI response');
       }
       setHasAskedName(true);
+      
+      // Add user's message to chat immediately so it shows before the name prompt
+      addUserMessage(message);
+      
+      // Queue the message for AI response after name is provided
       queuePendingMessage(message, buttons, 'name');
+      
+      // Set flag to skip adding user message again when sending to AI
+      setSkipAddingUserMessage(true);
+      
+      // Ensure chat is open to show the name prompt
+      setIsOpen(true);
+      setIsInputActive(true);
+      setIsExpanded(false);
+      setShowQuickButtons(false);
+      
       setShowNamePrompt(true);
       return true;
     }
@@ -545,16 +579,36 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       closeCalendarWidget();
     }
 
+    // Close any open prompt cards when user sends a message
+    if (showNamePrompt) {
+      setShowNamePrompt(false);
+      setNamePromptDismissed(true);
+    }
+    if (showEmailPrompt) {
+      setShowEmailPrompt(false);
+    }
+    if (showPhonePrompt) {
+      setShowPhonePrompt(false);
+    }
+
     if (process.env.NODE_ENV !== 'production') {
       console.log('[ChatWidget] Submitting message', { trimmed, buttons });
     }
 
     const nextCount = messageCount + 1;
     let contextualMessage = trimmed;
+    let displayMessage = trimmed; // Message to show in chat and store
 
     const isBookingRepeat = bookingCompleted && containsBookingKeywords(trimmed);
     if (isBookingRepeat) {
       contextualMessage = `[Booking already scheduled] ${trimmed}`;
+      // Don't add prefix to display message for booking repeat
+    }
+
+    // Add name context to AI message only (not displayed to user)
+    if (nextCount === 1 && userProfile.name) {
+      contextualMessage = `[User's name is ${userProfile.name}] ${trimmed}`;
+      // displayMessage stays as original trimmed message
     }
 
     setInputValue('');
@@ -571,10 +625,17 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     setIsExpanded(false);
     setShowQuickButtons(false);
 
-    appendHistory({ role: 'user', content: contextualMessage });
-    recordMessage('user', contextualMessage);
+    // Store the display message (without context prefix) in history and database
+    appendHistory({ role: 'user', content: displayMessage });
+    recordMessage('user', displayMessage);
 
-    sendMessage(contextualMessage, nextCount, buttons, buildRequestPayload());
+    // Send contextual message (with name context) to AI, but display original message in chat
+    sendMessage(contextualMessage, nextCount, buttons, buildRequestPayload(), skipAddingUserMessage, displayMessage);
+    
+    // Reset the flag after using it
+    if (skipAddingUserMessage) {
+      setSkipAddingUserMessage(false);
+    }
   };
 
   useEffect(() => {
@@ -626,14 +687,17 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     if (process.env.NODE_ENV !== 'production') {
       console.log('[ChatWidget] Name submitted', { name: nameInput.trim() });
     }
+    // Set flag immediately to prevent re-asking
+    setHasAskedName(true);
+    setNamePromptDismissed(false);
+    setShowNamePrompt(false);
+    
     await persistUserProfile({
       name: nameInput.trim(),
       phoneSkipped: userProfile.phoneSkipped,
       promptedName: true,
     });
-    setNamePromptDismissed(false);
     setNameInput('');
-    setShowNamePrompt(false);
   };
 
   const handleNameDismiss = () => {
@@ -648,13 +712,16 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     if (process.env.NODE_ENV !== 'production') {
       console.log('[ChatWidget] Email submitted');
     }
+    // Set flag immediately to prevent re-asking
+    setHasAskedEmail(true);
+    setShowEmailPrompt(false);
+    
     await persistUserProfile({
       email: emailInput.trim(),
       emailSkipped: false,
       promptedEmail: true,
     });
     setEmailInput('');
-    setShowEmailPrompt(false);
   };
 
   const handleEmailSkip = () => {
@@ -672,13 +739,16 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     if (process.env.NODE_ENV !== 'production') {
       console.log('[ChatWidget] Phone submitted');
     }
+    // Set flag immediately to prevent re-asking
+    setHasAskedPhone(true);
+    setShowPhonePrompt(false);
+    
     await persistUserProfile({
       phone: phoneInput.trim(),
       phoneSkipped: false,
       promptedPhone: true,
     });
     setPhoneInput('');
-    setShowPhonePrompt(false);
   };
 
   const handlePhoneSkip = () => {
@@ -1059,11 +1129,32 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   }, [isOpen]);
 
 
-  const { messages, isLoading, sendMessage, clearMessages } = useChat({
+  const { messages, isLoading, sendMessage, clearMessages, addUserMessage, addAIMessage } = useChat({
     brand,
     apiUrl,
     onMessageComplete: handleAssistantMessageComplete,
   });
+
+  // Register callback for when Deploy form is submitted
+  useEffect(() => {
+    const handleDeployFormSubmit = () => {
+      // Add confirmation message to chat
+      addAIMessage("Thanks! We've received your details. Our team will review them and get back to you within 24 hours. In the meantime, feel free to ask any questions about PROXe!");
+      
+      // Open chat to show the confirmation message
+      setIsOpen(true);
+      setIsInputActive(true);
+      setIsExpanded(false);
+      setShowQuickButtons(false);
+    };
+
+    setOnFormSubmit(handleDeployFormSubmit);
+
+    // Clean up on unmount
+    return () => {
+      setOnFormSubmit(null);
+    };
+  }, [addAIMessage, setOnFormSubmit]);
 
   useEffect(() => {
     // Scroll to bottom whenever messages update (including streaming)
@@ -1091,7 +1182,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         // Use setTimeout to ensure state updates properly
         const timer = setTimeout(() => {
           setPendingCalendar(false);
-          setBookingCompleted(true); // Mark booking as completed
           const calendarMessageId = `calendar-${Date.now()}`;
           setShowCalendly(calendarMessageId);
           if (lastMessage?.id) {
@@ -1114,6 +1204,21 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const handleBookingComplete = useCallback((bookingData: any) => {
     setBookingCompleted(true);
     if (bookingData) {
+      // Close any open prompts immediately
+      if (bookingData.name) {
+        setShowNamePrompt(false);
+        setHasAskedName(true);
+      }
+      if (bookingData.email) {
+        setShowEmailPrompt(false);
+        setHasAskedEmail(true);
+      }
+      if (bookingData.phone) {
+        setShowPhonePrompt(false);
+        setHasAskedPhone(true);
+      }
+      
+      // Persist the contact information
       void handleContactPersist({
         name: bookingData.name,
         email: bookingData.email,
@@ -1297,6 +1402,18 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     const message = inputValue.trim();
     if (!message) return;
 
+    // Close any open prompt cards when user sends a message from the input
+    if (showNamePrompt) {
+      setShowNamePrompt(false);
+      setNamePromptDismissed(true);
+    }
+    if (showEmailPrompt) {
+      setShowEmailPrompt(false);
+    }
+    if (showPhonePrompt) {
+      setShowPhonePrompt(false);
+    }
+
     if (requestNameBeforeProceed(message, usedButtons)) return;
     if (requestEmailBeforeProceed(message, usedButtons)) return;
     if (requestPhoneBeforeProceed(message, usedButtons)) return;
@@ -1315,6 +1432,33 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
     if (process.env.NODE_ENV !== 'production') {
       console.log('[ChatWidget] Quick button clicked', { buttonText, message });
+    }
+
+    // Handle Deploy PROXe button - open deploy modal
+    if (message.toLowerCase() === 'deploy proxe') {
+      openDeployModal();
+      return;
+    }
+
+    // Handle Watch Video button - show video widget
+    if (message.toLowerCase() === 'watch video') {
+      closeCalendarWidget();
+      setIsOpen(true);
+      setIsExpanded(false);
+      setShowQuickButtons(false);
+      setIsInputActive(false);
+      
+      // Add user message to chat and get the message object
+      const userMessage = addUserMessage('Watch Video');
+      
+      // Show video after the user message
+      setTimeout(() => {
+        const videoMessageId = `video-${Date.now()}`;
+        setShowVideo(videoMessageId);
+        setVideoAnchorId(userMessage.id);
+      }, 100);
+      
+      return;
     }
 
     const nextButtons = [...usedButtons, buttonText];
@@ -1353,6 +1497,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     if (showCalendly) {
       closeCalendarWidget();
+    }
+    if (showVideo) {
+      closeVideoWidget();
     }
     setIsInputActive(true);
     if (!isOpen) {
@@ -1435,31 +1582,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       hasEverOpenedRef.current = true;
     }
   }, [isOpen]);
-
-  const detailPromptOverlayStyle = useMemo<React.CSSProperties | undefined>(() => {
-    if (isDesktop) return undefined;
-
-    const basePadding = 24;
-    const bottomPadding =
-      keyboardHeight > 0
-        ? `calc(${keyboardHeight + SEARCHBAR_KEYBOARD_OFFSET + 32}px + env(safe-area-inset-bottom, 0px))`
-        : `calc(${basePadding}px + env(safe-area-inset-bottom, 0px))`;
-
-    return {
-      position: 'fixed',
-      top: 'auto',
-      left: 0,
-      right: 0,
-      bottom: 0,
-      height: 'auto',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'flex-end',
-      padding: '20px',
-      paddingBottom: bottomPadding,
-      pointerEvents: 'auto',
-    };
-  }, [isDesktop, keyboardHeight, SEARCHBAR_KEYBOARD_OFFSET]);
   
   if (!isOpen) {
     const hasConversation = messages.length > 0;
@@ -1586,7 +1708,22 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             className={styles.searchInput}
             placeholder="Ask me anything..."
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={(e) => {
+              setInputValue(e.target.value);
+              // Close any open prompt cards when user starts typing in searchbar
+              if (e.target.value && (showNamePrompt || showEmailPrompt || showPhonePrompt)) {
+                if (showNamePrompt) {
+                  setShowNamePrompt(false);
+                  setNamePromptDismissed(true);
+                }
+                if (showEmailPrompt) {
+                  setShowEmailPrompt(false);
+                }
+                if (showPhonePrompt) {
+                  setShowPhonePrompt(false);
+                }
+              }
+            }}
             onClick={(e) => {
               e.stopPropagation();
               if (shouldAutoOpenChat) {
@@ -1642,14 +1779,12 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     );
   }
 
-  const isDetailPromptActive = showNamePrompt || showEmailPrompt || showPhonePrompt;
-
   return (
     <div 
       ref={chatboxContainerRef}
       className={styles.chatboxContainer}
     >
-      <div className={`${styles.chatContent} ${isDetailPromptActive ? styles.chatContentBlurred : ''}`}>
+      <div className={styles.chatContent}>
         <div className={styles.chatHeader}>
         <div className={styles.brandName}>
           <div className={styles.avatar}>
@@ -1661,11 +1796,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           <button 
             className={styles.resetBtn} 
             onClick={() => {
-              setIsOpen(false);
-              setIsInputActive(false);
-              setIsExpanded(false);
-              setShowQuickButtons(false);
+              // Reset all state and close chat for a fresh start
               closeCalendarWidget();
+              closeVideoWidget();
               setBookingCompleted(false);
               setUsedButtons([]);
               setMessageCount(0);
@@ -1677,7 +1810,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               setPendingUserMessage(null);
               setPendingButtons([]);
               setPendingRequirement(null);
-          hasEverOpenedRef.current = false;
               setShowNamePrompt(false);
               setShowEmailPrompt(false);
               setShowPhonePrompt(false);
@@ -1694,9 +1826,15 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               setPhoneInput('');
               setUserProfile({});
               storeUserProfile({}, brandKey);
-              setIsSearchbarHovered(false);
               setDynamicQuickButtons(null);
               setExploreButtons(null);
+              // Close the chat
+              setIsOpen(false);
+              setIsInputActive(false);
+              setIsExpanded(false);
+              setShowQuickButtons(false);
+              setIsSearchbarHovered(false);
+              hasEverOpenedRef.current = false;
             }}
             title="Reset chat"
           >
@@ -1711,6 +1849,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               setShowQuickButtons(false);
               setIsSearchbarHovered(false);
               closeCalendarWidget();
+              closeVideoWidget();
               setDynamicQuickButtons(null);
               setExploreButtons(null);
             }}
@@ -1724,15 +1863,17 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         className={styles.messagesArea}
         data-scroll-lock="allow"
         onClick={(e) => {
-          // Only close calendar if clicking directly on the messages area, not on messages or buttons
+          // Only close widgets if clicking directly on the messages area, not on messages or buttons
           const target = e.target as HTMLElement;
           const isClickOnMessage = target.closest(`.${styles.message}`);
           const isClickOnButton = target.closest(`.${styles.quickBtn}`) || target.closest(`.${styles.followUpBtn}`);
           const isClickOnCalendar = target.closest(`.${styles.calendarContainer}`);
+          const isClickOnVideo = target.closest(`.${styles.videoContainer}`);
           
-          if (!isClickOnMessage && !isClickOnButton && !isClickOnCalendar) {
-            // Close calendar widget when clicking in empty messages area (clicking away)
+          if (!isClickOnMessage && !isClickOnButton && !isClickOnCalendar && !isClickOnVideo) {
+            // Close widgets when clicking in empty messages area (clicking away)
             closeCalendarWidget();
+            closeVideoWidget();
           }
         }}
       >
@@ -1857,6 +1998,68 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                 </div>
               </div>
             )}
+
+            {showVideo && videoAnchorId === message.id && (
+              <div 
+                key={showVideo}
+                className={`${styles.message} ${styles.ai} ${styles['accent-0']}`}
+                onClick={(e) => e.stopPropagation()}
+                ref={(el) => {
+                  if (el) {
+                    requestAnimationFrame(() => {
+                      setTimeout(() => {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                      }, 100);
+                    });
+                  }
+                }}
+              >
+                <div className={styles.messageContent}>
+                  <div className={styles.bubble}>
+                    <div className={styles.bubbleContent}>
+                      {/* Header with avatar and name inside the bubble */}
+                      <div className={styles.bubbleHeader}>
+                        <div className={styles.bubbleAvatar}>
+                          {ICONS.ai(brand, config)}
+                        </div>
+                        <span className={styles.bubbleName}>
+                          {config.name}
+                        </span>
+                        <button
+                          type="button"
+                          className={styles.calendarCloseBtn}
+                          onClick={closeVideoWidget}
+                          aria-label="Close video"
+                        >
+                          {ICONS.close}
+                        </button>
+                      </div>
+                      
+                      {/* Video player */}
+                      <div
+                        className={styles.videoContainer}
+                        data-scroll-lock="allow"
+                      >
+                        <video
+                          controls
+                          autoPlay
+                          playsInline
+                          style={{
+                            width: '100%',
+                            maxHeight: '400px',
+                            borderRadius: '8px',
+                            backgroundColor: '#000',
+                          }}
+                        >
+                          <source src="/assets/proxe/Markx.mp4" type="video/mp4" />
+                          Your browser does not support the video tag.
+                        </video>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </React.Fragment>
           );
         })}
@@ -1909,6 +2112,172 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             </div>
           </div>
         )}
+
+        {/* Inline Name Prompt Card */}
+        {showNamePrompt && (
+          <div
+            className={`${styles.message} ${styles.ai} ${styles['accent-0']}`}
+            ref={(el) => {
+              if (el) {
+                requestAnimationFrame(() => {
+                  setTimeout(() => {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                  }, 100);
+                });
+              }
+            }}
+          >
+            <div className={styles.messageContent}>
+              <div className={styles.bubble}>
+                <div className={styles.bubbleContent}>
+                  <div className={styles.bubbleHeader}>
+                    <div className={styles.bubbleAvatar}>
+                      {ICONS.ai(brand, config)}
+                    </div>
+                    <span className={styles.bubbleName}>
+                      {config.name}
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.inlinePromptClose}
+                      onClick={handleNameDismiss}
+                      aria-label="Close name prompt"
+                    >
+                      {ICONS.close}
+                    </button>
+                  </div>
+                  <p className={styles.inlinePromptText}>What should we call you?</p>
+                  <form onSubmit={handleNameSubmit} className={styles.inlinePromptForm}>
+                    <div className={styles.inlinePromptInputWrapper}>
+                      <input
+                        autoFocus
+                        ref={namePromptInputRef}
+                        className={styles.inlinePromptInput}
+                        placeholder="Your name"
+                        value={nameInput}
+                        onChange={(event) => setNameInput(event.target.value)}
+                      />
+                      <button type="submit" className={styles.inlinePromptSendBtn} disabled={!nameInput.trim()}>
+                        {ICONS.send}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Inline Email Prompt Card */}
+        {showEmailPrompt && (
+          <div
+            className={`${styles.message} ${styles.ai} ${styles['accent-0']}`}
+            ref={(el) => {
+              if (el) {
+                requestAnimationFrame(() => {
+                  setTimeout(() => {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                  }, 100);
+                });
+              }
+            }}
+          >
+            <div className={styles.messageContent}>
+              <div className={styles.bubble}>
+                <div className={styles.bubbleContent}>
+                  <div className={styles.bubbleHeader}>
+                    <div className={styles.bubbleAvatar}>
+                      {ICONS.ai(brand, config)}
+                    </div>
+                    <span className={styles.bubbleName}>
+                      {config.name}
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.inlinePromptClose}
+                      onClick={handleEmailSkip}
+                      aria-label="Close email prompt"
+                    >
+                      {ICONS.close}
+                    </button>
+                  </div>
+                  <p className={styles.inlinePromptText}>Where can we reach you?</p>
+                  <form onSubmit={handleEmailSubmit} className={styles.inlinePromptForm}>
+                    <div className={styles.inlinePromptInputWrapper}>
+                      <input
+                        autoFocus
+                        ref={emailPromptInputRef}
+                        className={styles.inlinePromptInput}
+                        placeholder="name@example.com"
+                        type="email"
+                        value={emailInput}
+                        onChange={(event) => setEmailInput(event.target.value)}
+                      />
+                      <button type="submit" className={styles.inlinePromptSendBtn} disabled={!emailInput.trim()}>
+                        {ICONS.send}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Inline Phone Prompt Card */}
+        {showPhonePrompt && (
+          <div
+            className={`${styles.message} ${styles.ai} ${styles['accent-0']}`}
+            ref={(el) => {
+              if (el) {
+                requestAnimationFrame(() => {
+                  setTimeout(() => {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                  }, 100);
+                });
+              }
+            }}
+          >
+            <div className={styles.messageContent}>
+              <div className={styles.bubble}>
+                <div className={styles.bubbleContent}>
+                  <div className={styles.bubbleHeader}>
+                    <div className={styles.bubbleAvatar}>
+                      {ICONS.ai(brand, config)}
+                    </div>
+                    <span className={styles.bubbleName}>
+                      {config.name}
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.inlinePromptClose}
+                      onClick={handlePhoneSkip}
+                      aria-label="Close phone prompt"
+                    >
+                      {ICONS.close}
+                    </button>
+                  </div>
+                  <p className={styles.inlinePromptText}>Share your phone number so we can follow up</p>
+                  <form onSubmit={handlePhoneSubmit} className={styles.inlinePromptForm}>
+                    <div className={styles.inlinePromptInputWrapper}>
+                      <input
+                        autoFocus
+                        ref={phonePromptInputRef}
+                        className={styles.inlinePromptInput}
+                        placeholder="Phone number"
+                        value={phoneInput}
+                        onChange={(event) => setPhoneInput(event.target.value)}
+                      />
+                      <button type="submit" className={styles.inlinePromptSendBtn} disabled={!phoneInput.trim()}>
+                        {ICONS.send}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         
         <div ref={messagesEndRef} />
       </div>
@@ -1920,10 +2289,28 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             className={styles.chatInput}
             placeholder="Type your message..."
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={(e) => {
+              setInputValue(e.target.value);
+              // Close any open prompt cards when user starts typing
+              if (e.target.value && (showNamePrompt || showEmailPrompt || showPhonePrompt)) {
+                if (showNamePrompt) {
+                  setShowNamePrompt(false);
+                  setNamePromptDismissed(true);
+                }
+                if (showEmailPrompt) {
+                  setShowEmailPrompt(false);
+                }
+                if (showPhonePrompt) {
+                  setShowPhonePrompt(false);
+                }
+              }
+            }}
             onFocus={(e) => {
               if (showCalendly) {
                 closeCalendarWidget();
+              }
+              if (showVideo) {
+                closeVideoWidget();
               }
               // Scroll input into view above keyboard on mobile
     const scrollInputIntoView = () => {
@@ -1959,113 +2346,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         Agent Powered By <a href="https://goproxe.com" target="_blank" rel="noopener noreferrer">PROXe</a>
       </div>
       </div>
-
-      {showNamePrompt && (
-        <div className={styles.detailPromptOverlay} style={detailPromptOverlayStyle}>
-          <div className={styles.detailPromptCard}>
-            <div className={styles.detailPromptHeader}>
-              <h3 className={styles.detailPromptTitle}>Let’s get acquainted</h3>
-              <button
-                type="button"
-                className={styles.detailPromptClose}
-                onClick={handleNameDismiss}
-                aria-label="Close name prompt"
-              >
-                ×
-              </button>
-            </div>
-            <p className={styles.detailPromptSubtitle}>What should we call you?</p>
-            <form onSubmit={handleNameSubmit} className={styles.detailPromptForm}>
-              <input
-                autoFocus
-                ref={namePromptInputRef}
-                className={styles.detailPromptInput}
-                placeholder="Your name"
-                value={nameInput}
-                onChange={(event) => setNameInput(event.target.value)}
-              />
-            <button type="submit" className={styles.detailPromptPrimary}>
-              Continue
-            </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showEmailPrompt && (
-        <div className={styles.detailPromptOverlay} style={detailPromptOverlayStyle}>
-          <div className={styles.detailPromptCard}>
-            <div className={styles.detailPromptHeader}>
-              <h3 className={styles.detailPromptTitle}>Where can we reach you?</h3>
-              <button
-                type="button"
-                className={styles.detailPromptClose}
-                onClick={handleEmailSkip}
-                aria-label="Close email prompt"
-              >
-                ×
-              </button>
-            </div>
-            <p className={styles.detailPromptSubtitle}>Share your email so we can follow up.</p>
-            <form onSubmit={handleEmailSubmit} className={styles.detailPromptForm}>
-              <input
-                autoFocus
-                ref={emailPromptInputRef}
-                className={styles.detailPromptInput}
-                placeholder="name@example.com"
-                type="email"
-                value={emailInput}
-                onChange={(event) => setEmailInput(event.target.value)}
-              />
-              <div className={styles.detailPromptActions}>
-                <button type="button" className={styles.detailPromptSecondary} onClick={handleEmailSkip}>
-                  Skip for now
-                </button>
-                <button type="submit" className={styles.detailPromptPrimary}>
-                  Save
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showPhonePrompt && (
-        <div className={styles.detailPromptOverlay} style={detailPromptOverlayStyle}>
-          <div className={styles.detailPromptCard}>
-            <div className={styles.detailPromptHeader}>
-              <h3 className={styles.detailPromptTitle}>Stay in touch</h3>
-              <button
-                type="button"
-                className={styles.detailPromptClose}
-                onClick={handlePhoneSkip}
-                aria-label="Close phone prompt"
-              >
-                ×
-              </button>
-            </div>
-            <p className={styles.detailPromptSubtitle}>Share your phone number so we can follow up.</p>
-            <form onSubmit={handlePhoneSubmit} className={styles.detailPromptForm}>
-              <input
-                autoFocus
-                ref={phonePromptInputRef}
-                className={styles.detailPromptInput}
-                placeholder="Phone number"
-                value={phoneInput}
-                onChange={(event) => setPhoneInput(event.target.value)}
-              />
-              <div className={styles.detailPromptActions}>
-                <button type="button" className={styles.detailPromptSecondary} onClick={handlePhoneSkip}>
-                  Skip for now
-                </button>
-                <button type="submit" className={styles.detailPromptPrimary}>
-                  Save
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
