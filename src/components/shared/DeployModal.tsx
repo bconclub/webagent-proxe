@@ -67,8 +67,6 @@ export default function DeployModal({ isOpen, onClose, onFormSubmit }: DeployMod
 
     if (!formData.websiteUrl.trim()) {
       newErrors.websiteUrl = 'Website URL is required';
-    } else if (!/^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/.test(formData.websiteUrl)) {
-      newErrors.websiteUrl = 'Please enter a valid URL';
     }
 
     setErrors(newErrors);
@@ -207,13 +205,13 @@ export default function DeployModal({ isOpen, onClose, onFormSubmit }: DeployMod
                 Website URL <span className={styles.required}>*</span>
               </label>
               <input
-                type="url"
+                type="text"
                 id="websiteUrl"
                 name="websiteUrl"
                 value={formData.websiteUrl}
                 onChange={handleChange}
                 className={`${styles.input} ${errors.websiteUrl ? styles.inputError : ''}`}
-                placeholder="https://yourwebsite.com"
+                placeholder="yourwebsite.com"
               />
               {errors.websiteUrl && <span className={styles.errorText}>{errors.websiteUrl}</span>}
             </div>

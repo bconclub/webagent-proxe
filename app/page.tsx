@@ -172,7 +172,11 @@ export default function HomePage() {
                   <HugeiconsIcon icon={solution.icon} size={39} />
                 </div>
                 <div className={styles.solutionHeadingGroup}>
-                  <h3 className={styles.solutionTitle}>{solution.title}</h3>
+                  <h3 className={styles.solutionTitle}>
+                    {solution.title.replace(' PROXe', '')}
+                    <br />
+                    PROXe
+                  </h3>
                 </div>
                 <span className={styles.solutionToggleIcon} aria-hidden="true">
                   {activeSolution === solution.id ? '−' : '+'}
