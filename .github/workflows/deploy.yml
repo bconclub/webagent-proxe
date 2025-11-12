@@ -1,34 +1,37 @@
 name: Deploy to VPS
+
 on:
   push:
     branches:
-      - main
+      - main  # Deploy on push to main branch
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
+
       - name: Deploy to VPS
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
+          username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            cd /home/webagent
-            git fetch origin
-            git reset --hard origin/main
-            cd backend
-            if [ ! -f .env ]; then
-              echo "❌ backend/.env file is missing! Please create it on the VPS with your API keys."
-              exit 1
-            fi
+            cd /var/www/goproxe
+            
+            # Pull latest changes
+            git pull origin main
+            
+            # Install dependencies
             npm install
-            cd ..
-            mkdir -p /home/webagent/logs
-            pm2 delete webagent-backend || true
-            pm2 start ecosystem.config.js
-            systemctl reload nginx
-            pm2 logs webagent-backend --lines 20
+            
+            # Build the project
+            npm run build
+            
+            # Restart PM2 process
+            pm2 restart goproxe-web
+            
+            echo "✅ Deployment complete!"
