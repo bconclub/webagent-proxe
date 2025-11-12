@@ -10,11 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Trigger deployment on VPS
-        uses: appleboy/ssh-action@v1.0.0
+      - name: Execute deployment script via SSH
+        uses: garygrossgarten/github-action-ssh@release
         with:
+          command: /var/www/goproxe/deploy.sh
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            /var/www/goproxe/deploy.sh
+          privateKey: ${{ secrets.VPS_DEPLOY_KEY }}
