@@ -11,10 +11,10 @@ import styles from './ChatWidget.module.css';
 import {
   ensureSession,
   updateSessionProfile,
-  storeMessage,
-  fetchRecentMessages,
+  addUserInput,
   fetchSummary,
   upsertSummary,
+  storeBooking,
   type SessionRecord,
 } from '@/src/lib/chatSessions';
 import {
@@ -235,6 +235,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         // Sync profile differences back to Supabase/local storage
         const updates: LocalUserProfile = { ...storedUser };
         let needsUpdate = false;
+        let needsSupabaseSync = false;
+        
+        // Sync from Supabase to localStorage
         if (record.userName && record.userName !== storedUser?.name) {
           updates.name = record.userName;
           needsUpdate = true;
@@ -251,6 +254,21 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           updates.websiteUrl = record.websiteUrl;
           needsUpdate = true;
         }
+        
+        // Sync from localStorage to Supabase (if localStorage has data Supabase doesn't)
+        if (storedUser?.name && !record.userName) {
+          needsSupabaseSync = true;
+        }
+        if (storedUser?.email && !record.email) {
+          needsSupabaseSync = true;
+        }
+        if (storedUser?.phone && !record.phone) {
+          needsSupabaseSync = true;
+        }
+        if (storedUser?.websiteUrl && !record.websiteUrl) {
+          needsSupabaseSync = true;
+        }
+        
         if (needsUpdate) {
           storeUserProfile(updates, brandKey);
           setUserProfile(updates);
@@ -264,36 +282,47 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             setHasAskedPhone(true);
           }
         }
+        
+        // Sync localStorage data to Supabase if needed
+        if (needsSupabaseSync && storedUser) {
+          await updateSessionProfile(
+            storedId,
+            {
+              userName: storedUser.name,
+              email: storedUser.email ?? null,
+              phone: storedUser.phone ?? null,
+              websiteUrl: storedUser.websiteUrl ?? null,
+            },
+            brandKey
+          );
+        }
 
-        const [summaryRow, recentMessages] = await Promise.all([
-          fetchSummary(record.id, brandKey),
-          fetchRecentMessages(record.id, 3, brandKey),
-        ]);
+        const summaryRow = await fetchSummary(externalSessionId, brandKey);
 
         if (!cancelled) {
           setConversationSummary(summaryRow?.summary ?? '');
-          if (recentMessages.length > 0) {
-            const history = recentMessages
-              .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
-              .map((msg) => ({
-                role: msg.role as 'user' | 'assistant',
-                content: msg.content,
+          // Restore user inputs from session record if available
+          if (record.userInputsSummary && record.userInputsSummary.length > 0) {
+            // Convert user inputs to history format for context
+            const history = record.userInputsSummary
+              .slice(-6) // Last 6 user inputs
+              .map((userInput) => ({
+                role: 'user' as const,
+                content: userInput.input,
               }));
-            setRecentHistory(history.slice(-6));
+            setRecentHistory(history);
             // Don't count restored messages towards email/phone prompts - start fresh each session
             interactionCountRef.current = 0;
             if (process.env.NODE_ENV !== 'production') {
-              console.log('[ChatWidget] Restored history', {
-                historyLength: history.length,
-                assistantMessages: history.filter((msg) => msg.role === 'assistant').length,
+              console.log('[ChatWidget] Restored user inputs', {
+                inputsCount: record.userInputsSummary.length,
                 hasSummary: Boolean(summaryRow?.summary),
+                hasBooking: Boolean(record.bookingDate),
               });
             }
           } else if (process.env.NODE_ENV !== 'production') {
-            console.log('[ChatWidget] No prior messages for session', { sessionId: record.id });
+            console.log('[ChatWidget] No prior user inputs for session', { sessionId: record.id });
           }
-        } else if (process.env.NODE_ENV !== 'production') {
-          console.log('[ChatWidget] No prior messages for session', { sessionId: record.id });
         }
       } catch (error) {
         console.error('[ChatWidget] Failed to initialise session', error);
@@ -418,7 +447,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     }
   }, [applyLocalProfile, externalSessionId, brandKey]);
 
-  const handleContactDraft = useCallback((data: { name?: string; email?: string; phone?: string }) => {
+  const handleContactDraft = useCallback((data: { name?: string; email?: string; phone?: string; websiteUrl?: string }) => {
     const updates: LocalUserProfile = {};
     if (data.name && data.name.trim()) {
       updates.name = data.name.trim();
@@ -431,13 +460,16 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     if (data.phone && data.phone.trim()) {
       updates.phone = data.phone.trim();
       updates.promptedPhone = true;
+    }
+    if (data.websiteUrl && data.websiteUrl.trim()) {
+      updates.websiteUrl = data.websiteUrl.trim();
     }
     if (Object.keys(updates).length > 0) {
       applyLocalProfile(updates);
     }
   }, [applyLocalProfile]);
 
-  const handleContactPersist = useCallback(async (data: { name?: string; email?: string; phone?: string }) => {
+  const handleContactPersist = useCallback(async (data: { name?: string; email?: string; phone?: string; websiteUrl?: string }) => {
     const updates: LocalUserProfile = {};
     if (data.name && data.name.trim()) {
       updates.name = data.name.trim();
@@ -450,6 +482,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     if (data.phone && data.phone.trim()) {
       updates.phone = data.phone.trim();
       updates.promptedPhone = true;
+    }
+    if (data.websiteUrl && data.websiteUrl.trim()) {
+      updates.websiteUrl = data.websiteUrl.trim();
     }
     if (Object.keys(updates).length > 0) {
       await persistUserProfile(updates);
@@ -461,11 +496,11 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     setRecentHistory(historyRef.current);
   };
 
-  const recordMessage = async (role: 'user' | 'assistant', content: string) => {
-    if (sessionRecord) {
-      await storeMessage(sessionRecord.id, role, content, brandKey);
+  const recordUserInput = async (input: string, intent?: string) => {
+    if (externalSessionId) {
+      await addUserInput(externalSessionId, input, intent, brandKey);
     } else if (process.env.NODE_ENV !== 'production') {
-      console.warn('[ChatWidget] Unable to store message, missing sessionRecord');
+      console.warn('[ChatWidget] Unable to store user input, missing externalSessionId');
     }
   };
 
@@ -627,7 +662,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
     // Store the display message (without context prefix) in history and database
     appendHistory({ role: 'user', content: displayMessage });
-    recordMessage('user', displayMessage);
+    // Record user input (focus on user questions/intents, not assistant responses)
+    recordUserInput(displayMessage);
 
     // Send contextual message (with name context) to AI, but display original message in chat
     sendMessage(contextualMessage, nextCount, buttons, buildRequestPayload(), skipAddingUserMessage, displayMessage);
@@ -785,8 +821,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       const data = await response.json();
       if (data.summary && typeof data.summary === 'string') {
         setConversationSummary(data.summary);
-        if (sessionRecord) {
-          await upsertSummary(sessionRecord.id, data.summary, lastMessageTimestamp, brandKey);
+        if (externalSessionId) {
+          await upsertSummary(externalSessionId, data.summary, lastMessageTimestamp, brandKey);
         }
       }
     } catch (error) {
@@ -797,7 +833,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const handleAssistantMessageComplete = async (message: Message) => {
     if (message.text) {
       appendHistory({ role: 'assistant', content: message.text });
-      await recordMessage('assistant', message.text);
+      // Don't store assistant messages - we focus on user inputs and summaries
     }
 
     if (!hasReceivedFirstResponse) {
@@ -1206,7 +1242,13 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
   // Register callback for when Deploy form is submitted
   useEffect(() => {
-    const handleDeployFormSubmit = () => {
+    const handleDeployFormSubmit = async () => {
+      // Sync websiteUrl from localStorage to Supabase
+      const storedUser = getStoredUser(brandKey);
+      if (storedUser?.websiteUrl && externalSessionId) {
+        await persistUserProfile({ websiteUrl: storedUser.websiteUrl });
+      }
+      
       // Add confirmation message to chat
       addAIMessage("Thanks! We've received your details. Our team will review them and get back to you within 24 hours. In the meantime, feel free to ask any questions about PROXe!");
       
@@ -1223,7 +1265,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     return () => {
       setOnFormSubmit(null);
     };
-  }, [addAIMessage, setOnFormSubmit]);
+  }, [addAIMessage, setOnFormSubmit, externalSessionId, brandKey, persistUserProfile]);
 
   // Ensure viewport starts at absolute top when chat widget first opens
   useEffect(() => {
@@ -1291,7 +1333,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   }, [messages, isOpen, pendingCalendar, showCalendly, bookingCompleted]);
 
   // Handle booking completion
-  const handleBookingComplete = useCallback((bookingData: any) => {
+  const handleBookingComplete = useCallback(async (bookingData: any) => {
     setBookingCompleted(true);
     if (bookingData) {
       // Close any open prompts immediately
@@ -1309,13 +1351,27 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       }
       
       // Persist the contact information
-      void handleContactPersist({
+      await handleContactPersist({
         name: bookingData.name,
         email: bookingData.email,
         phone: bookingData.phone,
       });
+
+      // Store booking details in Supabase
+      if (externalSessionId && bookingData.date && bookingData.time) {
+        await storeBooking(
+          externalSessionId,
+          {
+            date: bookingData.date,
+            time: bookingData.time,
+            googleEventId: bookingData.googleEventId,
+            status: 'confirmed',
+          },
+          brandKey
+        );
+      }
     }
-  }, [handleContactPersist]);
+  }, [handleContactPersist, externalSessionId, brandKey]);
 
   // Handle mobile keyboard appearance for chat input
   useEffect(() => {

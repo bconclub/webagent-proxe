@@ -7,13 +7,24 @@ export interface SessionRecord {
   phone: string | null;
   email: string | null;
   websiteUrl: string | null;
+  conversationSummary: string | null;
+  lastMessageAt: string | null;
+  userInputsSummary: UserInput[];
+  messageCount: number;
+  bookingDate: string | null;
+  bookingTime: string | null;
+  bookingStatus: 'pending' | 'confirmed' | 'cancelled' | null;
+  googleEventId: string | null;
+  bookingCreatedAt: string | null;
+  brand: 'proxe' | 'windchasers';
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface StoredMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  createdAt: string;
+export interface UserInput {
+  input: string;
+  intent?: string;
+  created_at: string;
 }
 
 export interface SessionSummary {
@@ -22,8 +33,6 @@ export interface SessionSummary {
 }
 
 const TABLE_SESSIONS = 'chat_sessions';
-const TABLE_MESSAGES = 'chat_messages';
-const TABLE_SUMMARIES = 'chat_message_summaries';
 
 function mapSession(row: any): SessionRecord {
   return {
@@ -33,15 +42,18 @@ function mapSession(row: any): SessionRecord {
     phone: row.phone ?? null,
     email: row.email ?? null,
     websiteUrl: row.website_url ?? null,
-  };
-}
-
-function mapMessage(row: any): StoredMessage {
-  return {
-    id: row.id,
-    role: row.role,
-    content: row.content,
+    conversationSummary: row.conversation_summary ?? null,
+    lastMessageAt: row.last_message_at ?? null,
+    userInputsSummary: Array.isArray(row.user_inputs_summary) ? row.user_inputs_summary : [],
+    messageCount: row.message_count ?? 0,
+    bookingDate: row.booking_date ?? null,
+    bookingTime: row.booking_time ?? null,
+    bookingStatus: row.booking_status ?? null,
+    googleEventId: row.google_event_id ?? null,
+    bookingCreatedAt: row.booking_created_at ?? null,
+    brand: row.brand ?? 'proxe',
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -72,7 +84,10 @@ export async function ensureSession(
 
   const { data: created, error: insertError } = await supabase
     .from(TABLE_SESSIONS)
-    .insert({ external_session_id: externalSessionId })
+    .insert({ 
+      external_session_id: externalSessionId,
+      brand: brand,
+    })
     .select('*')
     .single();
 
@@ -96,7 +111,7 @@ export async function ensureSession(
     return null;
   }
 
-  return mapSession(created);
+  return created ? mapSession(created) : null;
 }
 
 export async function updateSessionProfile(
@@ -135,59 +150,60 @@ export async function updateSessionProfile(
   }
 }
 
-export async function storeMessage(
-  sessionId: string,
-  role: 'user' | 'assistant' | 'system',
-  content: string,
+export async function addUserInput(
+  externalSessionId: string,
+  input: string,
+  intent?: string,
   brand: 'proxe' | 'windchasers' = 'proxe'
 ) {
   const supabase = getSupabaseClient(brand);
   if (!supabase) {
-    console.warn('[chatSessions] Supabase client unavailable in storeMessage', { brand });
+    console.warn('[chatSessions] Supabase client unavailable in addUserInput', { brand });
     return;
   }
 
+  // Fetch current session to get existing user_inputs_summary
+  const { data: session, error: fetchError } = await supabase
+    .from(TABLE_SESSIONS)
+    .select('user_inputs_summary, message_count')
+    .eq('external_session_id', externalSessionId)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error('[Supabase] Failed to fetch session for addUserInput', fetchError);
+    return;
+  }
+
+  const existingInputs: UserInput[] = Array.isArray(session?.user_inputs_summary) 
+    ? session.user_inputs_summary 
+    : [];
+
+  const newInput: UserInput = {
+    input: input.trim(),
+    intent: intent,
+    created_at: new Date().toISOString(),
+  };
+
+  // Add new input and keep last 20 inputs
+  const updatedInputs = [...existingInputs, newInput].slice(-20);
+  const messageCount = (session?.message_count ?? 0) + 1;
+
   const { error } = await supabase
-    .from(TABLE_MESSAGES)
-    .insert({
-      session_id: sessionId,
-      role,
-      content,
-    });
+    .from(TABLE_SESSIONS)
+    .update({
+      user_inputs_summary: updatedInputs,
+      message_count: messageCount,
+      last_message_at: new Date().toISOString(),
+    })
+    .eq('external_session_id', externalSessionId);
 
   if (error) {
-    console.error('[Supabase] Failed to store message', error);
+    console.error('[Supabase] Failed to add user input', error);
   }
-}
-
-export async function fetchRecentMessages(
-  sessionId: string,
-  limit = 3,
-  brand: 'proxe' | 'windchasers' = 'proxe'
-): Promise<StoredMessage[]> {
-  const supabase = getSupabaseClient(brand);
-  if (!supabase) {
-    console.warn('[chatSessions] Supabase client unavailable in fetchRecentMessages', { brand });
-    return [];
-  }
-
-  const { data, error } = await supabase
-    .from(TABLE_MESSAGES)
-    .select('*')
-    .eq('session_id', sessionId)
-    .order('created_at', { ascending: false })
-    .limit(limit * 2); // fetch both user & assistant turns
-
-  if (error) {
-    console.error('[Supabase] Failed to fetch messages', error);
-    return [];
-  }
-
-  return (data ?? []).map(mapMessage).reverse();
 }
 
 export async function upsertSummary(
-  sessionId: string,
+  externalSessionId: string,
   summary: string,
   lastMessageCreatedAt: string,
   brand: 'proxe' | 'windchasers' = 'proxe'
@@ -199,11 +215,12 @@ export async function upsertSummary(
   }
 
   const { error } = await supabase
-    .from(TABLE_SUMMARIES)
-    .upsert(
-      { session_id: sessionId, summary, last_message_created_at: lastMessageCreatedAt },
-      { onConflict: 'session_id' }
-    );
+    .from(TABLE_SESSIONS)
+    .update({
+      conversation_summary: summary,
+      last_message_at: lastMessageCreatedAt,
+    })
+    .eq('external_session_id', externalSessionId);
 
   if (error) {
     console.error('[Supabase] Failed to upsert summary', error);
@@ -211,7 +228,7 @@ export async function upsertSummary(
 }
 
 export async function fetchSummary(
-  sessionId: string,
+  externalSessionId: string,
   brand: 'proxe' | 'windchasers' = 'proxe'
 ): Promise<SessionSummary | null> {
   const supabase = getSupabaseClient(brand);
@@ -221,9 +238,9 @@ export async function fetchSummary(
   }
 
   const { data, error } = await supabase
-    .from(TABLE_SUMMARIES)
-    .select('*')
-    .eq('session_id', sessionId)
+    .from(TABLE_SESSIONS)
+    .select('conversation_summary, last_message_at')
+    .eq('external_session_id', externalSessionId)
     .maybeSingle();
 
   if (error) {
@@ -231,11 +248,42 @@ export async function fetchSummary(
     return null;
   }
 
-  if (!data) return null;
+  if (!data || !data.conversation_summary) return null;
 
   return {
-    summary: data.summary,
-    lastMessageCreatedAt: data.last_message_created_at,
+    summary: data.conversation_summary,
+    lastMessageCreatedAt: data.last_message_at || new Date().toISOString(),
   };
 }
 
+export async function storeBooking(
+  externalSessionId: string,
+  booking: {
+    date: string; // YYYY-MM-DD format
+    time: string; // "11:00 AM" format
+    googleEventId?: string;
+    status?: 'pending' | 'confirmed' | 'cancelled';
+  },
+  brand: 'proxe' | 'windchasers' = 'proxe'
+) {
+  const supabase = getSupabaseClient(brand);
+  if (!supabase) {
+    console.warn('[chatSessions] Supabase client unavailable in storeBooking', { brand });
+    return;
+  }
+
+  const { error } = await supabase
+    .from(TABLE_SESSIONS)
+    .update({
+      booking_date: booking.date,
+      booking_time: booking.time,
+      google_event_id: booking.googleEventId ?? null,
+      booking_status: booking.status ?? 'confirmed',
+      booking_created_at: new Date().toISOString(),
+    })
+    .eq('external_session_id', externalSessionId);
+
+  if (error) {
+    console.error('[Supabase] Failed to store booking', error);
+  }
+}

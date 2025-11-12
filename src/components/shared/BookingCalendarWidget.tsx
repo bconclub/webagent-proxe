@@ -22,6 +22,7 @@ interface BookingData {
   name: string;
   email: string;
   phone: string;
+  googleEventId?: string;
 }
 
 interface TimeSlot {
@@ -236,16 +237,12 @@ export function BookingCalendarWidget({
       const data = await response.json();
 
       const bookingData: BookingData = {
-        date: selectedDate.toLocaleDateString('en-US', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        }),
+        date: dateStr, // Use YYYY-MM-DD format for storage
         time: selectedTime!,
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
+        googleEventId: data.eventId, // Include Google Calendar event ID
       };
 
       setShowConfirmation(true);

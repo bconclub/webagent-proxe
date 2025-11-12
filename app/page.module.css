@@ -5,7 +5,7 @@
   background: transparent;
   overflow-y: auto;
   scroll-behavior: smooth;
-  scroll-snap-type: y proximity;
+  scroll-snap-type: y mandatory;
 }
 
 .pageContainer::-webkit-scrollbar {
@@ -588,6 +588,8 @@
     min-height: 100vh;
     justify-content: flex-start;
     align-items: center;
+    scroll-snap-align: none;
+    scroll-snap-stop: normal;
   }
 
   .heroTitle {
@@ -617,6 +619,7 @@
     min-height: 100vh;
     padding: 100px 20px;
     gap: 20px;
+    scroll-snap-align: none;
   }
 
   .sectionHeading {
@@ -682,6 +685,7 @@
     min-height: 100vh;
     padding: 100px 20px;
     gap: 20px;
+    scroll-snap-align: none;
   }
 }
 
