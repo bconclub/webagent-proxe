@@ -297,7 +297,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           );
         }
 
-        const summaryRow = await fetchSummary(externalSessionId, brandKey);
+        const summaryRow = await fetchSummary(storedId, brandKey);
 
         if (!cancelled) {
           setConversationSummary(summaryRow?.summary ?? '');
