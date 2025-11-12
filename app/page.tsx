@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 
 import { BrandChatWidget } from '@/src/components/brand/BrandChatWidget';
 import DarkVeil from '@/src/components/shared/DarkVeil';
@@ -244,10 +245,74 @@ export default function HomePage() {
         </div>
       </section>
       <section className={styles.thirdSection}>
-        <h2 className={styles.sectionHeading}>Third Section</h2>
+        <h2 className={styles.sectionHeading}>Powerful Features</h2>
         <p className={styles.sectionSubtitle}>
-          Add your content here
+          Built to deliver intelligence that adapts and evolves with your business
         </p>
+        <div className={styles.bentoGrid}>
+          <article className={styles.bentoCard}>
+            <div className={styles.bentoCardImage}>
+              {/* Image placeholder - replace with actual image path when available */}
+              {/* <Image
+                src="/assets/features/self-learning-core.jpg"
+                alt="Self-Learning Core"
+                width={400}
+                height={200}
+                style={{ objectFit: 'cover' }}
+              /> */}
+            </div>
+            <h3 className={styles.bentoCardHeadline}>Self-Learning Core</h3>
+            <p className={styles.bentoCardSubtext}>
+              Every click, reply, and call feeds the same brain, so your AI understands customers better each second - no manual retraining required.
+            </p>
+          </article>
+          <article className={styles.bentoCard}>
+            <div className={styles.bentoCardImage}>
+              <Image
+                src="/assets/proxe/Models.webp"
+                alt="Latest Model, Instantly"
+                width={400}
+                height={200}
+                style={{ objectFit: 'cover' }}
+              />
+            </div>
+            <h3 className={styles.bentoCardHeadline}>Latest Model, Instantly</h3>
+            <p className={styles.bentoCardSubtext}>
+              The moment a stronger fine-tuned model releases, PROXe swaps to it automatically, your competitors still wait for dev queues.
+            </p>
+          </article>
+          <article className={styles.bentoCard}>
+            <div className={styles.bentoCardImage}>
+              {/* Image placeholder - replace with actual image path when available */}
+              {/* <Image
+                src="/assets/features/one-memory-one-voice.jpg"
+                alt="One Memory, One Voice"
+                width={400}
+                height={200}
+                style={{ objectFit: 'cover' }}
+              /> */}
+            </div>
+            <h3 className={styles.bentoCardHeadline}>One Memory, One Voice</h3>
+            <p className={styles.bentoCardSubtext}>
+              Website, WhatsApp, voice, and social share the same customer history and brand tone, making every touchpoint feel like the same conversation.
+            </p>
+          </article>
+          <article className={styles.bentoCard}>
+            <div className={styles.bentoCardImage}>
+              <Image
+                src="/assets/proxe/Command Center.webp"
+                alt="Command Center Dashboard"
+                width={400}
+                height={200}
+                style={{ objectFit: 'cover' }}
+              />
+            </div>
+            <h3 className={styles.bentoCardHeadline}>Command Center Dashboard</h3>
+            <p className={styles.bentoCardSubtext}>
+              One screen shows every conversation, lead, and metric. Jump in, take over, or let the AI finish the deal without losing context
+            </p>
+          </article>
+        </div>
       </section>
       <BrandChatWidget brand="proxe" apiUrl={apiUrl} />
     </main>
