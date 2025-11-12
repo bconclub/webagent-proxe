@@ -3,35 +3,18 @@ name: Deploy to VPS
 on:
   push:
     branches:
-      - main  # Deploy on push to main branch
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Deploy to VPS
+      - name: Trigger deployment on VPS
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            cd /var/www/goproxe
-            
-            # Pull latest changes
-            git pull origin main
-            
-            # Install dependencies
-            npm install
-            
-            # Build the project
-            npm run build
-            
-            # Restart PM2 process
-            pm2 restart goproxe-web
-            
-            echo "✅ Deployment complete!"
+            /var/www/goproxe/deploy.sh
