@@ -115,7 +115,7 @@ export default function HomePage() {
       id: 'social',
       title: 'Social PROXe',
       icon: VideoAiIcon,
-      tagline: 'Social AI thats digs deep in to your DMs and comments',
+      tagline: 'Social AI for No missed commets and DMs',
       benefits: [
         'Answers questions, qualifies leads, books calls in-chat',
         'Keeps brand voice consistent at global scale',
@@ -283,7 +283,7 @@ export default function HomePage() {
           <article className={styles.bentoCard}>
             <div className={styles.bentoCardImage}>
               <Image
-                src="/assets/proxe/one memmory one vioce.jpg"
+                src="/assets/proxe/one memmory one vioce.webp"
                 alt="One Memory, One Voice"
                 width={400}
                 height={200}
