@@ -35,16 +35,16 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 export default function FeaturedSectionStats() {
   const [isVisible, setIsVisible] = useState(false);
-  const ref = useRef<HTMLElement | null>(null);
+  const ref = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if (!ref.current) return;
+    if (!ref.current || typeof window === 'undefined') return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
+        if (entry.isIntersecting && ref.current) {
           setIsVisible(true);
-          observer.unobserve(ref.current!);
+          observer.unobserve(ref.current);
         }
       },
       { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
