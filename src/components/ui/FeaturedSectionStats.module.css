@@ -102,6 +102,48 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
+  outline: none !important;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chartContainer:focus,
+.chartContainer:focus-visible,
+.chartContainer:focus-within,
+.chartContainer:active,
+.chartContainer:focus-visible:focus {
+  outline: none !important;
+  border: 1px solid rgba(79, 13, 202, 0.32) !important;
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+.chartContainer svg,
+.chartContainer svg:focus,
+.chartContainer svg:focus-visible,
+.chartContainer svg:active,
+.chartContainer svg:focus-within {
+  outline: none !important;
+  border: none !important;
+}
+
+.chartContainer *,
+.chartContainer *:focus,
+.chartContainer *:focus-visible,
+.chartContainer *:active,
+.chartContainer *:focus-within {
+  outline: none !important;
+}
+
+.chartContainer g,
+.chartContainer path,
+.chartContainer rect,
+.chartContainer circle,
+.chartContainer line,
+.chartContainer text {
+  outline: none !important;
+  border: none !important;
 }
 
 .chartHeading {

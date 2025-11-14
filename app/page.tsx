@@ -292,7 +292,7 @@ export default function HomePage() {
             </div>
             <h3 className={styles.bentoCardHeadline}>Latest Model, Instantly</h3>
             <p className={styles.bentoCardSubtext}>
-              The moment a stronger fine-tuned model releases, PROXe swaps to it automatically, your competitors still wait for dev queues.
+              PROXe runs on the newest, strongest AI model, so your Business systems are run by the best AI available always
             </p>
           </article>
           </FadeInElement>

@@ -116,7 +116,7 @@ export default function FeaturedSectionStats() {
 
       {/* Area Chart */}
       <FadeInElement delay={300}>
-        <div className={styles.chartContainer}>
+        <div className={styles.chartContainer} tabIndex={-1}>
           <h4 className={styles.chartHeading}>Improved Conversations</h4>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart 
