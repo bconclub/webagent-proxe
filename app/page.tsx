@@ -252,14 +252,13 @@ export default function HomePage() {
         <div className={styles.bentoGrid}>
           <article className={styles.bentoCard}>
             <div className={styles.bentoCardImage}>
-              {/* Image placeholder - replace with actual image path when available */}
-              {/* <Image
-                src="/assets/features/self-learning-core.jpg"
+              <Image
+                src="/assets/proxe/Self learning.webp"
                 alt="Self-Learning Core"
                 width={400}
                 height={200}
                 style={{ objectFit: 'cover' }}
-              /> */}
+              />
             </div>
             <h3 className={styles.bentoCardHeadline}>Self-Learning Core</h3>
             <p className={styles.bentoCardSubtext}>
@@ -283,14 +282,13 @@ export default function HomePage() {
           </article>
           <article className={styles.bentoCard}>
             <div className={styles.bentoCardImage}>
-              {/* Image placeholder - replace with actual image path when available */}
-              {/* <Image
-                src="/assets/features/one-memory-one-voice.jpg"
+              <Image
+                src="/assets/proxe/one memmory one vioce.jpg"
                 alt="One Memory, One Voice"
                 width={400}
                 height={200}
                 style={{ objectFit: 'cover' }}
-              /> */}
+              />
             </div>
             <h3 className={styles.bentoCardHeadline}>One Memory, One Voice</h3>
             <p className={styles.bentoCardSubtext}>
