@@ -7,6 +7,9 @@ import { BrandChatWidget } from '@/src/components/brand/BrandChatWidget';
 import DarkVeil from '@/src/components/shared/DarkVeil';
 import Header from '@/src/components/shared/Header';
 import BlurText from '@/src/components/shared/BlurText';
+import FadeInSection from '@/src/components/shared/FadeInSection';
+import FadeInElement from '@/src/components/shared/FadeInElement';
+import FeaturedSectionStats from '@/src/components/ui/FeaturedSectionStats';
 import { useDeployModal } from '@/src/contexts/DeployModalContext';
 import styles from './page.module.css';
 import {
@@ -170,41 +173,45 @@ export default function HomePage() {
         />
         <p className={styles.heroSubtitle}>One AI Brain. Every channel. Zero blind spots.</p>
       </section>
-      <section className={styles.solutionsSection}>
-        <h2 className={styles.sectionHeading}>Meet Our PROXes</h2>
-        <p className={styles.sectionSubtitle}>
-          Deploy the channel-first agent that matches the way your customers already interact.
-        </p>
+      <FadeInSection className={styles.solutionsSection} delay={100}>
+        <FadeInElement>
+          <h2 className={styles.sectionHeading}>Meet Our PROXes</h2>
+        </FadeInElement>
+        <FadeInElement delay={50}>
+          <p className={styles.sectionSubtitle}>
+            Deploy the channel-first agent that matches the way your customers already interact.
+          </p>
+        </FadeInElement>
         <div className={styles.solutionsGrid}>
-          {proxeSolutions.map((solution) => (
-            <article
-              key={solution.id}
-              data-solution-id={solution.id}
-              className={[
-                styles.solutionCard,
-                activeSolution === solution.id
-                  ? styles.solutionCardExpanded
-                  : styles.solutionCardCollapsed,
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              role="button"
-              tabIndex={0}
-              aria-expanded={activeSolution === solution.id}
-              onClick={() => {
-                setActiveSolution((current) =>
-                  current === solution.id ? null : solution.id
-                );
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
+          {proxeSolutions.map((solution, index) => (
+            <FadeInElement key={solution.id} delay={100 + index * 50}>
+              <article
+                data-solution-id={solution.id}
+                className={[
+                  styles.solutionCard,
+                  activeSolution === solution.id
+                    ? styles.solutionCardExpanded
+                    : styles.solutionCardCollapsed,
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                role="button"
+                tabIndex={0}
+                aria-expanded={activeSolution === solution.id}
+                onClick={() => {
                   setActiveSolution((current) =>
                     current === solution.id ? null : solution.id
                   );
-                }
-              }}
-            >
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setActiveSolution((current) =>
+                      current === solution.id ? null : solution.id
+                    );
+                  }
+                }}
+              >
               <div className={styles.solutionHeader}>
                 <div className={styles.solutionIcon} aria-hidden="true">
                   <HugeiconsIcon icon={solution.icon} size={39} />
@@ -240,17 +247,23 @@ export default function HomePage() {
                   {solution.ctaLabel}
                 </button>
               </div>
-            </article>
+              </article>
+            </FadeInElement>
           ))}
         </div>
-      </section>
-      <section className={styles.thirdSection}>
-        <h2 className={styles.sectionHeading}>Powerful Features</h2>
-        <p className={styles.sectionSubtitle}>
-          Built to deliver intelligence that adapts and evolves with your business
-        </p>
+      </FadeInSection>
+      <FadeInSection className={styles.thirdSection} delay={200}>
+        <FadeInElement>
+          <h2 className={styles.sectionHeading}>Powerful Features</h2>
+        </FadeInElement>
+        <FadeInElement delay={50}>
+          <p className={styles.sectionSubtitle}>
+            Built to deliver intelligence that adapts and evolves with your business
+          </p>
+        </FadeInElement>
         <div className={styles.bentoGrid}>
-          <article className={styles.bentoCard}>
+          <FadeInElement delay={100}>
+            <article className={styles.bentoCard}>
             <div className={styles.bentoCardImage}>
               <Image
                 src="/assets/proxe/Self learning.webp"
@@ -262,10 +275,12 @@ export default function HomePage() {
             </div>
             <h3 className={styles.bentoCardHeadline}>Self-Learning Core</h3>
             <p className={styles.bentoCardSubtext}>
-              Every click, reply, and call feeds the same brain, so your AI understands customers better each second - no manual retraining required.
+              Every click, reply, and call feeds the same brain, so your AI understands customers better each second.
             </p>
-          </article>
-          <article className={styles.bentoCard}>
+            </article>
+          </FadeInElement>
+          <FadeInElement delay={150}>
+            <article className={styles.bentoCard}>
             <div className={styles.bentoCardImage}>
               <Image
                 src="/assets/proxe/Models.webp"
@@ -280,7 +295,9 @@ export default function HomePage() {
               The moment a stronger fine-tuned model releases, PROXe swaps to it automatically, your competitors still wait for dev queues.
             </p>
           </article>
-          <article className={styles.bentoCard}>
+          </FadeInElement>
+          <FadeInElement delay={200} animationType="fadeUp">
+            <article className={styles.bentoCard}>
             <div className={styles.bentoCardImage}>
               <Image
                 src="/assets/proxe/one memmory one vioce.webp"
@@ -292,10 +309,12 @@ export default function HomePage() {
             </div>
             <h3 className={styles.bentoCardHeadline}>One Memory, One Voice</h3>
             <p className={styles.bentoCardSubtext}>
-              Website, WhatsApp, voice, and social share the same customer history and brand tone, making every touchpoint feel like the same conversation.
+              All channels website, WhatsApp, voice, social share customer history and brand tone, so conversations never reset.
             </p>
           </article>
-          <article className={styles.bentoCard}>
+          </FadeInElement>
+          <FadeInElement delay={250}>
+            <article className={styles.bentoCard}>
             <div className={styles.bentoCardImage}>
               <Image
                 src="/assets/proxe/Command Center.webp"
@@ -310,8 +329,10 @@ export default function HomePage() {
               One screen shows every conversation, lead, and metric. Jump in, take over, or let the AI finish the deal without losing context
             </p>
           </article>
+          </FadeInElement>
         </div>
-      </section>
+      </FadeInSection>
+      <FeaturedSectionStats />
       <BrandChatWidget brand="proxe" apiUrl={apiUrl} />
     </main>
   )
