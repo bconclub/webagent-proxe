@@ -382,57 +382,29 @@ export async function POST(request: NextRequest) {
           // Track used buttons (normalize to lowercase for comparison)
           const usedButtonsLower = (usedButtons || []).map((b: string) => b.toLowerCase());
           
-          // After 3 messages, always suggest booking a call
-          const isAskingWhatProxe =
-            lowerMessage.includes("what's proxe") ||
-            lowerMessage.includes('what is proxe') ||
-            lowerMessage.includes('whats proxe');
-          
-          if (isAskingWhatProxe) {
-            followUpsArray = firstMessageButtons; // Use configured first message buttons
-          } else if (isThirdMessage) {
-            followUpsArray = ['Schedule a Call'];
-          } 
-          // First message: use specific 3 buttons
-          else if (isFirstMessage) {
+          // First message: show the 3 configured first message buttons
+          if (isFirstMessage) {
             followUpsArray = firstMessageButtons;
           } 
-          // Subsequent messages: generate 1 contextual button
+          // Subsequent messages: show ONE random button from the available options
           else {
-            // Generate contextual follow-up
-            const followUpSuggestion = await generateFollowUpSuggestion(message, cleanedResponse, messageCount, normalizedBrand);
+            // Available buttons for subsequent messages
+            const availableButtons = defaultFollowUps;
             
-            if (followUpSuggestion && followUpSuggestion.toLowerCase() !== 'skip') {
-              // Check if this suggestion was already used or is similar to a used button
-              const isUsed = usedButtonsLower.includes(followUpSuggestion.toLowerCase());
-              const isSimilar = isSimilarToAny(followUpSuggestion, usedButtons);
-              
-              if (!isUsed && !isSimilar) {
-                followUpsArray = [followUpSuggestion];
-              } else {
-                // If suggested button was already used or similar, pick from defaults
-                const availableDefaults = defaultFollowUps.filter(followUp => {
-                  const lowerFollowUp = followUp.toLowerCase();
-                  const isFollowUpUsed = usedButtonsLower.includes(lowerFollowUp);
-                  const isFollowUpSimilar = isSimilarToAny(followUp, usedButtons);
-                  return !isFollowUpUsed && !isFollowUpSimilar;
-                });
-                followUpsArray = availableDefaults.length > 0 
-                  ? [availableDefaults[0]] 
-                  : [defaultFollowUps[0]]; // Fallback to first default if all used
-              }
-            } else {
-              // No contextual suggestion, pick from defaults that haven't been used
-              const availableDefaults = defaultFollowUps.filter(followUp => {
-                const lowerFollowUp = followUp.toLowerCase();
-                const isFollowUpUsed = usedButtonsLower.includes(lowerFollowUp);
-                const isFollowUpSimilar = isSimilarToAny(followUp, usedButtons);
-                return !isFollowUpUsed && !isFollowUpSimilar;
-              });
-              followUpsArray = availableDefaults.length > 0 
-                ? [availableDefaults[0]] 
-                : [defaultFollowUps[0]]; // Fallback to first default if all used
-            }
+            // Filter out buttons that have been used or are similar to used buttons
+            const unusedButtons = availableButtons.filter(followUp => {
+              const lowerFollowUp = followUp.toLowerCase();
+              const isUsed = usedButtonsLower.includes(lowerFollowUp);
+              const isSimilar = isSimilarToAny(followUp, usedButtons);
+              return !isUsed && !isSimilar;
+            });
+            
+            // If all buttons have been used, reset and use all available buttons
+            const buttonsToChooseFrom = unusedButtons.length > 0 ? unusedButtons : availableButtons;
+            
+            // Randomly select one button
+            const randomIndex = Math.floor(Math.random() * buttonsToChooseFrom.length);
+            followUpsArray = [buttonsToChooseFrom[randomIndex]];
           }
           
           // Final fallback: ensure we always have at least 1 follow-up button

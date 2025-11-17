@@ -5,6 +5,7 @@ import { useChat } from '@/src/hooks/useChat';
 import type { Message } from '@/src/hooks/useChatStream';
 import { InfinityLoader } from './InfinityLoader';
 import { BookingCalendarWidget, type BookingCalendarWidgetProps } from './BookingCalendarWidget';
+import { DeployFormInline } from './DeployFormInline';
 import type { BrandConfig } from '@/src/configs';
 import { useDeployModal } from '@/src/contexts/DeployModalContext';
 import styles from './ChatWidget.module.css';
@@ -121,6 +122,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const [showCalendly, setShowCalendly] = useState<string | null>(null);
   const [calendarAnchorId, setCalendarAnchorId] = useState<string | null>(null);
   const [pendingCalendar, setPendingCalendar] = useState(false);
+  const [showDeployForm, setShowDeployForm] = useState<string | null>(null);
+  const [deployAnchorId, setDeployAnchorId] = useState<string | null>(null);
   const [bookingCompleted, setBookingCompleted] = useState(false);
   const [usedButtons, setUsedButtons] = useState<string[]>([]);
   const [showVideo, setShowVideo] = useState<string | null>(null);
@@ -580,6 +583,11 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     setShowCalendly(null);
     setPendingCalendar(false);
     setCalendarAnchorId(null);
+  }, []);
+
+  const closeDeployForm = useCallback(() => {
+    setShowDeployForm(null);
+    setDeployAnchorId(null);
   }, []);
 
   const closeVideoWidget = useCallback(() => {
@@ -1638,15 +1646,62 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       console.log('[ChatWidget] Quick button clicked', { buttonText, message });
     }
 
-    // Handle Deploy PROXe button - open deploy modal
-    if (message.toLowerCase() === 'deploy proxe') {
-      openDeployModal();
+    // Handle Deploy PROXe button - show deploy form inline
+    // Match variations: "Deploy PROXe", "Deploy Proxe", "deploy proxe", etc.
+    const lowerMessage = message.toLowerCase().trim();
+    if (lowerMessage.includes('deploy') && (lowerMessage.includes('proxe') || lowerMessage.includes('prox'))) {
+      closeCalendarWidget();
+      closeDeployForm();
+      setPendingCalendar(false);
+      if (showNamePrompt) {
+        setShowNamePrompt(false);
+      }
+      if (showEmailPrompt) {
+        setShowEmailPrompt(false);
+      }
+      if (showPhonePrompt) {
+        setShowPhonePrompt(false);
+      }
+      
+      setIsOpen(true);
+      setIsExpanded(false);
+      setShowQuickButtons(false);
+      setIsInputActive(false);
+      
+      // Add user message to chat
+      addUserMessage('Deploy PROXe');
+      
+      // Show deploy form after the user message is added
+      // Use a longer timeout to ensure the message is in the array
+      setTimeout(() => {
+        const deployMessageId = `deploy-${Date.now()}`;
+        setShowDeployForm(deployMessageId);
+        // Find the last user message (should be the one we just added)
+        const userMessages = messages.filter(m => m.type === 'user');
+        const lastUserMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
+        if (lastUserMessage?.id) {
+          setDeployAnchorId(lastUserMessage.id);
+        } else {
+          // Fallback: use the last message in the array
+          const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+          setDeployAnchorId(lastMessage?.id || null);
+        }
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[ChatWidget] Deploy form opened', { 
+            messagesCount: messages.length,
+            lastUserMessageId: lastUserMessage?.id,
+            anchorId: lastUserMessage?.id || messages[messages.length - 1]?.id 
+          });
+        }
+      }, 300);
+      
       return;
     }
 
     // Handle Watch Video button - show video widget
     if (message.toLowerCase() === 'watch video') {
       closeCalendarWidget();
+      closeDeployForm();
       setIsOpen(true);
       setIsExpanded(false);
       setShowQuickButtons(false);
@@ -2118,7 +2173,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                       </div>
                       
                       {/* Follow-up buttons inside the bubble for AI messages */}
-                      {message.type === 'ai' && message.followUps && message.followUps.length > 0 && !message.isStreaming && message.hasStreamed === true && !showCalendly && (
+                      {message.type === 'ai' && message.followUps && message.followUps.length > 0 && !message.isStreaming && message.hasStreamed === true && !showCalendly && !showDeployForm && (
                         <div className={styles.followUpButtons}>
                           {message.followUps.map((followUp, followUpIndex) => {
                             // Rotate through accent colors for follow-up buttons
@@ -2197,6 +2252,69 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                           } satisfies BookingCalendarWidgetProps)}
                         />
                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {showDeployForm && (deployAnchorId === message.id || (!deployAnchorId && index === messages.length - 1)) && (
+              <div 
+                key={showDeployForm}
+                className={`${styles.message} ${styles.ai} ${styles['accent-0']}`}
+                onClick={(e) => e.stopPropagation()}
+                ref={(el) => {
+                  if (el) {
+                    requestAnimationFrame(() => {
+                      setTimeout(() => {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                      }, 100);
+                    });
+                  }
+                }}
+              >
+                <div className={styles.messageContent}>
+                  <div className={styles.bubble}>
+                    <div className={styles.bubbleContent}>
+                      {/* Header with avatar and name inside the bubble */}
+                      <div className={styles.bubbleHeader}>
+                        <div className={styles.bubbleAvatar}>
+                          {ICONS.ai(brand, config)}
+                        </div>
+                        <span className={styles.bubbleName}>
+                          {config.name}
+                        </span>
+                        <button
+                          type="button"
+                          className={styles.calendarCloseBtn}
+                          onClick={closeDeployForm}
+                          aria-label="Close deploy form"
+                        >
+                          {ICONS.close}
+                        </button>
+                      </div>
+                      
+                      {/* Deploy Form */}
+                      <DeployFormInline
+                        brand={brand}
+                        config={config}
+                        userProfile={userProfile}
+                        onContactDraft={handleContactDraft}
+                        onContactSubmit={handleContactPersist}
+                        onFormSubmit={async () => {
+                          // Sync websiteUrl from localStorage to Supabase
+                          const storedUser = getStoredUser(brandKey);
+                          if (storedUser?.websiteUrl && externalSessionId) {
+                            await persistUserProfile({ websiteUrl: storedUser.websiteUrl });
+                          }
+                          
+                          // Add confirmation message to chat
+                          addAIMessage("Thanks! We've received your details. Our team will review them and get back to you within 24 hours. In the meantime, feel free to ask any questions about PROXe!");
+                          
+                          // Close the form
+                          closeDeployForm();
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -2318,7 +2436,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         )}
 
         {/* Inline Name Prompt Card */}
-        {showNamePrompt && !showCalendly && (
+        {showNamePrompt && !showCalendly && !showDeployForm && (
           <div
             className={`${styles.message} ${styles.ai} ${styles['accent-0']}`}
             ref={(el) => {
@@ -2373,7 +2491,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         )}
 
         {/* Inline Email Prompt Card */}
-        {showEmailPrompt && !showCalendly && (
+        {showEmailPrompt && !showCalendly && !showDeployForm && (
           <div
             className={`${styles.message} ${styles.ai} ${styles['accent-0']}`}
             ref={(el) => {
@@ -2429,7 +2547,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         )}
 
         {/* Inline Phone Prompt Card */}
-        {showPhonePrompt && !showCalendly && (
+        {showPhonePrompt && !showCalendly && !showDeployForm && (
           <div
             className={`${styles.message} ${styles.ai} ${styles['accent-0']}`}
             ref={(el) => {
