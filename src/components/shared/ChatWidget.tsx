@@ -216,7 +216,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           }
         }
 
-        const record = await ensureSession(storedId, brandKey);
+        const record = await ensureSession(storedId, 'web', brandKey);
         if (!record) {
           if (process.env.NODE_ENV !== 'production') {
             console.warn('[ChatWidget] Unable to ensure session in Supabase', {

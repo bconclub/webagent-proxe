@@ -2,7 +2,7 @@
 
 ## Database Table: `chat_sessions`
 
-### 📋 All Fields (17 total)
+### 📋 All Fields (19 total)
 
 ---
 
@@ -65,7 +65,16 @@
 
 ---
 
-## 6. **Metadata** (3 fields)
+## 6. **Channel Information** (2 fields)
+
+| Database Column | TypeScript Property | Type | Description |
+|----------------|-------------------|------|-------------|
+| `channel` | `channel` | `text` (required) | Communication channel: `'web'` \| `'whatsapp'` \| `'voice'` \| `'social'` - Must be explicitly set based on session source |
+| `channel_data` | `channelData` | `jsonb` (default: `{}`) | Flexible storage for channel-specific data and metadata |
+
+---
+
+## 7. **Metadata** (3 fields)
 
 | Database Column | TypeScript Property | Type | Description |
 |----------------|-------------------|------|-------------|
@@ -82,9 +91,10 @@
 - **Conversation Summary**: 2 fields
 - **User Inputs**: 2 fields
 - **Booking Details**: 5 fields
+- **Channel Information**: 2 fields
 - **Metadata**: 3 fields
 
-**Total: 17 fields**
+**Total: 19 fields**
 
 ---
 
@@ -94,6 +104,7 @@
 2. `chat_sessions_brand_idx` - Index on `brand`
 3. `chat_sessions_created_at_idx` - Index on `created_at` (descending)
 4. `chat_sessions_booking_date_idx` - Partial index on `booking_date` (where not null)
+5. `chat_sessions_channel_idx` - Index on `channel`
 
 ---
 
@@ -136,8 +147,42 @@
   "google_event_id": "event123456",
   "booking_created_at": "2024-01-15T10:30:00Z",
   "brand": "proxe",
+  "channel": "web",
+  "channel_data": {},
   "created_at": "2024-01-15T09:00:00Z",
   "updated_at": "2024-01-15T10:30:00Z"
 }
 ```
+
+---
+
+## 📡 Channel-Specific Session Tables
+
+The system includes separate tables for each communication channel that reference the main `chat_sessions` table:
+
+### 1. **Web Sessions** (`web_sessions`)
+- `id` - Primary key (uuid)
+- `session_id` - Foreign key to `chat_sessions(id)` (unique, cascade on delete)
+- `created_at` - Creation timestamp
+- `updated_at` - Last update timestamp (auto-updated via trigger)
+
+### 2. **WhatsApp Sessions** (`whatsapp_sessions`)
+- `id` - Primary key (uuid)
+- `session_id` - Foreign key to `chat_sessions(id)` (unique, cascade on delete)
+- `created_at` - Creation timestamp
+- `updated_at` - Last update timestamp (auto-updated via trigger)
+
+### 3. **Voice Sessions** (`voice_sessions`)
+- `id` - Primary key (uuid)
+- `session_id` - Foreign key to `chat_sessions(id)` (unique, cascade on delete)
+- `created_at` - Creation timestamp
+- `updated_at` - Last update timestamp (auto-updated via trigger)
+
+### 4. **Social Sessions** (`social_sessions`)
+- `id` - Primary key (uuid)
+- `session_id` - Foreign key to `chat_sessions(id)` (unique, cascade on delete)
+- `created_at` - Creation timestamp
+- `updated_at` - Last update timestamp (auto-updated via trigger)
+
+**Note:** Channel-specific tables are automatically created when a new session is created via `ensureSession()`. These tables can be extended with channel-specific fields as needed.
 

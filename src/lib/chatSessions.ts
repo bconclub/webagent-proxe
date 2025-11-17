@@ -1,5 +1,11 @@
 import { getSupabaseClient } from './supabaseClient';
 
+// Channel type definition
+// NOTE: Full type includes all 4 channels for future use
+// Current build (goproxe.com) only uses: 'web' and 'voice'
+// WhatsApp and Social are ready for future implementation
+export type Channel = 'web' | 'whatsapp' | 'voice' | 'social';
+
 export interface SessionRecord {
   id: string;
   externalSessionId: string;
@@ -17,6 +23,8 @@ export interface SessionRecord {
   googleEventId: string | null;
   bookingCreatedAt: string | null;
   brand: 'proxe' | 'windchasers';
+  channel: Channel;
+  channelData: Record<string, any>;
   createdAt: string;
   updatedAt: string;
 }
@@ -32,7 +40,44 @@ export interface SessionSummary {
   lastMessageCreatedAt: string;
 }
 
-const TABLE_SESSIONS = 'chat_sessions';
+const TABLE_SESSIONS = 'sessions';
+
+// Helper function to create channel-specific session record
+async function createChannelSession(
+  sessionId: string,
+  channel: Channel,
+  brand: 'proxe' | 'windchasers'
+): Promise<void> {
+  const supabase = getSupabaseClient(brand);
+  if (!supabase) {
+    return;
+  }
+
+  const channelTableMap: Record<Channel, string> = {
+    web: 'web_sessions',
+    whatsapp: 'whatsapp_sessions',
+    voice: 'voice_sessions',
+    social: 'social_sessions',
+  };
+
+  const tableName = channelTableMap[channel];
+  if (!tableName) {
+    console.warn('[chatSessions] Unknown channel', { channel });
+    return;
+  }
+
+  const { error } = await supabase
+    .from(tableName)
+    .insert({ session_id: sessionId })
+    .select();
+
+  if (error) {
+    // Ignore duplicate key errors (session might already exist)
+    if (error.code !== '23505') {
+      console.warn(`[chatSessions] Failed to create ${channel} session`, error);
+    }
+  }
+}
 
 function mapSession(row: any): SessionRecord {
   return {
@@ -52,6 +97,8 @@ function mapSession(row: any): SessionRecord {
     googleEventId: row.google_event_id ?? null,
     bookingCreatedAt: row.booking_created_at ?? null,
     brand: row.brand ?? 'proxe',
+    channel: row.channel ?? 'web',
+    channelData: row.channel_data ?? {},
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -59,11 +106,12 @@ function mapSession(row: any): SessionRecord {
 
 export async function ensureSession(
   externalSessionId: string,
+  channel: Channel,
   brand: 'proxe' | 'windchasers' = 'proxe'
 ): Promise<SessionRecord | null> {
   const supabase = getSupabaseClient(brand);
   if (!supabase) {
-    console.warn('[chatSessions] Supabase client unavailable in ensureSession', { brand });
+    console.warn('[chatSessions] Supabase client unavailable in ensureSession', { brand, channel });
     return null;
   }
 
@@ -79,6 +127,8 @@ export async function ensureSession(
   }
 
   if (data) {
+    // Ensure channel-specific record exists even for existing sessions
+    await ensureChannelSessionExists(data.id, channel, brand);
     return mapSession(data);
   }
 
@@ -87,6 +137,8 @@ export async function ensureSession(
     .insert({ 
       external_session_id: externalSessionId,
       brand: brand,
+      channel: channel,
+      channel_data: {},
     })
     .select('*')
     .single();
@@ -104,14 +156,66 @@ export async function ensureSession(
         return null;
       }
 
-      return existing ? mapSession(existing) : null;
+      if (existing) {
+        // Ensure channel-specific record exists
+        await ensureChannelSessionExists(existing.id, channel, brand);
+        return mapSession(existing);
+      }
+      return null;
     }
 
     console.error('[Supabase] Failed to create session', insertError);
     return null;
   }
 
-  return created ? mapSession(created) : null;
+  // Create channel-specific session record
+  if (created) {
+    await createChannelSession(created.id, channel, brand);
+    return mapSession(created);
+  }
+
+  return null;
+}
+
+// Helper function to ensure channel-specific session record exists
+async function ensureChannelSessionExists(
+  sessionId: string,
+  channel: Channel,
+  brand: 'proxe' | 'windchasers'
+): Promise<void> {
+  const supabase = getSupabaseClient(brand);
+  if (!supabase) {
+    return;
+  }
+
+  const channelTableMap: Record<Channel, string> = {
+    web: 'web_sessions',
+    whatsapp: 'whatsapp_sessions',
+    voice: 'voice_sessions',
+    social: 'social_sessions',
+  };
+
+  const tableName = channelTableMap[channel];
+  if (!tableName) {
+    return;
+  }
+
+  // Check if channel-specific record already exists
+  const { data: existing, error: checkError } = await supabase
+    .from(tableName)
+    .select('id')
+    .eq('session_id', sessionId)
+    .maybeSingle();
+
+  if (checkError) {
+    console.warn(`[chatSessions] Failed to check ${channel} session`, checkError);
+    return;
+  }
+
+  // Create if it doesn't exist
+  if (!existing) {
+    await createChannelSession(sessionId, channel, brand);
+  }
 }
 
 export async function updateSessionProfile(
@@ -285,5 +389,41 @@ export async function storeBooking(
 
   if (error) {
     console.error('[Supabase] Failed to store booking', error);
+  }
+}
+
+export async function updateChannelData(
+  externalSessionId: string,
+  channelData: Record<string, any>,
+  brand: 'proxe' | 'windchasers' = 'proxe'
+) {
+  const supabase = getSupabaseClient(brand);
+  if (!supabase) {
+    console.warn('[chatSessions] Supabase client unavailable in updateChannelData', { brand });
+    return;
+  }
+
+  // Fetch current channel_data to merge
+  const { data: session, error: fetchError } = await supabase
+    .from(TABLE_SESSIONS)
+    .select('channel_data')
+    .eq('external_session_id', externalSessionId)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error('[Supabase] Failed to fetch session for updateChannelData', fetchError);
+    return;
+  }
+
+  const currentData = session?.channel_data ?? {};
+  const mergedData = { ...currentData, ...channelData };
+
+  const { error } = await supabase
+    .from(TABLE_SESSIONS)
+    .update({ channel_data: mergedData })
+    .eq('external_session_id', externalSessionId);
+
+  if (error) {
+    console.error('[Supabase] Failed to update channel data', error);
   }
 }
