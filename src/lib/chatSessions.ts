@@ -218,6 +218,14 @@ async function ensureChannelSessionExists(
   }
 }
 
+// Helper function to check if a lead is complete (has name, email, and phone)
+function isCompleteLead(profile: { userName?: string | null; phone?: string | null; email?: string | null }): boolean {
+  const hasName = Boolean(profile.userName && profile.userName.trim());
+  const hasEmail = Boolean(profile.email && profile.email.trim());
+  const hasPhone = Boolean(profile.phone && profile.phone.trim());
+  return hasName && hasEmail && hasPhone;
+}
+
 export async function updateSessionProfile(
   externalSessionId: string,
   profile: { userName?: string; phone?: string | null; email?: string | null; websiteUrl?: string | null },
@@ -228,6 +236,27 @@ export async function updateSessionProfile(
     console.warn('[chatSessions] Supabase client unavailable in updateSessionProfile', { brand });
     return;
   }
+
+  // Check if this is a complete lead before creating/updating session
+  const completeLead = isCompleteLead({
+    userName: profile.userName,
+    email: profile.email,
+    phone: profile.phone,
+  });
+
+  if (!completeLead) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[chatSessions] Skipping session update - incomplete lead (missing name, email, or phone)', {
+        hasName: Boolean(profile.userName?.trim()),
+        hasEmail: Boolean(profile.email?.trim()),
+        hasPhone: Boolean(profile.phone?.trim()),
+      });
+    }
+    return;
+  }
+
+  // Ensure session exists for complete leads
+  await ensureSession(externalSessionId, 'web', brand);
 
   const updates: Record<string, string | null | undefined> = {};
   if (typeof profile.userName === 'string') {
@@ -251,6 +280,8 @@ export async function updateSessionProfile(
 
   if (error) {
     console.error('[Supabase] Failed to update session profile', error);
+  } else if (process.env.NODE_ENV !== 'production') {
+    console.log('[Supabase] Successfully updated session profile for complete lead', { externalSessionId });
   }
 }
 
@@ -266,8 +297,33 @@ export async function addUserInput(
     return;
   }
 
+  // Check if session exists and is a complete lead before adding input
+  const { data: existingSession } = await supabase
+    .from(TABLE_SESSIONS)
+    .select('user_name, email, phone')
+    .eq('external_session_id', externalSessionId)
+    .maybeSingle();
+
+  // Only add user input if this is a complete lead (has name, email, phone)
+  const isComplete = existingSession && 
+    existingSession.user_name?.trim() && 
+    existingSession.email?.trim() && 
+    existingSession.phone?.trim();
+
+  if (!isComplete) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[chatSessions] Skipping user input - incomplete lead (missing name, email, or phone)', {
+        hasSession: Boolean(existingSession),
+        hasName: Boolean(existingSession?.user_name?.trim()),
+        hasEmail: Boolean(existingSession?.email?.trim()),
+        hasPhone: Boolean(existingSession?.phone?.trim()),
+      });
+    }
+    return;
+  }
+
   // Fetch current session to get existing user_inputs_summary
-  const { data: session, error: fetchError } = await supabase
+  const { data: currentSession, error: fetchError } = await supabase
     .from(TABLE_SESSIONS)
     .select('user_inputs_summary, message_count')
     .eq('external_session_id', externalSessionId)
@@ -278,8 +334,13 @@ export async function addUserInput(
     return;
   }
 
-  const existingInputs: UserInput[] = Array.isArray(session?.user_inputs_summary) 
-    ? session.user_inputs_summary 
+  if (!currentSession) {
+    console.error('[Supabase] Session not found for addUserInput', { externalSessionId, brand });
+    return;
+  }
+
+  const existingInputs: UserInput[] = Array.isArray(currentSession?.user_inputs_summary) 
+    ? currentSession.user_inputs_summary 
     : [];
 
   const newInput: UserInput = {
@@ -290,7 +351,7 @@ export async function addUserInput(
 
   // Add new input and keep last 20 inputs
   const updatedInputs = [...existingInputs, newInput].slice(-20);
-  const messageCount = (session?.message_count ?? 0) + 1;
+  const messageCount = (currentSession?.message_count ?? 0) + 1;
 
   const { error } = await supabase
     .from(TABLE_SESSIONS)
@@ -303,6 +364,8 @@ export async function addUserInput(
 
   if (error) {
     console.error('[Supabase] Failed to add user input', error);
+  } else if (process.env.NODE_ENV !== 'production') {
+    console.log('[Supabase] Successfully added user input', { externalSessionId, messageCount });
   }
 }
 
@@ -315,6 +378,25 @@ export async function upsertSummary(
   const supabase = getSupabaseClient(brand);
   if (!supabase) {
     console.warn('[chatSessions] Supabase client unavailable in upsertSummary', { brand });
+    return;
+  }
+
+  // Only update summary for complete leads
+  const { data: existingSession } = await supabase
+    .from(TABLE_SESSIONS)
+    .select('user_name, email, phone')
+    .eq('external_session_id', externalSessionId)
+    .maybeSingle();
+
+  const isComplete = existingSession && 
+    existingSession.user_name?.trim() && 
+    existingSession.email?.trim() && 
+    existingSession.phone?.trim();
+
+  if (!isComplete) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[chatSessions] Skipping summary update - incomplete lead');
+    }
     return;
   }
 
@@ -373,6 +455,25 @@ export async function storeBooking(
   const supabase = getSupabaseClient(brand);
   if (!supabase) {
     console.warn('[chatSessions] Supabase client unavailable in storeBooking', { brand });
+    return;
+  }
+
+  // Only store booking for complete leads
+  const { data: existingSession } = await supabase
+    .from(TABLE_SESSIONS)
+    .select('user_name, email, phone')
+    .eq('external_session_id', externalSessionId)
+    .maybeSingle();
+
+  const isComplete = existingSession && 
+    existingSession.user_name?.trim() && 
+    existingSession.email?.trim() && 
+    existingSession.phone?.trim();
+
+  if (!isComplete) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[chatSessions] Skipping booking storage - incomplete lead');
+    }
     return;
   }
 

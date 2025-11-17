@@ -216,21 +216,40 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           }
         }
 
-        const record = await ensureSession(storedId, 'web', brandKey);
-        if (!record) {
+        // Only create session if we have a complete lead (name, email, phone)
+        // Check stored user profile first
+        const hasCompleteLead = storedUser && 
+          storedUser.name?.trim() && 
+          storedUser.email?.trim() && 
+          storedUser.phone?.trim();
+
+        let record: SessionRecord | null = null;
+        
+        if (hasCompleteLead) {
+          record = await ensureSession(storedId, 'web', brandKey);
+          if (!record) {
+            if (process.env.NODE_ENV !== 'production') {
+              console.warn('[ChatWidget] Unable to ensure session in Supabase', {
+                storedId,
+                brandKey,
+                recordPresent: Boolean(record),
+                cancelled,
+              });
+            }
+            return;
+          }
+          setSessionRecord(record);
+        } else {
           if (process.env.NODE_ENV !== 'production') {
-            console.warn('[ChatWidget] Unable to ensure session in Supabase', {
-              storedId,
-              brandKey,
-              recordPresent: Boolean(record),
-              cancelled,
+            console.log('[ChatWidget] Skipping session creation - incomplete lead', {
+              hasName: Boolean(storedUser?.name?.trim()),
+              hasEmail: Boolean(storedUser?.email?.trim()),
+              hasPhone: Boolean(storedUser?.phone?.trim()),
             });
           }
-          return;
         }
+        
         if (cancelled) return;
-
-        setSessionRecord(record);
 
         // Sync profile differences back to Supabase/local storage
         const updates: LocalUserProfile = { ...storedUser };
