@@ -237,19 +237,30 @@ export async function updateSessionProfile(
     return;
   }
 
-  // Check if this is a complete lead before creating/updating session
-  const completeLead = isCompleteLead({
-    userName: profile.userName,
-    email: profile.email,
-    phone: profile.phone,
-  });
+  // First, fetch current session to get existing profile data
+  const { data: currentSession } = await supabase
+    .from(TABLE_SESSIONS)
+    .select('user_name, email, phone')
+    .eq('external_session_id', externalSessionId)
+    .maybeSingle();
+
+  // Merge current data with updates to check complete lead status
+  const mergedProfile = {
+    userName: profile.userName ?? currentSession?.user_name ?? null,
+    email: profile.email ?? currentSession?.email ?? null,
+    phone: profile.phone ?? currentSession?.phone ?? null,
+  };
+
+  // Check if this will be a complete lead after the update
+  const completeLead = isCompleteLead(mergedProfile);
 
   if (!completeLead) {
     if (process.env.NODE_ENV !== 'production') {
       console.log('[chatSessions] Skipping session update - incomplete lead (missing name, email, or phone)', {
-        hasName: Boolean(profile.userName?.trim()),
-        hasEmail: Boolean(profile.email?.trim()),
-        hasPhone: Boolean(profile.phone?.trim()),
+        hasName: Boolean(mergedProfile.userName?.trim()),
+        hasEmail: Boolean(mergedProfile.email?.trim()),
+        hasPhone: Boolean(mergedProfile.phone?.trim()),
+        updating: { userName: profile.userName !== undefined, email: profile.email !== undefined, phone: profile.phone !== undefined },
       });
     }
     return;
@@ -296,6 +307,9 @@ export async function addUserInput(
     console.warn('[chatSessions] Supabase client unavailable in addUserInput', { brand });
     return;
   }
+
+  // First, ensure session exists (create if it doesn't)
+  await ensureSession(externalSessionId, 'web', brand);
 
   // Check if session exists and is a complete lead before adding input
   const { data: existingSession } = await supabase

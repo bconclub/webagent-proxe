@@ -216,8 +216,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           }
         }
 
-        // Only create session if we have a complete lead (name, email, phone)
-        // Check stored user profile first
+        // Always create session (even for incomplete leads) so we can track the conversation
+        // But only populate with data when it becomes a complete lead
         const hasCompleteLead = storedUser && 
           storedUser.name?.trim() && 
           storedUser.email?.trim() && 
@@ -225,23 +225,27 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
         let record: SessionRecord | null = null;
         
-        if (hasCompleteLead) {
-          record = await ensureSession(storedId, 'web', brandKey);
-          if (!record) {
-            if (process.env.NODE_ENV !== 'production') {
-              console.warn('[ChatWidget] Unable to ensure session in Supabase', {
-                storedId,
-                brandKey,
-                recordPresent: Boolean(record),
-                cancelled,
-              });
-            }
-            return;
+        // Create session regardless of lead completeness
+        record = await ensureSession(storedId, 'web', brandKey);
+        if (!record) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('[ChatWidget] Unable to ensure session in Supabase', {
+              storedId,
+              brandKey,
+              recordPresent: Boolean(record),
+              cancelled,
+            });
           }
+          return;
+        }
+        
+        // Only set session record if it's a complete lead
+        // This ensures we only track complete leads in the UI state
+        if (hasCompleteLead) {
           setSessionRecord(record);
         } else {
           if (process.env.NODE_ENV !== 'production') {
-            console.log('[ChatWidget] Skipping session creation - incomplete lead', {
+            console.log('[ChatWidget] Session created but incomplete lead - will populate when complete', {
               hasName: Boolean(storedUser?.name?.trim()),
               hasEmail: Boolean(storedUser?.email?.trim()),
               hasPhone: Boolean(storedUser?.phone?.trim()),
@@ -463,8 +467,22 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     }
     if (Object.keys(supabaseUpdates).length > 0) {
       await updateSessionProfile(externalSessionId, supabaseUpdates, brandKey);
+      
+      // After updating profile, check if we now have a complete lead and create session if needed
+      const updatedProfile = { ...userProfile, ...updates };
+      const hasCompleteLead = updatedProfile.name?.trim() && 
+                              updatedProfile.email?.trim() && 
+                              updatedProfile.phone?.trim();
+      
+      if (hasCompleteLead && !sessionRecord) {
+        // Session was just created, fetch it to update state
+        const newRecord = await ensureSession(externalSessionId, 'web', brandKey);
+        if (newRecord) {
+          setSessionRecord(newRecord);
+        }
+      }
     }
-  }, [applyLocalProfile, externalSessionId, brandKey]);
+  }, [applyLocalProfile, externalSessionId, brandKey, userProfile, sessionRecord]);
 
   const handleContactDraft = useCallback((data: { name?: string; email?: string; phone?: string; websiteUrl?: string }) => {
     const updates: LocalUserProfile = {};
@@ -2282,7 +2300,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         )}
 
         {/* Inline Name Prompt Card */}
-        {showNamePrompt && (
+        {showNamePrompt && !showCalendly && (
           <div
             className={`${styles.message} ${styles.ai} ${styles['accent-0']}`}
             ref={(el) => {
@@ -2337,7 +2355,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         )}
 
         {/* Inline Email Prompt Card */}
-        {showEmailPrompt && (
+        {showEmailPrompt && !showCalendly && (
           <div
             className={`${styles.message} ${styles.ai} ${styles['accent-0']}`}
             ref={(el) => {
@@ -2393,7 +2411,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         )}
 
         {/* Inline Phone Prompt Card */}
-        {showPhonePrompt && (
+        {showPhonePrompt && !showCalendly && (
           <div
             className={`${styles.message} ${styles.ai} ${styles['accent-0']}`}
             ref={(el) => {

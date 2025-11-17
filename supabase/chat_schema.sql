@@ -216,6 +216,7 @@ create trigger touch_social_session_trg
 -- Unified Leads View
 -- Integrates sessions table (master) with channel-specific session tables
 -- Uses sessions.channel column for source filtering
+-- Only shows complete leads (sessions with name, email, and phone)
 create or replace view public.unified_leads as
 select 
   -- Primary identifiers from sessions table
@@ -272,7 +273,15 @@ from public.sessions s
   left join public.web_sessions ws on s.id = ws.session_id
   left join public.whatsapp_sessions whatsapp on s.id = whatsapp.session_id
   left join public.voice_sessions vs on s.id = vs.session_id
-  left join public.social_sessions ss on s.id = ss.session_id;
+  left join public.social_sessions ss on s.id = ss.session_id
+where 
+  -- Only show complete leads (must have name, email, and phone)
+  s.user_name is not null 
+  and s.user_name != ''
+  and s.email is not null 
+  and s.email != ''
+  and s.phone is not null 
+  and s.phone != '';
 
 -- Grant permissions on the view (adjust as needed for your RLS policies)
 grant select on public.unified_leads to authenticated;
