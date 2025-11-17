@@ -5,10 +5,25 @@ const TIMEZONE = process.env.GOOGLE_CALENDAR_TIMEZONE || 'Asia/Kolkata';
 
 async function getAuthClient() {
   const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  let privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
 
   if (!serviceAccountEmail || !privateKey) {
     throw new Error('Google Calendar credentials not configured');
+  }
+
+  // Clean up the private key: handle escaped newlines, CRLF, and ensure proper formatting
+  privateKey = privateKey
+    .replace(/\\n/g, '\n')  // Replace escaped newlines
+    .replace(/\r\n/g, '\n') // Replace CRLF with LF
+    .replace(/\r/g, '\n')   // Replace any remaining CR with LF
+    .trim();                // Remove leading/trailing whitespace
+
+  // Ensure the key starts and ends with proper markers
+  if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+    throw new Error('Invalid private key format: missing BEGIN marker');
+  }
+  if (!privateKey.includes('-----END PRIVATE KEY-----')) {
+    throw new Error('Invalid private key format: missing END marker');
   }
 
   const auth = new google.auth.JWT({

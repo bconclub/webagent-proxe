@@ -231,44 +231,19 @@ export async function updateSessionProfile(
   profile: { userName?: string; phone?: string | null; email?: string | null; websiteUrl?: string | null },
   brand: 'proxe' | 'windchasers' = 'proxe'
 ) {
+  console.log('[updateSessionProfile] Called', { externalSessionId, brand, profile });
+  
   const supabase = getSupabaseClient(brand);
   if (!supabase) {
     console.warn('[chatSessions] Supabase client unavailable in updateSessionProfile', { brand });
     return;
   }
 
-  // First, fetch current session to get existing profile data
-  const { data: currentSession } = await supabase
-    .from(TABLE_SESSIONS)
-    .select('user_name, email, phone')
-    .eq('external_session_id', externalSessionId)
-    .maybeSingle();
+  // Ensure session exists first
+  const session = await ensureSession(externalSessionId, 'web', brand);
+  console.log('[updateSessionProfile] Session ensured', { sessionId: session?.id, externalSessionId });
 
-  // Merge current data with updates to check complete lead status
-  const mergedProfile = {
-    userName: profile.userName ?? currentSession?.user_name ?? null,
-    email: profile.email ?? currentSession?.email ?? null,
-    phone: profile.phone ?? currentSession?.phone ?? null,
-  };
-
-  // Check if this will be a complete lead after the update
-  const completeLead = isCompleteLead(mergedProfile);
-
-  if (!completeLead) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[chatSessions] Skipping session update - incomplete lead (missing name, email, or phone)', {
-        hasName: Boolean(mergedProfile.userName?.trim()),
-        hasEmail: Boolean(mergedProfile.email?.trim()),
-        hasPhone: Boolean(mergedProfile.phone?.trim()),
-        updating: { userName: profile.userName !== undefined, email: profile.email !== undefined, phone: profile.phone !== undefined },
-      });
-    }
-    return;
-  }
-
-  // Ensure session exists for complete leads
-  await ensureSession(externalSessionId, 'web', brand);
-
+  // Build updates object with only the fields that are provided
   const updates: Record<string, string | null | undefined> = {};
   if (typeof profile.userName === 'string') {
     updates.user_name = profile.userName.trim() || null;
@@ -282,17 +257,57 @@ export async function updateSessionProfile(
   if (profile.websiteUrl !== undefined) {
     updates.website_url = profile.websiteUrl ? profile.websiteUrl.trim() : null;
   }
-  if (Object.keys(updates).length === 0) return;
+  
+  console.log('[updateSessionProfile] Updates to apply', { updates, updateCount: Object.keys(updates).length });
+  
+  // If no updates to make, return early
+  if (Object.keys(updates).length === 0) {
+    console.warn('[updateSessionProfile] No updates to apply, returning early');
+    return;
+  }
 
-  const { error } = await supabase
+  // Perform the update
+  console.log('[updateSessionProfile] Executing Supabase update', { externalSessionId, updates });
+  const { data, error } = await supabase
     .from(TABLE_SESSIONS)
     .update(updates)
-    .eq('external_session_id', externalSessionId);
+    .eq('external_session_id', externalSessionId)
+    .select();
 
   if (error) {
-    console.error('[Supabase] Failed to update session profile', error);
-  } else if (process.env.NODE_ENV !== 'production') {
-    console.log('[Supabase] Successfully updated session profile for complete lead', { externalSessionId });
+    console.error('[Supabase] Failed to update session profile', { error, externalSessionId, updates });
+    return;
+  }
+
+  console.log('[updateSessionProfile] Update successful', { externalSessionId, updatedRows: data?.length });
+
+  // After successful update, check if we now have a complete lead
+  const { data: updatedSession } = await supabase
+    .from(TABLE_SESSIONS)
+    .select('user_name, email, phone')
+    .eq('external_session_id', externalSessionId)
+    .maybeSingle();
+
+  if (updatedSession) {
+    const mergedProfile = {
+      userName: updatedSession.user_name ?? null,
+      email: updatedSession.email ?? null,
+      phone: updatedSession.phone ?? null,
+    };
+    const completeLead = isCompleteLead(mergedProfile);
+    
+    console.log('[Supabase] Session profile updated', { 
+      externalSessionId,
+      completeLead,
+      hasName: Boolean(mergedProfile.userName?.trim()),
+      hasEmail: Boolean(mergedProfile.email?.trim()),
+      hasPhone: Boolean(mergedProfile.phone?.trim()),
+      userName: mergedProfile.userName,
+      email: mergedProfile.email,
+      phone: mergedProfile.phone,
+    });
+  } else {
+    console.warn('[updateSessionProfile] Could not fetch updated session', { externalSessionId });
   }
 }
 
@@ -389,41 +404,34 @@ export async function upsertSummary(
   lastMessageCreatedAt: string,
   brand: 'proxe' | 'windchasers' = 'proxe'
 ) {
+  console.log('[upsertSummary] Called', { externalSessionId, brand, summaryLength: summary.length });
+  
   const supabase = getSupabaseClient(brand);
   if (!supabase) {
     console.warn('[chatSessions] Supabase client unavailable in upsertSummary', { brand });
     return;
   }
 
-  // Only update summary for complete leads
-  const { data: existingSession } = await supabase
-    .from(TABLE_SESSIONS)
-    .select('user_name, email, phone')
-    .eq('external_session_id', externalSessionId)
-    .maybeSingle();
+  // Ensure session exists first
+  await ensureSession(externalSessionId, 'web', brand);
 
-  const isComplete = existingSession && 
-    existingSession.user_name?.trim() && 
-    existingSession.email?.trim() && 
-    existingSession.phone?.trim();
-
-  if (!isComplete) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[chatSessions] Skipping summary update - incomplete lead');
-    }
-    return;
-  }
-
-  const { error } = await supabase
+  // Always update summary (don't require complete lead)
+  // Summaries are useful for maintaining conversation context even before lead is complete
+  console.log('[upsertSummary] Updating summary', { externalSessionId, summaryLength: summary.length });
+  
+  const { data, error } = await supabase
     .from(TABLE_SESSIONS)
     .update({
       conversation_summary: summary,
       last_message_at: lastMessageCreatedAt,
     })
-    .eq('external_session_id', externalSessionId);
+    .eq('external_session_id', externalSessionId)
+    .select();
 
   if (error) {
-    console.error('[Supabase] Failed to upsert summary', error);
+    console.error('[Supabase] Failed to upsert summary', { error, externalSessionId });
+  } else {
+    console.log('[Supabase] Successfully updated summary', { externalSessionId, updatedRows: data?.length });
   }
 }
 

@@ -217,7 +217,9 @@ create trigger touch_social_session_trg
 -- Integrates sessions table (master) with channel-specific session tables
 -- Uses sessions.channel column for source filtering
 -- Only shows complete leads (sessions with name, email, and phone)
-create or replace view public.unified_leads as
+-- Drop view if it exists (to allow column name changes)
+drop view if exists public.unified_leads;
+create view public.unified_leads as
 select 
   -- Primary identifiers from sessions table
   s.id as session_id,
@@ -286,3 +288,68 @@ where
 -- Grant permissions on the view (adjust as needed for your RLS policies)
 grant select on public.unified_leads to authenticated;
 grant select on public.unified_leads to anon;
+
+-- Enable Row Level Security on sessions table
+alter table public.sessions enable row level security;
+
+-- RLS Policies for sessions table
+-- Allow anonymous users to insert new sessions
+create policy "Allow anonymous insert on sessions"
+  on public.sessions
+  for insert
+  to anon
+  with check (true);
+
+-- Allow anonymous users to update sessions (by external_session_id)
+create policy "Allow anonymous update on sessions"
+  on public.sessions
+  for update
+  to anon
+  using (true)
+  with check (true);
+
+-- Allow anonymous users to select their own sessions
+create policy "Allow anonymous select on sessions"
+  on public.sessions
+  for select
+  to anon
+  using (true);
+
+-- Enable RLS on channel-specific tables
+alter table public.web_sessions enable row level security;
+alter table public.whatsapp_sessions enable row level security;
+alter table public.voice_sessions enable row level security;
+alter table public.social_sessions enable row level security;
+
+-- RLS Policies for channel-specific tables
+-- Allow anonymous users to insert channel sessions
+create policy "Allow anonymous insert on web_sessions"
+  on public.web_sessions
+  for insert
+  to anon
+  with check (true);
+
+create policy "Allow anonymous insert on whatsapp_sessions"
+  on public.whatsapp_sessions
+  for insert
+  to anon
+  with check (true);
+
+create policy "Allow anonymous insert on voice_sessions"
+  on public.voice_sessions
+  for insert
+  to anon
+  with check (true);
+
+create policy "Allow anonymous insert on social_sessions"
+  on public.social_sessions
+  for insert
+  to anon
+  with check (true);
+
+-- Grant table permissions
+grant all on public.sessions to anon;
+grant all on public.web_sessions to anon;
+grant all on public.whatsapp_sessions to anon;
+grant all on public.voice_sessions to anon;
+grant all on public.social_sessions to anon;

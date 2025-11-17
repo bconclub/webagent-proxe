@@ -16,10 +16,25 @@ const AVAILABLE_SLOTS = [
 
 async function getAuthClient() {
   const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  let privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
 
   if (!serviceAccountEmail || !privateKey) {
     throw new Error('Google Calendar credentials not configured');
+  }
+
+  // Clean up the private key: handle escaped newlines, CRLF, and ensure proper formatting
+  privateKey = privateKey
+    .replace(/\\n/g, '\n')  // Replace escaped newlines
+    .replace(/\r\n/g, '\n') // Replace CRLF with LF
+    .replace(/\r/g, '\n')   // Replace any remaining CR with LF
+    .trim();                // Remove leading/trailing whitespace
+
+  // Ensure the key starts and ends with proper markers
+  if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+    throw new Error('Invalid private key format: missing BEGIN marker');
+  }
+  if (!privateKey.includes('-----END PRIVATE KEY-----')) {
+    throw new Error('Invalid private key format: missing END marker');
   }
 
   const auth = new google.auth.JWT({
@@ -65,10 +80,24 @@ export async function POST(request: NextRequest) {
     try {
       auth = await getAuthClient();
     } catch (authError: any) {
+      let errorMessage = 'Failed to authenticate with Google Calendar';
+      let details = authError.message || 'Check your service account credentials';
+      
+      // Provide specific guidance for OpenSSL decoder errors
+      if (authError.message?.includes('DECODER') || authError.message?.includes('unsupported') || 
+          authError.code === 'ERR_OSSL_UNSUPPORTED' || authError.message?.includes('1E08010C')) {
+        errorMessage = 'Invalid private key format';
+        details = 'The private key format is invalid. Please ensure your GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY environment variable contains the full private key with proper line breaks. The key should start with "-----BEGIN PRIVATE KEY-----" and end with "-----END PRIVATE KEY-----".';
+      } else if (authError.message?.includes('Invalid private key format')) {
+        errorMessage = 'Invalid private key format';
+        details = authError.message;
+      }
+      
       return NextResponse.json(
         { 
-          error: 'Failed to authenticate with Google Calendar',
-          details: authError.message || 'Check your service account credentials'
+          error: errorMessage,
+          details: details,
+          suggestion: 'Please verify your GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY environment variable is correctly formatted.'
         },
         { status: 503 }
       );

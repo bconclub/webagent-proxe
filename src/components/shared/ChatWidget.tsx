@@ -446,26 +446,38 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
   const persistUserProfile = useCallback(async (updates: LocalUserProfile, options: { sync?: boolean } = {}) => {
     const { sync = true } = options;
+    console.log('[persistUserProfile] Called', { updates, sync, externalSessionId, brandKey });
+    
     applyLocalProfile(updates);
 
-    if (!sync || !externalSessionId) {
+    if (!sync) {
+      console.log('[persistUserProfile] Sync disabled, skipping Supabase update');
+      return;
+    }
+    
+    if (!externalSessionId) {
+      console.warn('[persistUserProfile] No externalSessionId, cannot update Supabase', { updates });
       return;
     }
 
     const supabaseUpdates: { userName?: string; phone?: string | null; email?: string | null; websiteUrl?: string | null } = {};
-    if (Object.prototype.hasOwnProperty.call(updates, 'name')) {
-      supabaseUpdates.userName = updates.name;
+    if (Object.prototype.hasOwnProperty.call(updates, 'name') && updates.name !== undefined) {
+      supabaseUpdates.userName = updates.name && updates.name.trim() ? updates.name.trim() : undefined;
     }
-    if (Object.prototype.hasOwnProperty.call(updates, 'email')) {
-      supabaseUpdates.email = updates.email ?? null;
+    if (Object.prototype.hasOwnProperty.call(updates, 'email') && updates.email !== undefined) {
+      supabaseUpdates.email = updates.email && updates.email.trim() ? updates.email.trim() : null;
     }
-    if (Object.prototype.hasOwnProperty.call(updates, 'phone')) {
-      supabaseUpdates.phone = updates.phone ?? null;
+    if (Object.prototype.hasOwnProperty.call(updates, 'phone') && updates.phone !== undefined) {
+      supabaseUpdates.phone = updates.phone && updates.phone.trim() ? updates.phone.trim() : null;
     }
-    if (Object.prototype.hasOwnProperty.call(updates, 'websiteUrl')) {
-      supabaseUpdates.websiteUrl = updates.websiteUrl ?? null;
+    if (Object.prototype.hasOwnProperty.call(updates, 'websiteUrl') && updates.websiteUrl !== undefined) {
+      supabaseUpdates.websiteUrl = updates.websiteUrl && updates.websiteUrl.trim() ? updates.websiteUrl.trim() : null;
     }
+    
+    console.log('[persistUserProfile] Prepared Supabase updates', { supabaseUpdates, updateCount: Object.keys(supabaseUpdates).length });
+    
     if (Object.keys(supabaseUpdates).length > 0) {
+      console.log('[persistUserProfile] Calling updateSessionProfile', { externalSessionId, supabaseUpdates, brandKey });
       await updateSessionProfile(externalSessionId, supabaseUpdates, brandKey);
       
       // After updating profile, check if we now have a complete lead and create session if needed
@@ -481,6 +493,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           setSessionRecord(newRecord);
         }
       }
+    } else {
+      console.warn('[persistUserProfile] No Supabase updates to apply', { updates });
     }
   }, [applyLocalProfile, externalSessionId, brandKey, userProfile, sessionRecord]);
 
@@ -507,6 +521,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   }, [applyLocalProfile]);
 
   const handleContactPersist = useCallback(async (data: { name?: string; email?: string; phone?: string; websiteUrl?: string }) => {
+    console.log('[handleContactPersist] Called', { data, externalSessionId });
     const updates: LocalUserProfile = {};
     if (data.name && data.name.trim()) {
       updates.name = data.name.trim();
@@ -523,10 +538,13 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     if (data.websiteUrl && data.websiteUrl.trim()) {
       updates.websiteUrl = data.websiteUrl.trim();
     }
+    console.log('[handleContactPersist] Prepared updates', { updates, updateCount: Object.keys(updates).length });
     if (Object.keys(updates).length > 0) {
       await persistUserProfile(updates);
+    } else {
+      console.warn('[handleContactPersist] No valid updates to persist', { data });
     }
-  }, [persistUserProfile]);
+  }, [persistUserProfile, externalSessionId]);
 
   const appendHistory = (entry: { role: 'user' | 'assistant'; content: string }) => {
     historyRef.current = [...historyRef.current, entry].slice(-6);

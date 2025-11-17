@@ -24,11 +24,35 @@ export function getSupabaseClient(brand: SupabaseBrandKey): SupabaseClient | nul
   }
 
   const config = clientConfig[brand];
+  
+  // Debug: Log what environment variables are available
+  if (process.env.NODE_ENV !== 'production') {
+    const urlVar = brand === 'proxe' ? 'NEXT_PUBLIC_PROXE_SUPABASE_URL' : 'NEXT_PUBLIC_WINDCHASERS_SUPABASE_URL';
+    const keyVar = brand === 'proxe' ? 'NEXT_PUBLIC_PROXE_SUPABASE_ANON_KEY' : 'NEXT_PUBLIC_WINDCHASERS_SUPABASE_ANON_KEY';
+    const serverUrlVar = brand === 'proxe' ? 'PROXE_SUPABASE_URL' : 'WINDCHASERS_SUPABASE_URL';
+    const serverKeyVar = brand === 'proxe' ? 'PROXE_SUPABASE_ANON_KEY' : 'WINDCHASERS_SUPABASE_ANON_KEY';
+    
+    console.log(`[Supabase] Checking config for brand "${brand}"`, {
+      hasNextPublicUrl: Boolean(process.env[urlVar]),
+      hasNextPublicKey: Boolean(process.env[keyVar]),
+      hasServerUrl: Boolean(process.env[serverUrlVar]),
+      hasServerKey: Boolean(process.env[serverKeyVar]),
+      resolvedUrl: config?.url,
+      resolvedKeyPresent: Boolean(config?.anonKey),
+    });
+  }
+  
   if (!config?.url || !config?.anonKey) {
     if (process.env.NODE_ENV !== 'production') {
       console.warn(`[Supabase] Missing Supabase URL or anon key for brand "${brand}".`, {
         url: config?.url,
         anonKeyPresent: Boolean(config?.anonKey),
+        envVars: {
+          NEXT_PUBLIC_PROXE_SUPABASE_URL: process.env.NEXT_PUBLIC_PROXE_SUPABASE_URL ? 'SET' : 'NOT SET',
+          NEXT_PUBLIC_PROXE_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_PROXE_SUPABASE_ANON_KEY ? 'SET' : 'NOT SET',
+          PROXE_SUPABASE_URL: process.env.PROXE_SUPABASE_URL ? 'SET' : 'NOT SET',
+          PROXE_SUPABASE_ANON_KEY: process.env.PROXE_SUPABASE_ANON_KEY ? 'SET' : 'NOT SET',
+        }
       });
     }
     return null;
