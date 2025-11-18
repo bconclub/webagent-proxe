@@ -389,7 +389,7 @@ export async function POST(request: NextRequest) {
           // Subsequent messages: show ONE random button from the available options
           else {
             // Available buttons for subsequent messages
-            const availableButtons = defaultFollowUps;
+            const availableButtons = defaultFollowUps.length > 0 ? defaultFollowUps : ['Schedule a Call'];
             
             // Filter out buttons that have been used or are similar to used buttons
             const unusedButtons = availableButtons.filter(followUp => {
@@ -402,13 +402,18 @@ export async function POST(request: NextRequest) {
             // If all buttons have been used, reset and use all available buttons
             const buttonsToChooseFrom = unusedButtons.length > 0 ? unusedButtons : availableButtons;
             
-            // Randomly select one button
-            const randomIndex = Math.floor(Math.random() * buttonsToChooseFrom.length);
-            followUpsArray = [buttonsToChooseFrom[randomIndex]];
+            // Ensure we have buttons to choose from
+            if (buttonsToChooseFrom.length > 0) {
+              // Randomly select one button
+              const randomIndex = Math.floor(Math.random() * buttonsToChooseFrom.length);
+              followUpsArray = [buttonsToChooseFrom[randomIndex]];
+            } else {
+              followUpsArray = ['Schedule a Call'];
+            }
           }
           
           // Final fallback: ensure we always have at least 1 follow-up button
-          if (followUpsArray.length === 0) {
+          if (followUpsArray.length === 0 || !followUpsArray[0]) {
             followUpsArray = ['Schedule a Call'];
           }
 

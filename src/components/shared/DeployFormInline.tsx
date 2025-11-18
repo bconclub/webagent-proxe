@@ -15,7 +15,7 @@ interface DeployFormInlineProps {
     websiteUrl?: string;
   };
   onContactDraft?: (data: { name?: string; email?: string; phone?: string; websiteUrl?: string }) => void;
-  onContactSubmit?: () => void;
+  onContactSubmit?: (data: { name?: string; email?: string; phone?: string; websiteUrl?: string }) => void | Promise<void>;
   onFormSubmit?: () => void;
 }
 
@@ -131,7 +131,7 @@ export function DeployFormInline({
     
     // Notify parent of contact submission
     if (onContactSubmit) {
-      onContactSubmit();
+      await onContactSubmit(userProfileData);
     }
     
     setIsSubmitting(false);
