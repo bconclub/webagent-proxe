@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
+import { checkExistingBooking } from '@/src/lib/chatSessions';
 
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || 'bconclubx@gmail.com';
 const TIMEZONE = process.env.GOOGLE_CALENDAR_TIMEZONE || 'Asia/Kolkata';
@@ -38,13 +39,30 @@ async function getAuthClient() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { date, time, name, email, phone } = await request.json();
+    const { date, time, name, email, phone, brand = 'proxe' } = await request.json();
 
     if (!date || !time || !name || !email || !phone) {
       return NextResponse.json(
         { error: 'Missing required fields: date, time, name, email, phone' },
         { status: 400 }
       );
+    }
+
+    // Check for existing booking by phone or email
+    const existingBooking = await checkExistingBooking(phone, email, brand as 'proxe' | 'windchasers');
+    
+    if (existingBooking?.exists && existingBooking.bookingDate && existingBooking.bookingTime) {
+      const formattedDate = formatDate(existingBooking.bookingDate);
+      const formattedTime = formatTimeForDisplay(existingBooking.bookingTime);
+      
+      return NextResponse.json({
+        success: false,
+        alreadyBooked: true,
+        message: `You already have a booking scheduled for ${formattedDate} at ${formattedTime}.`,
+        bookingDate: existingBooking.bookingDate,
+        bookingTime: existingBooking.bookingTime,
+        bookingStatus: existingBooking.bookingStatus,
+      }, { status: 200 });
     }
 
     // Check if credentials are configured

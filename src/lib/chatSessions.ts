@@ -518,43 +518,9 @@ export async function addUserInput(
 
   const tableName = getChannelTable('web');
 
-  // Check if session exists and is a complete lead before adding input
-  const { data: existingSession, error: sessionError } = await supabase
-    .from(tableName)
-    .select('customer_name, customer_email, customer_phone')
-    .eq('external_session_id', externalSessionId)
-    .maybeSingle();
-
-  // Fallback to old sessions table if needed
-  let isComplete = false;
-  if (sessionError && (sessionError.code === '42P01' || sessionError.code === '42703')) {
-    const { data: fallbackSession } = await supabase
-      .from('sessions')
-      .select('user_name, email, phone')
-      .eq('external_session_id', externalSessionId)
-      .maybeSingle();
-    
-    isComplete = fallbackSession && 
-      fallbackSession.user_name?.trim() && 
-      fallbackSession.email?.trim() && 
-      fallbackSession.phone?.trim();
-  } else if (existingSession) {
-    isComplete = existingSession.customer_name?.trim() && 
-      existingSession.customer_email?.trim() && 
-      existingSession.customer_phone?.trim();
-  }
-
-  if (!isComplete) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[chatSessions] Skipping user input - incomplete lead (missing name, email, or phone)', {
-        hasSession: Boolean(existingSession),
-        hasName: Boolean(existingSession?.customer_name?.trim()),
-        hasEmail: Boolean(existingSession?.customer_email?.trim()),
-        hasPhone: Boolean(existingSession?.customer_phone?.trim()),
-      });
-    }
-    return;
-  }
+  // Always save user input, regardless of lead completeness
+  // This ensures all conversations are tracked in web_sessions
+  // The lead can be completed later, but we want to capture all interactions
 
   // Fetch current session to get existing user_inputs_summary
   const { data: currentSession, error: fetchError } = await supabase
@@ -831,6 +797,174 @@ export async function storeBooking(
     } else {
       console.error('[Supabase] Failed to store booking', error);
     }
+  }
+}
+
+export async function checkExistingBooking(
+  phone?: string | null,
+  email?: string | null,
+  brand: 'proxe' | 'windchasers' = 'proxe'
+): Promise<{
+  exists: boolean;
+  bookingDate?: string | null;
+  bookingTime?: string | null;
+  bookingStatus?: 'pending' | 'confirmed' | 'cancelled' | null;
+  bookingCreatedAt?: string | null;
+} | null> {
+  const supabase = getSupabaseClient(brand);
+  if (!supabase) {
+    console.warn('[chatSessions] Supabase client unavailable in checkExistingBooking', { brand });
+    return null;
+  }
+
+  if (!phone && !email) {
+    return { exists: false };
+  }
+
+  const tableName = getChannelTable('web');
+
+  try {
+    // Normalize phone number if provided (remove spaces, dashes, parentheses)
+    const normalizedPhone = phone ? phone.replace(/[\s\-\(\)]/g, '').replace(/^\+91/, '').replace(/^0/, '') : null;
+
+    // Build query - check by phone or email
+    // Try phone first, then email, then both
+    let data = null;
+    let error = null;
+
+    if (normalizedPhone) {
+      // Try by phone
+      const { data: phoneData, error: phoneError } = await supabase
+        .from(tableName)
+        .select('booking_date, booking_time, booking_status, booking_created_at')
+        .eq('brand', brand.toLowerCase())
+        .eq('customer_phone', phone)
+        .not('booking_date', 'is', null)
+        .not('booking_time', 'is', null)
+        .order('booking_created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (phoneData && phoneData.booking_date) {
+        data = phoneData;
+      } else {
+        // Try normalized phone
+        const { data: normalizedData, error: normalizedError } = await supabase
+          .from(tableName)
+          .select('booking_date, booking_time, booking_status, booking_created_at')
+          .eq('brand', brand.toLowerCase())
+          .eq('customer_phone_normalized', normalizedPhone)
+          .not('booking_date', 'is', null)
+          .not('booking_time', 'is', null)
+          .order('booking_created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (normalizedData && normalizedData.booking_date) {
+          data = normalizedData;
+        } else {
+          error = normalizedError || phoneError;
+        }
+      }
+    }
+
+    // If no phone match and email provided, try email
+    if (!data && email) {
+      const { data: emailData, error: emailError } = await supabase
+        .from(tableName)
+        .select('booking_date, booking_time, booking_status, booking_created_at')
+        .eq('brand', brand.toLowerCase())
+        .eq('customer_email', email)
+        .not('booking_date', 'is', null)
+        .not('booking_time', 'is', null)
+        .order('booking_created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (emailData && emailData.booking_date) {
+        data = emailData;
+      } else {
+        error = emailError || error;
+      }
+    }
+
+    if (error) {
+      // Fallback to old sessions table
+      if (error.code === '42P01' || error.code === '42703') {
+        // Try phone first in fallback
+        let fallbackData = null;
+        let fallbackError = null;
+
+        if (phone) {
+          const { data: phoneData, error: phoneErr } = await supabase
+            .from('sessions')
+            .select('booking_date, booking_time, booking_status, booking_created_at')
+            .eq('brand', brand.toLowerCase())
+            .eq('phone', phone)
+            .not('booking_date', 'is', null)
+            .not('booking_time', 'is', null)
+            .order('booking_created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (phoneData && phoneData.booking_date) {
+            fallbackData = phoneData;
+          } else {
+            fallbackError = phoneErr;
+          }
+        }
+
+        // If no phone match, try email
+        if (!fallbackData && email) {
+          const { data: emailData, error: emailErr } = await supabase
+            .from('sessions')
+            .select('booking_date, booking_time, booking_status, booking_created_at')
+            .eq('brand', brand.toLowerCase())
+            .eq('email', email)
+            .not('booking_date', 'is', null)
+            .not('booking_time', 'is', null)
+            .order('booking_created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (emailData && emailData.booking_date) {
+            fallbackData = emailData;
+          } else {
+            fallbackError = emailErr || fallbackError;
+          }
+        }
+
+        if (fallbackError || !fallbackData) {
+          return { exists: false };
+        }
+
+        return {
+          exists: true,
+          bookingDate: fallbackData.booking_date,
+          bookingTime: fallbackData.booking_time,
+          bookingStatus: fallbackData.booking_status,
+          bookingCreatedAt: fallbackData.booking_created_at,
+        };
+      }
+
+      console.error('[Supabase] Failed to check existing booking', error);
+      return { exists: false };
+    }
+
+    if (!data || !data.booking_date || !data.booking_time) {
+      return { exists: false };
+    }
+
+    return {
+      exists: true,
+      bookingDate: data.booking_date,
+      bookingTime: data.booking_time,
+      bookingStatus: data.booking_status,
+      bookingCreatedAt: data.booking_created_at,
+    };
+  } catch (error) {
+    console.error('[chatSessions] Error checking existing booking', error);
+    return { exists: false };
   }
 }
 

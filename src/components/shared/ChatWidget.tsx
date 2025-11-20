@@ -16,6 +16,7 @@ import {
   fetchSummary,
   upsertSummary,
   storeBooking,
+  checkExistingBooking,
   type SessionRecord,
 } from '@/src/lib/chatSessions';
 import {
@@ -1375,8 +1376,50 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       // Also check that message has text content (more reliable than just hasStreamed)
       if (lastMessage && lastMessage.type === 'ai' && !lastMessage.isStreaming && lastMessage.text && lastMessage.text.length > 0) {
         // Use setTimeout to ensure state updates properly
-        const timer = setTimeout(() => {
+        const timer = setTimeout(async () => {
           setPendingCalendar(false);
+          
+          // Check for existing booking before showing calendar
+          const phone = userProfile.phone;
+          const email = userProfile.email;
+          
+          if (phone || email) {
+            const existingBooking = await checkExistingBooking(phone, email, brandKey);
+            
+            if (existingBooking?.exists && existingBooking.bookingDate && existingBooking.bookingTime) {
+              // Format date and time for display
+              const date = new Date(existingBooking.bookingDate);
+              const formattedDate = date.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              });
+              
+              // Format time (assuming it's in "HH:MM AM/PM" format)
+              const formattedTime = existingBooking.bookingTime;
+              
+              // Show message about existing booking
+              const bookingMessage = `You already have a booking scheduled for ${formattedDate} at ${formattedTime}.`;
+              
+              // Add as AI message
+              const messageId = `booking-info-${Date.now()}`;
+              const bookingInfoMessage: Message = {
+                id: messageId,
+                type: 'ai',
+                text: bookingMessage,
+                isStreaming: false,
+                hasStreamed: true,
+                followUps: [],
+              };
+              
+              setMessages((prev) => [...prev, bookingInfoMessage]);
+              setBookingCompleted(true);
+              return; // Don't show calendar
+            }
+          }
+          
+          // No existing booking, show calendar
           const calendarMessageId = `calendar-${Date.now()}`;
           setShowCalendly(calendarMessageId);
           if (lastMessage?.id) {
@@ -1393,7 +1436,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     return () => {
       document.body.classList.remove('chat-open');
     };
-  }, [messages, isOpen, pendingCalendar, showCalendly, bookingCompleted]);
+  }, [messages, isOpen, pendingCalendar, showCalendly, bookingCompleted, userProfile.phone, userProfile.email, brandKey]);
 
   // Handle booking completion
   const handleBookingComplete = useCallback(async (bookingData: any) => {
@@ -1435,6 +1478,55 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       }
     }
   }, [handleContactPersist, externalSessionId, brandKey]);
+
+  // Check for existing booking before showing calendar
+  const checkAndShowBooking = useCallback(async () => {
+    const phone = userProfile.phone;
+    const email = userProfile.email;
+    
+    if (!phone && !email) {
+      // No contact info yet, allow booking
+      return true;
+    }
+
+    const { checkExistingBooking } = await import('@/src/lib/chatSessions');
+    const existingBooking = await checkExistingBooking(phone, email, brandKey);
+    
+    if (existingBooking?.exists && existingBooking.bookingDate && existingBooking.bookingTime) {
+      // Format date and time for display
+      const date = new Date(existingBooking.bookingDate);
+      const formattedDate = date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+      
+      // Format time (assuming it's in "HH:MM AM/PM" format)
+      const formattedTime = existingBooking.bookingTime;
+      
+      // Show message about existing booking
+      const bookingMessage = `You already have a booking scheduled for ${formattedDate} at ${formattedTime}.`;
+      
+      // Add as AI message
+      const messageId = `booking-info-${Date.now()}`;
+      const bookingInfoMessage = {
+        id: messageId,
+        type: 'ai' as const,
+        text: bookingMessage,
+        isStreaming: false,
+        hasStreamed: true,
+        followUps: [],
+      };
+      
+      setMessages((prev) => [...prev, bookingInfoMessage]);
+      setBookingCompleted(true);
+      
+      return false; // Don't show calendar
+    }
+    
+    return true; // Allow booking
+  }, [userProfile.phone, userProfile.email, brandKey]);
 
   // Handle mobile keyboard appearance for chat input
   useEffect(() => {

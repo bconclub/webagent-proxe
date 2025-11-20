@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { getBrandConfig } from '@/src/configs';
 import { buildPrompt } from '@/src/lib/promptBuilder';
+import { addUserInput, upsertSummary, checkExistingBooking } from '@/src/lib/chatSessions';
 
 export const runtime = 'nodejs'; // Use Node.js runtime for streaming support
 
@@ -270,6 +271,7 @@ export async function POST(request: NextRequest) {
     const sessionMetadata = metadata.session || {};
     const memoryMetadata = metadata.memory || {};
     const userProfile = sessionMetadata.user || {};
+    const externalSessionId = sessionMetadata.externalId || sessionMetadata.externalSessionId || sessionMetadata.sessionId || null;
     const summary: string = typeof memoryMetadata.summary === 'string' ? memoryMetadata.summary : '';
     const recentHistory: { role: 'user' | 'assistant'; content: string }[] = Array.isArray(memoryMetadata.recentHistory)
       ? memoryMetadata.recentHistory
@@ -287,6 +289,13 @@ export async function POST(request: NextRequest) {
 
     if (!message || message.trim() === '') {
       return Response.json({ error: 'Message is required' }, { status: 400 });
+    }
+
+    // Save user input to web_sessions (async, don't wait)
+    if (externalSessionId) {
+      addUserInput(externalSessionId, message, undefined, brand as 'proxe' | 'windchasers').catch(err => {
+        console.error('[Chat API] Failed to save user input:', err);
+      });
     }
 
     // Check if booking is already scheduled
@@ -308,6 +317,41 @@ export async function POST(request: NextRequest) {
 
     const normalizedBrand = (brand || 'proxe').toLowerCase();
 
+    // Check if this is a booking attempt and if user already has a booking
+    const containsBookingKeywords = (text: string): boolean => {
+      const lowerText = text.toLowerCase().trim();
+      return lowerText.includes('call') || 
+             lowerText.includes('demo') || 
+             lowerText.includes('book') ||
+             lowerText.includes('schedule') ||
+             lowerText.includes('meeting') ||
+             lowerText.includes('appointment');
+    };
+
+    const isBookingAttempt = containsBookingKeywords(message);
+    let existingBookingMessage = null;
+
+    if (isBookingAttempt && (userProfile.email || userProfile.phone)) {
+      const existingBooking = await checkExistingBooking(
+        userProfile.phone || null,
+        userProfile.email || null,
+        normalizedBrand as 'proxe' | 'windchasers'
+      );
+
+      if (existingBooking?.exists && existingBooking.bookingDate && existingBooking.bookingTime) {
+        // Format date and time
+        const date = new Date(existingBooking.bookingDate);
+        const formattedDate = date.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+        const formattedTime = existingBooking.bookingTime;
+        existingBookingMessage = `You already have a booking scheduled for ${formattedDate} at ${formattedTime}.`;
+      }
+    }
+
     // Search knowledge base
     const relevantDocs = await searchKnowledgeBase(message, normalizedBrand, 3);
 
@@ -324,14 +368,19 @@ export async function POST(request: NextRequest) {
     // Check if this is the third message (before using it)
     const isThirdMessage = messageCount === 3;
 
+    // If user already has a booking, modify the message to inform them
+    const finalMessage = existingBookingMessage 
+      ? `${existingBookingMessage}\n\nUser's message: ${message}`
+      : message;
+
     const { systemPrompt, userPrompt } = buildPrompt({
       brand: normalizedBrand,
       userName: typeof userProfile?.name === 'string' ? userProfile.name : undefined,
       summary,
       history: recentHistory,
       knowledgeBase: knowledgeContext,
-      message,
-      bookingAlreadyScheduled: isBookingAlreadyScheduled,
+      message: finalMessage,
+      bookingAlreadyScheduled: isBookingAlreadyScheduled || !!existingBookingMessage,
     });
 
     const additionalGuidance = isThirdMessage
@@ -547,6 +596,16 @@ export async function POST(request: NextRequest) {
           // Send follow-ups and done
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'followUps', followUps: followUpsArray })}\n\n`));
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`));
+          
+          // Generate and save conversation summary (async, don't wait)
+          if (externalSessionId && cleanedResponse) {
+            const conversationSummary = `${message}\n\n${cleanedResponse}`;
+            const lastMessageAt = new Date().toISOString();
+            upsertSummary(externalSessionId, conversationSummary, lastMessageAt, brand as 'proxe' | 'windchasers').catch(err => {
+              console.error('[Chat API] Failed to save summary:', err);
+            });
+          }
+          
           controller.close();
         } catch (error: any) {
           console.error('[Chat API] Stream error:', {
