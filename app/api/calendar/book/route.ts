@@ -114,12 +114,15 @@ export async function POST(request: NextRequest) {
     // Format display time
     const displayTime = formatTimeForDisplay(`${hour}:${minute.toString().padStart(2, '0')}`);
 
+    // Determine event title based on brand
+    const eventTitle = brand.toLowerCase() === 'windchasers' ? 'Wind Chasers Consultation' : 'PROXe Demo';
+
     // Create event
     // Note: Service accounts cannot invite attendees without Domain-Wide Delegation
     // However, we'll try to add them and handle the error gracefully
     const event = {
-      summary: 'PROXe Demo',
-      description: `Meeting Booking\n\nName: ${name}\nEmail: ${email}\nPhone: ${phone}\n\nContact: ${email}`,
+      summary: eventTitle,
+      description: `${eventTitle}\n\nMeeting Booking Details:\n\nName: ${name}\nEmail: ${email}\nPhone: ${phone}\n\nContact: ${email}`,
       start: {
         dateTime: eventStart,
         timeZone: TIMEZONE,
