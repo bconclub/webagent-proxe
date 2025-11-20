@@ -40,52 +40,114 @@ export interface SessionSummary {
   lastMessageCreatedAt: string;
 }
 
-const TABLE_SESSIONS = 'sessions';
-
-// Helper function to create channel-specific session record
-async function createChannelSession(
-  sessionId: string,
-  channel: Channel,
-  brand: 'proxe' | 'windchasers'
-): Promise<void> {
-  const supabase = getSupabaseClient(brand);
-  if (!supabase) {
-    return;
-  }
-
+// Get the table name for a channel
+// New structure: web_sessions is self-contained (not sessions)
+function getChannelTable(channel: Channel): string {
   const channelTableMap: Record<Channel, string> = {
     web: 'web_sessions',
     whatsapp: 'whatsapp_sessions',
     voice: 'voice_sessions',
     social: 'social_sessions',
   };
+  return channelTableMap[channel] || 'web_sessions';
+}
 
-  const tableName = channelTableMap[channel];
-  if (!tableName) {
-    console.warn('[chatSessions] Unknown channel', { channel });
-    return;
+// Helper function to normalize phone number for all_leads deduplication
+function normalizePhone(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  // Remove all non-digit characters
+  const digits = phone.replace(/\D/g, '');
+  return digits || null;
+}
+
+// Helper function to ensure all_leads record exists and return lead_id
+async function ensureAllLeads(
+  customerName: string | null,
+  email: string | null,
+  phone: string | null,
+  brand: 'proxe' | 'windchasers'
+): Promise<string | null> {
+  const supabase = getSupabaseClient(brand);
+  if (!supabase) {
+    return null;
   }
 
-  const { error } = await supabase
-    .from(tableName)
-    .insert({ session_id: sessionId })
-    .select();
+  // Need at least phone for deduplication
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone) {
+    return null;
+  }
 
-  if (error) {
-    // Ignore duplicate key errors (session might already exist)
-    if (error.code !== '23505') {
-      console.warn(`[chatSessions] Failed to create ${channel} session`, error);
+  try {
+    // Check if all_leads table exists (might not be migrated yet)
+    const { data: existing, error: fetchError } = await supabase
+      .from('all_leads')
+      .select('id')
+      .eq('customer_phone_normalized', normalizedPhone)
+      .eq('brand', brand)
+      .maybeSingle();
+
+    if (fetchError) {
+      // Table might not exist yet - that's okay, we'll continue without lead_id
+      if (fetchError.code === '42P01') {
+        console.log('[chatSessions] all_leads table not found, continuing without lead_id');
+        return null;
+      }
+      console.warn('[chatSessions] Failed to check all_leads', fetchError);
+      return null;
     }
+
+    if (existing) {
+      // Update last_touchpoint and last_interaction_at
+      await supabase
+        .from('all_leads')
+        .update({
+          last_touchpoint: 'web',
+          last_interaction_at: new Date().toISOString(),
+          customer_name: customerName || undefined,
+          email: email || undefined,
+          phone: phone || undefined,
+        })
+        .eq('id', existing.id);
+      return existing.id;
+    }
+
+    // Create new all_leads record
+    const { data: created, error: createError } = await supabase
+      .from('all_leads')
+      .insert({
+        customer_name: customerName,
+        email: email,
+        phone: phone,
+        customer_phone_normalized: normalizedPhone,
+        first_touchpoint: 'web',
+        last_touchpoint: 'web',
+        last_interaction_at: new Date().toISOString(),
+        brand: brand,
+      })
+      .select('id')
+      .single();
+
+    if (createError) {
+      console.warn('[chatSessions] Failed to create all_leads', createError);
+      return null;
+    }
+
+    return created?.id || null;
+  } catch (error) {
+    console.warn('[chatSessions] Error ensuring all_leads', error);
+    return null;
   }
 }
 
 function mapSession(row: any): SessionRecord {
+  // Support both old (sessions) and new (web_sessions) column names
   return {
     id: row.id,
-    externalSessionId: row.external_session_id,
-    userName: row.user_name ?? null,
-    phone: row.phone ?? null,
-    email: row.email ?? null,
+    externalSessionId: row.external_session_id || row.externalSessionId,
+    userName: row.customer_name ?? row.user_name ?? null,
+    phone: row.customer_phone ?? row.phone ?? null,
+    email: row.customer_email ?? row.email ?? null,
     websiteUrl: row.website_url ?? null,
     conversationSummary: row.conversation_summary ?? null,
     lastMessageAt: row.last_message_at ?? null,
@@ -115,38 +177,72 @@ export async function ensureSession(
     return null;
   }
 
+  const tableName = getChannelTable(channel);
+
+  // Try to fetch existing session from channel-specific table
   const { data, error } = await supabase
-    .from(TABLE_SESSIONS)
+    .from(tableName)
     .select('*')
     .eq('external_session_id', externalSessionId)
     .maybeSingle();
 
   if (error) {
-    console.error('[Supabase] Failed to fetch session', error);
-    return null;
+    // If table doesn't exist or column doesn't exist, try old sessions table as fallback
+    if (error.code === '42P01' || error.code === '42703') {
+      console.log('[chatSessions] Channel table not available, trying fallback');
+      // Fallback to old sessions table if web_sessions doesn't exist yet
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('external_session_id', externalSessionId)
+        .maybeSingle();
+      
+      if (fallbackError) {
+        console.error('[Supabase] Failed to fetch session', fallbackError);
+        return null;
+      }
+      
+      if (fallbackData) {
+        return mapSession(fallbackData);
+      }
+    } else {
+      console.error('[Supabase] Failed to fetch session', error);
+      return null;
+    }
   }
 
   if (data) {
-    // Ensure channel-specific record exists even for existing sessions
-    await ensureChannelSessionExists(data.id, channel, brand);
     return mapSession(data);
   }
 
+  // Create new session in channel-specific table
+  // For web_sessions, we need: external_session_id, brand, session_status
+  // lead_id is optional initially (will be set when customer data is available)
+  const insertData: Record<string, any> = {
+    external_session_id: externalSessionId,
+    brand: brand,
+    session_status: 'active',
+  };
+
+  // Only add channel_data if the table supports it
+  // web_sessions uses channel_data, but we'll add it conditionally
+  insertData.channel_data = {};
+
   const { data: created, error: insertError } = await supabase
-    .from(TABLE_SESSIONS)
-    .insert({ 
-      external_session_id: externalSessionId,
-      brand: brand,
-      channel: channel,
-      channel_data: {},
-    })
+    .from(tableName)
+    .insert(insertData)
     .select('*')
     .single();
 
   if (insertError) {
-    if (insertError.code === '23505' || insertError.message?.includes('duplicate key value')) {
+    // Handle duplicate key errors (23505 = unique constraint violation, HTTP 409)
+    if (insertError.code === '23505' || 
+        insertError.message?.includes('duplicate key value') ||
+        insertError.message?.includes('already exists')) {
+      console.log('[chatSessions] Duplicate session detected, fetching existing session');
+      // Try to fetch the existing record
       const { data: existing, error: fetchError } = await supabase
-        .from(TABLE_SESSIONS)
+        .from(tableName)
         .select('*')
         .eq('external_session_id', externalSessionId)
         .maybeSingle();
@@ -157,66 +253,108 @@ export async function ensureSession(
       }
 
       if (existing) {
-        // Ensure channel-specific record exists
-        await ensureChannelSessionExists(existing.id, channel, brand);
+        console.log('[chatSessions] Returning existing session');
         return mapSession(existing);
       }
       return null;
     }
 
-    console.error('[Supabase] Failed to create session', insertError);
-    return null;
+    // If table doesn't exist or has wrong structure, try fallback to old sessions table
+    if (insertError.code === '42P01' || insertError.code === '42703' || insertError.code === '42702') {
+      console.log('[chatSessions] Channel table not available or wrong structure, creating in fallback sessions table', insertError);
+      const { data: fallbackCreated, error: fallbackError } = await supabase
+        .from('sessions')
+        .insert({ 
+          external_session_id: externalSessionId,
+          brand: brand,
+          channel: channel,
+          channel_data: {},
+        })
+        .select('*')
+        .single();
+      
+      if (fallbackError) {
+        console.error('[Supabase] Failed to create session in fallback table', fallbackError);
+        return null;
+      }
+      
+      if (fallbackCreated) {
+        return mapSession(fallbackCreated);
+      }
+    } else {
+      // Log detailed error information for debugging
+      console.error('[Supabase] Failed to create session', { 
+        error: insertError, 
+        code: insertError.code,
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+        tableName,
+        insertData
+      });
+      
+      // If it's a NOT NULL constraint error (23502), try with minimal fields only
+      // This happens when lead_id is required but we don't have customer data yet
+      if (insertError.code === '23502' || insertError.code === '42702' || insertError.code === '42703') {
+        console.log('[chatSessions] Trying minimal insert (external_session_id and brand only) - constraint violation detected');
+        const minimalInsert: Record<string, any> = {
+          external_session_id: externalSessionId,
+          brand: brand,
+        };
+        
+        // Don't include lead_id, session_status, or channel_data if they're causing issues
+        // Let database defaults handle them
+        
+        const { data: minimalCreated, error: minimalError } = await supabase
+          .from(tableName)
+          .insert(minimalInsert)
+          .select('*')
+          .single();
+        
+        if (minimalError) {
+          // If still failing, try fallback to old sessions table
+          if (minimalError.code === '23502' || minimalError.code === '42P01') {
+            console.log('[chatSessions] Minimal insert failed, trying fallback to sessions table');
+            const { data: fallbackCreated, error: fallbackError } = await supabase
+              .from('sessions')
+              .insert({ 
+                external_session_id: externalSessionId,
+                brand: brand,
+                channel: channel,
+                channel_data: {},
+              })
+              .select('*')
+              .single();
+            
+            if (fallbackError) {
+              console.error('[Supabase] Failed to create session in fallback table', fallbackError);
+              return null;
+            }
+            
+            if (fallbackCreated) {
+              return mapSession(fallbackCreated);
+            }
+          }
+          console.error('[Supabase] Failed to create session with minimal fields', minimalError);
+          return null;
+        }
+        
+        if (minimalCreated) {
+          return mapSession(minimalCreated);
+        }
+      }
+      
+      return null;
+    }
   }
 
-  // Create channel-specific session record
   if (created) {
-    await createChannelSession(created.id, channel, brand);
     return mapSession(created);
   }
 
   return null;
 }
 
-// Helper function to ensure channel-specific session record exists
-async function ensureChannelSessionExists(
-  sessionId: string,
-  channel: Channel,
-  brand: 'proxe' | 'windchasers'
-): Promise<void> {
-  const supabase = getSupabaseClient(brand);
-  if (!supabase) {
-    return;
-  }
-
-  const channelTableMap: Record<Channel, string> = {
-    web: 'web_sessions',
-    whatsapp: 'whatsapp_sessions',
-    voice: 'voice_sessions',
-    social: 'social_sessions',
-  };
-
-  const tableName = channelTableMap[channel];
-  if (!tableName) {
-    return;
-  }
-
-  // Check if channel-specific record already exists
-  const { data: existing, error: checkError } = await supabase
-    .from(tableName)
-    .select('id')
-    .eq('session_id', sessionId)
-    .maybeSingle();
-
-  if (checkError) {
-    console.warn(`[chatSessions] Failed to check ${channel} session`, checkError);
-    return;
-  }
-
-  // Create if it doesn't exist
-  if (!existing) {
-    await createChannelSession(sessionId, channel, brand);
-  }
-}
 
 // Helper function to check if a lead is complete (has name, email, and phone)
 function isCompleteLead(profile: { userName?: string | null; phone?: string | null; email?: string | null }): boolean {
@@ -243,16 +381,16 @@ export async function updateSessionProfile(
   const session = await ensureSession(externalSessionId, 'web', brand);
   console.log('[updateSessionProfile] Session ensured', { sessionId: session?.id, externalSessionId });
 
-  // Build updates object with only the fields that are provided
+  // Build updates object with new column names (customer_name, customer_email, customer_phone)
   const updates: Record<string, string | null | undefined> = {};
   if (typeof profile.userName === 'string') {
-    updates.user_name = profile.userName.trim() || null;
+    updates.customer_name = profile.userName.trim() || null;
   }
   if (profile.phone !== undefined) {
-    updates.phone = profile.phone ? profile.phone.trim() : null;
+    updates.customer_phone = profile.phone ? profile.phone.trim() : null;
   }
   if (profile.email !== undefined) {
-    updates.email = profile.email ? profile.email.trim() : null;
+    updates.customer_email = profile.email ? profile.email.trim() : null;
   }
   if (profile.websiteUrl !== undefined) {
     updates.website_url = profile.websiteUrl ? profile.websiteUrl.trim() : null;
@@ -266,33 +404,85 @@ export async function updateSessionProfile(
     return;
   }
 
+  const tableName = getChannelTable('web');
+
   // Perform the update
   console.log('[updateSessionProfile] Executing Supabase update', { externalSessionId, updates });
   const { data, error } = await supabase
-    .from(TABLE_SESSIONS)
+    .from(tableName)
     .update(updates)
     .eq('external_session_id', externalSessionId)
     .select();
 
   if (error) {
-    console.error('[Supabase] Failed to update session profile', { error, externalSessionId, updates });
-    return;
+    // Fallback to old sessions table if web_sessions doesn't exist
+    if (error.code === '42P01' || error.code === '42703') {
+      console.log('[updateSessionProfile] Trying fallback to sessions table');
+      const fallbackUpdates: Record<string, string | null | undefined> = {};
+      if (typeof profile.userName === 'string') {
+        fallbackUpdates.user_name = profile.userName.trim() || null;
+      }
+      if (profile.phone !== undefined) {
+        fallbackUpdates.phone = profile.phone ? profile.phone.trim() : null;
+      }
+      if (profile.email !== undefined) {
+        fallbackUpdates.email = profile.email ? profile.email.trim() : null;
+      }
+      if (profile.websiteUrl !== undefined) {
+        fallbackUpdates.website_url = profile.websiteUrl ? profile.websiteUrl.trim() : null;
+      }
+      
+      const { error: fallbackError } = await supabase
+        .from('sessions')
+        .update(fallbackUpdates)
+        .eq('external_session_id', externalSessionId);
+      
+      if (fallbackError) {
+        console.error('[Supabase] Failed to update session profile (fallback)', { error: fallbackError, externalSessionId });
+        return;
+      }
+    } else {
+      console.error('[Supabase] Failed to update session profile', { error, externalSessionId, updates });
+      return;
+    }
   }
 
   console.log('[updateSessionProfile] Update successful', { externalSessionId, updatedRows: data?.length });
 
+  // Ensure all_leads record exists/updated after profile update and link it
+  if (profile.userName || profile.email || profile.phone) {
+    const leadId = await ensureAllLeads(
+      profile.userName || null,
+      profile.email || null,
+      profile.phone || null,
+      brand
+    );
+
+    // Update web_sessions with lead_id if we got one
+    if (leadId) {
+      const { error: leadIdError } = await supabase
+        .from(tableName)
+        .update({ lead_id: leadId })
+        .eq('external_session_id', externalSessionId);
+
+      if (leadIdError && leadIdError.code !== '42702') { // Ignore "column doesn't exist" errors
+        console.warn('[updateSessionProfile] Failed to update lead_id', leadIdError);
+      }
+    }
+  }
+
   // After successful update, check if we now have a complete lead
   const { data: updatedSession } = await supabase
-    .from(TABLE_SESSIONS)
-    .select('user_name, email, phone')
+    .from(tableName)
+    .select('customer_name, customer_email, customer_phone')
     .eq('external_session_id', externalSessionId)
     .maybeSingle();
 
   if (updatedSession) {
     const mergedProfile = {
-      userName: updatedSession.user_name ?? null,
-      email: updatedSession.email ?? null,
-      phone: updatedSession.phone ?? null,
+      userName: updatedSession.customer_name ?? null,
+      email: updatedSession.customer_email ?? null,
+      phone: updatedSession.customer_phone ?? null,
     };
     const completeLead = isCompleteLead(mergedProfile);
     
@@ -326,26 +516,41 @@ export async function addUserInput(
   // First, ensure session exists (create if it doesn't)
   await ensureSession(externalSessionId, 'web', brand);
 
+  const tableName = getChannelTable('web');
+
   // Check if session exists and is a complete lead before adding input
-  const { data: existingSession } = await supabase
-    .from(TABLE_SESSIONS)
-    .select('user_name, email, phone')
+  const { data: existingSession, error: sessionError } = await supabase
+    .from(tableName)
+    .select('customer_name, customer_email, customer_phone')
     .eq('external_session_id', externalSessionId)
     .maybeSingle();
 
-  // Only add user input if this is a complete lead (has name, email, phone)
-  const isComplete = existingSession && 
-    existingSession.user_name?.trim() && 
-    existingSession.email?.trim() && 
-    existingSession.phone?.trim();
+  // Fallback to old sessions table if needed
+  let isComplete = false;
+  if (sessionError && (sessionError.code === '42P01' || sessionError.code === '42703')) {
+    const { data: fallbackSession } = await supabase
+      .from('sessions')
+      .select('user_name, email, phone')
+      .eq('external_session_id', externalSessionId)
+      .maybeSingle();
+    
+    isComplete = fallbackSession && 
+      fallbackSession.user_name?.trim() && 
+      fallbackSession.email?.trim() && 
+      fallbackSession.phone?.trim();
+  } else if (existingSession) {
+    isComplete = existingSession.customer_name?.trim() && 
+      existingSession.customer_email?.trim() && 
+      existingSession.customer_phone?.trim();
+  }
 
   if (!isComplete) {
     if (process.env.NODE_ENV !== 'production') {
       console.log('[chatSessions] Skipping user input - incomplete lead (missing name, email, or phone)', {
         hasSession: Boolean(existingSession),
-        hasName: Boolean(existingSession?.user_name?.trim()),
-        hasEmail: Boolean(existingSession?.email?.trim()),
-        hasPhone: Boolean(existingSession?.phone?.trim()),
+        hasName: Boolean(existingSession?.customer_name?.trim()),
+        hasEmail: Boolean(existingSession?.customer_email?.trim()),
+        hasPhone: Boolean(existingSession?.customer_phone?.trim()),
       });
     }
     return;
@@ -353,12 +558,52 @@ export async function addUserInput(
 
   // Fetch current session to get existing user_inputs_summary
   const { data: currentSession, error: fetchError } = await supabase
-    .from(TABLE_SESSIONS)
+    .from(tableName)
     .select('user_inputs_summary, message_count')
     .eq('external_session_id', externalSessionId)
     .maybeSingle();
 
   if (fetchError) {
+    // Try fallback
+    if (fetchError.code === '42P01' || fetchError.code === '42703') {
+      const { data: fallbackSession, error: fallbackError } = await supabase
+        .from('sessions')
+        .select('user_inputs_summary, message_count')
+        .eq('external_session_id', externalSessionId)
+        .maybeSingle();
+      
+      if (fallbackError || !fallbackSession) {
+        console.error('[Supabase] Failed to fetch session for addUserInput', fallbackError || 'Session not found');
+        return;
+      }
+      
+      const existingInputs: UserInput[] = Array.isArray(fallbackSession?.user_inputs_summary) 
+        ? fallbackSession.user_inputs_summary 
+        : [];
+      
+      const newInput: UserInput = {
+        input: input.trim(),
+        intent: intent,
+        created_at: new Date().toISOString(),
+      };
+      
+      const updatedInputs = [...existingInputs, newInput].slice(-20);
+      const messageCount = (fallbackSession?.message_count ?? 0) + 1;
+
+      const { error } = await supabase
+        .from('sessions')
+        .update({
+          user_inputs_summary: updatedInputs,
+          message_count: messageCount,
+          last_message_at: new Date().toISOString(),
+        })
+        .eq('external_session_id', externalSessionId);
+
+      if (error) {
+        console.error('[Supabase] Failed to add user input', error);
+      }
+      return;
+    }
     console.error('[Supabase] Failed to fetch session for addUserInput', fetchError);
     return;
   }
@@ -383,7 +628,7 @@ export async function addUserInput(
   const messageCount = (currentSession?.message_count ?? 0) + 1;
 
   const { error } = await supabase
-    .from(TABLE_SESSIONS)
+    .from(tableName)
     .update({
       user_inputs_summary: updatedInputs,
       message_count: messageCount,
@@ -415,12 +660,14 @@ export async function upsertSummary(
   // Ensure session exists first
   await ensureSession(externalSessionId, 'web', brand);
 
+  const tableName = getChannelTable('web');
+
   // Always update summary (don't require complete lead)
   // Summaries are useful for maintaining conversation context even before lead is complete
   console.log('[upsertSummary] Updating summary', { externalSessionId, summaryLength: summary.length });
   
   const { data, error } = await supabase
-    .from(TABLE_SESSIONS)
+    .from(tableName)
     .update({
       conversation_summary: summary,
       last_message_at: lastMessageCreatedAt,
@@ -429,7 +676,24 @@ export async function upsertSummary(
     .select();
 
   if (error) {
-    console.error('[Supabase] Failed to upsert summary', { error, externalSessionId });
+    // Fallback to old sessions table
+    if (error.code === '42P01' || error.code === '42703') {
+      const { error: fallbackError } = await supabase
+        .from('sessions')
+        .update({
+          conversation_summary: summary,
+          last_message_at: lastMessageCreatedAt,
+        })
+        .eq('external_session_id', externalSessionId);
+      
+      if (fallbackError) {
+        console.error('[Supabase] Failed to upsert summary (fallback)', { error: fallbackError, externalSessionId });
+      } else {
+        console.log('[Supabase] Successfully updated summary (fallback)', { externalSessionId });
+      }
+    } else {
+      console.error('[Supabase] Failed to upsert summary', { error, externalSessionId });
+    }
   } else {
     console.log('[Supabase] Successfully updated summary', { externalSessionId, updatedRows: data?.length });
   }
@@ -445,13 +709,35 @@ export async function fetchSummary(
     return null;
   }
 
+  const tableName = getChannelTable('web');
+
   const { data, error } = await supabase
-    .from(TABLE_SESSIONS)
+    .from(tableName)
     .select('conversation_summary, last_message_at')
     .eq('external_session_id', externalSessionId)
     .maybeSingle();
 
   if (error) {
+    // Fallback to old sessions table
+    if (error.code === '42P01' || error.code === '42703') {
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('sessions')
+        .select('conversation_summary, last_message_at')
+        .eq('external_session_id', externalSessionId)
+        .maybeSingle();
+      
+      if (fallbackError) {
+        console.error('[Supabase] Failed to fetch summary (fallback)', fallbackError);
+        return null;
+      }
+      
+      if (!fallbackData || !fallbackData.conversation_summary) return null;
+      
+      return {
+        summary: fallbackData.conversation_summary,
+        lastMessageCreatedAt: fallbackData.last_message_at || new Date().toISOString(),
+      };
+    }
     console.error('[Supabase] Failed to fetch summary', error);
     return null;
   }
@@ -480,17 +766,32 @@ export async function storeBooking(
     return;
   }
 
+  const tableName = getChannelTable('web');
+
   // Only store booking for complete leads
-  const { data: existingSession } = await supabase
-    .from(TABLE_SESSIONS)
-    .select('user_name, email, phone')
+  const { data: existingSession, error: sessionError } = await supabase
+    .from(tableName)
+    .select('customer_name, customer_email, customer_phone')
     .eq('external_session_id', externalSessionId)
     .maybeSingle();
 
-  const isComplete = existingSession && 
-    existingSession.user_name?.trim() && 
-    existingSession.email?.trim() && 
-    existingSession.phone?.trim();
+  let isComplete = false;
+  if (sessionError && (sessionError.code === '42P01' || sessionError.code === '42703')) {
+    const { data: fallbackSession } = await supabase
+      .from('sessions')
+      .select('user_name, email, phone')
+      .eq('external_session_id', externalSessionId)
+      .maybeSingle();
+    
+    isComplete = fallbackSession && 
+      fallbackSession.user_name?.trim() && 
+      fallbackSession.email?.trim() && 
+      fallbackSession.phone?.trim();
+  } else if (existingSession) {
+    isComplete = existingSession.customer_name?.trim() && 
+      existingSession.customer_email?.trim() && 
+      existingSession.customer_phone?.trim();
+  }
 
   if (!isComplete) {
     if (process.env.NODE_ENV !== 'production') {
@@ -500,7 +801,7 @@ export async function storeBooking(
   }
 
   const { error } = await supabase
-    .from(TABLE_SESSIONS)
+    .from(tableName)
     .update({
       booking_date: booking.date,
       booking_time: booking.time,
@@ -511,7 +812,25 @@ export async function storeBooking(
     .eq('external_session_id', externalSessionId);
 
   if (error) {
-    console.error('[Supabase] Failed to store booking', error);
+    // Fallback to old sessions table
+    if (error.code === '42P01' || error.code === '42703') {
+      const { error: fallbackError } = await supabase
+        .from('sessions')
+        .update({
+          booking_date: booking.date,
+          booking_time: booking.time,
+          google_event_id: booking.googleEventId ?? null,
+          booking_status: booking.status ?? 'confirmed',
+          booking_created_at: new Date().toISOString(),
+        })
+        .eq('external_session_id', externalSessionId);
+      
+      if (fallbackError) {
+        console.error('[Supabase] Failed to store booking (fallback)', fallbackError);
+      }
+    } else {
+      console.error('[Supabase] Failed to store booking', error);
+    }
   }
 }
 
@@ -526,14 +845,42 @@ export async function updateChannelData(
     return;
   }
 
+  const tableName = getChannelTable('web');
+
   // Fetch current channel_data to merge
   const { data: session, error: fetchError } = await supabase
-    .from(TABLE_SESSIONS)
+    .from(tableName)
     .select('channel_data')
     .eq('external_session_id', externalSessionId)
     .maybeSingle();
 
   if (fetchError) {
+    // Fallback to old sessions table
+    if (fetchError.code === '42P01' || fetchError.code === '42703') {
+      const { data: fallbackSession, error: fallbackError } = await supabase
+        .from('sessions')
+        .select('channel_data')
+        .eq('external_session_id', externalSessionId)
+        .maybeSingle();
+      
+      if (fallbackError) {
+        console.error('[Supabase] Failed to fetch session for updateChannelData (fallback)', fallbackError);
+        return;
+      }
+      
+      const currentData = fallbackSession?.channel_data ?? {};
+      const mergedData = { ...currentData, ...channelData };
+
+      const { error } = await supabase
+        .from('sessions')
+        .update({ channel_data: mergedData })
+        .eq('external_session_id', externalSessionId);
+
+      if (error) {
+        console.error('[Supabase] Failed to update channel data (fallback)', error);
+      }
+      return;
+    }
     console.error('[Supabase] Failed to fetch session for updateChannelData', fetchError);
     return;
   }
@@ -542,7 +889,7 @@ export async function updateChannelData(
   const mergedData = { ...currentData, ...channelData };
 
   const { error } = await supabase
-    .from(TABLE_SESSIONS)
+    .from(tableName)
     .update({ channel_data: mergedData })
     .eq('external_session_id', externalSessionId);
 

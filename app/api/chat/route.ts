@@ -20,6 +20,12 @@ const windchasersSupabase = createClient(windchasersSupabaseUrl, windchasersSupa
 // Initialize Claude API
 const claudeApiKey = process.env.CLAUDE_API_KEY;
 
+console.log('[Chat API] Initializing Claude API:', {
+  hasApiKey: Boolean(claudeApiKey),
+  apiKeyPrefix: claudeApiKey ? claudeApiKey.substring(0, 10) + '...' : 'none',
+  apiKeyLength: claudeApiKey?.length || 0,
+});
+
 const anthropic = claudeApiKey ? new Anthropic({ apiKey: claudeApiKey }) : null;
 
 // Search knowledge base
@@ -192,8 +198,11 @@ IMPORTANT RULES:
 - If no relevant follow-up is appropriate or it would be repetitive, respond with the single word SKIP
 - Output only the label text without quotation marks.`;
 
+    // Use environment variable for model, fallback to claude-haiku-4-5-20251001
+    const model = process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001';
+    
     const followUpResponse = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: model,
       max_tokens: 60,
       system: brandPrompt,
       messages: [{
@@ -340,26 +349,144 @@ export async function POST(request: NextRequest) {
 
           // Use Claude for streaming
           if (!anthropic) {
+            console.error('[Chat API] Claude API not configured');
             throw new Error('Claude API is not configured. Please set CLAUDE_API_KEY in environment variables.');
           }
 
-          const anthropicStream = await anthropic.messages.stream({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 768,
-            system: systemPrompt,
-            messages: [{
-              role: 'user',
-              content: finalUserPrompt,
-            }],
+          // Use environment variable for model, fallback to claude-haiku-4-5-20251001
+          const model = process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001';
+          
+          console.log('[Chat API] Starting Claude stream', {
+            hasApiKey: Boolean(claudeApiKey),
+            model: model,
+            messageLength: finalUserPrompt.length,
           });
 
-          for await (const chunk of anthropicStream) {
-            if (chunk.type === 'content_block_delta' && chunk.delta && chunk.delta.type === 'text_delta') {
-              const text = chunk.delta.text;
-              rawResponse += text;
-              const sseData = `data: ${JSON.stringify({ type: 'chunk', text: text })}\n\n`;
-              controller.enqueue(encoder.encode(sseData));
+          // Retry logic for overloaded errors
+          const maxRetries = 3;
+          let lastError: any = null;
+          let anthropicStream;
+          
+          for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+              if (attempt > 0) {
+                const retryDelay = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Exponential backoff, max 10s
+                console.log(`[Chat API] Retry attempt ${attempt}/${maxRetries} after ${retryDelay}ms`);
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+              }
+              
+    // Use environment variable for model, fallback to claude-haiku-4-5-20251001
+    const model = process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001';
+              
+              anthropicStream = await anthropic.messages.stream({
+                model: model,
+                max_tokens: 768,
+                system: systemPrompt,
+                messages: [{
+                  role: 'user',
+                  content: finalUserPrompt,
+                }],
+              });
+              console.log('[Chat API] Stream created successfully');
+              break; // Success, exit retry loop
+            } catch (streamError: any) {
+              lastError = streamError;
+              const errorType = streamError?.error?.type;
+              const isOverloaded = errorType === 'overloaded_error' || 
+                                   streamError?.message?.includes('overloaded');
+              
+              console.error(`[Chat API] Stream creation failed (attempt ${attempt + 1}/${maxRetries + 1}):`, {
+                error: streamError,
+                message: streamError?.message,
+                type: streamError?.type,
+                errorType: errorType,
+                isOverloaded: isOverloaded,
+                status: streamError?.status,
+              });
+              
+              // Only retry on overloaded errors, not on other errors
+              if (!isOverloaded || attempt >= maxRetries) {
+                throw streamError;
+              }
             }
+          }
+          
+          if (!anthropicStream) {
+            throw lastError || new Error('Failed to create stream after retries');
+          }
+
+          try {
+            let chunkCount = 0;
+            for await (const chunk of anthropicStream) {
+              chunkCount++;
+              try {
+                // Process content block deltas with text
+                if (chunk.type === 'content_block_delta' && 'delta' in chunk && chunk.delta && chunk.delta.type === 'text_delta') {
+                  const text = chunk.delta.text || '';
+                  console.log('[Chat API] Processing text delta:', { 
+                    textType: typeof text,
+                    textLength: text?.length,
+                    textPreview: typeof text === 'string' ? text.substring(0, 50) : text,
+                    deltaType: chunk.delta?.type
+                  });
+                  
+                  if (text && typeof text === 'string') {
+                    rawResponse += text;
+                    const sseData = `data: ${JSON.stringify({ type: 'chunk', text: text })}\n\n`;
+                    controller.enqueue(encoder.encode(sseData));
+                  }
+                }
+              } catch (chunkError) {
+                console.error('[Chat API] Error processing chunk:', chunkError);
+                // If it's an error chunk, re-throw it
+                if (chunkError instanceof Error && chunkError.message.includes('"type":"error"')) {
+                  throw chunkError;
+                }
+                // Otherwise continue processing other chunks
+              }
+            }
+            console.log('[Chat API] Stream completed', { chunkCount, responseLength: rawResponse.length });
+          } catch (streamError: any) {
+            console.error('[Chat API] Stream processing error:', {
+              error: streamError,
+              message: streamError?.message,
+              type: streamError?.type,
+              status: streamError?.status,
+              errorType: streamError?.error?.type,
+              errorMessage: streamError?.error?.message,
+              errorObject: streamError?.error,
+              headers: streamError?.headers,
+              retryAfter: streamError?.headers?.get?.('retry-after'),
+              stack: streamError?.stack,
+            });
+            
+            // If the error message contains JSON with error info, extract it
+            if (streamError?.message && streamError.message.includes('"type":"error"')) {
+              try {
+                const parsed = JSON.parse(streamError.message);
+                if (parsed.error) {
+                  streamError.error = parsed.error;
+                }
+              } catch (e) {
+                // Not JSON, continue
+              }
+            }
+            
+            // Check if this is an overloaded error that happened during iteration
+            // (not during creation, so retry logic didn't catch it)
+            const errorType = streamError?.error?.type || 
+                             (streamError?.message?.includes('"type":"error"') ? 
+                               JSON.parse(streamError.message)?.error?.type : null);
+            
+            if (errorType === 'overloaded_error') {
+              // This error happened during stream iteration, not creation
+              // We can't retry the stream at this point, but we can show a helpful message
+              const retryAfter = streamError?.headers?.get?.('retry-after');
+              const retrySeconds = retryAfter ? parseInt(retryAfter, 10) : 6;
+              throw { ...streamError, retrySeconds, isOverloaded: true };
+            }
+            
+            throw streamError; // Re-throw to be caught by outer catch
           }
 
           // Clean response
@@ -422,27 +549,73 @@ export async function POST(request: NextRequest) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`));
           controller.close();
         } catch (error: any) {
-          const errorMessage = error.message || 'Unknown error occurred';
-          const errorType = error.type || error.error?.type || 'unknown_error';
+          console.error('[Chat API] Stream error:', {
+            error,
+            message: error?.message,
+            type: error?.type,
+            status: error?.status,
+            statusCode: error?.status_code,
+            errorType: error?.error?.type,
+            stack: error?.stack,
+          });
+          
+          // Extract error details - Claude API error structure is nested
+          let claudeErrorType = error?.error?.type;
+          let claudeErrorMessage = error?.error?.message;
+          const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+          
+          // Try to parse error message if it's JSON (Claude sometimes returns JSON string)
+          if (!claudeErrorType && errorMessage && errorMessage.includes('"type":"error"')) {
+            try {
+              const parsed = JSON.parse(errorMessage);
+              if (parsed.error) {
+                claudeErrorType = parsed.error.type;
+                claudeErrorMessage = parsed.error.message;
+              }
+            } catch (e) {
+              // Not JSON, continue with original error message
+            }
+          }
+          
+          const errorType = claudeErrorType || error?.type || error?.status_code || 'unknown_error';
+          const retryAfter = error?.headers?.get?.('retry-after');
           
           // Handle specific error types
-          if (errorType === 'overloaded_error' || errorMessage.includes('overloaded')) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-              type: 'error', 
-              error: 'The service is currently overloaded. Please try again in a moment.' 
-            })}\n\n`));
-          } else if (errorMessage.includes('rate_limit') || errorMessage.includes('rate limit')) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-              type: 'error', 
-              error: 'Rate limit exceeded. Please wait a moment and try again.' 
-            })}\n\n`));
+          let userFriendlyMessage = claudeErrorMessage || errorMessage;
+          
+          if (errorType === 'overloaded_error' || errorMessage.toLowerCase().includes('overloaded') || error?.isOverloaded) {
+            // Use retrySeconds from error object if available (from stream iteration error)
+            const retrySeconds = error?.retrySeconds || (retryAfter ? parseInt(retryAfter, 10) : 6);
+            userFriendlyMessage = `The service is currently overloaded. Please try again in ${retrySeconds} seconds.`;
+          } else if (errorType === 'rate_limit_error' || errorMessage.toLowerCase().includes('rate_limit') || errorMessage.toLowerCase().includes('rate limit') || error?.status_code === 429) {
+            userFriendlyMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+          } else if (errorMessage.toLowerCase().includes('api key') || errorMessage.toLowerCase().includes('authentication') || error?.status_code === 401) {
+            userFriendlyMessage = 'Authentication error. Please check API configuration.';
+          } else if (errorMessage.toLowerCase().includes('network') || errorMessage.toLowerCase().includes('fetch')) {
+            userFriendlyMessage = 'Network error. Please check your connection and try again.';
+          } else if (error?.status_code === 500 || error?.status_code === 503) {
+            userFriendlyMessage = 'The service is currently unavailable. Please try again in a moment.';
           } else {
+            // For development, show more details
+            if (process.env.NODE_ENV !== 'production') {
+              userFriendlyMessage = `Error: ${claudeErrorMessage || errorMessage}`;
+            }
+          }
+          
+          try {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
               type: 'error', 
-              error: errorMessage 
+              error: userFriendlyMessage 
             })}\n\n`));
+          } catch (encodeError) {
+            console.error('[Chat API] Failed to encode error:', encodeError);
           }
-          controller.close();
+          
+          try {
+            controller.close();
+          } catch (closeError) {
+            console.error('[Chat API] Failed to close stream:', closeError);
+          }
         }
       }
     });

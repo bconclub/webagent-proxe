@@ -22,23 +22,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build query
+    // Determine which table to query based on channel
+    const channelTableMap: Record<string, string> = {
+      web: 'web_sessions',
+      voice: 'voice_sessions',
+      whatsapp: 'whatsapp_sessions',
+      social: 'social_sessions',
+    };
+
+    const tableName = channel ? (channelTableMap[channel] || 'sessions') : 'sessions';
+
+    // Build query - use channel-specific table if channel is specified
     let query = supabase
-      .from('sessions')
+      .from(tableName)
       .select('*')
       .order('created_at', { ascending: false });
-
-    // Filter by channel
-    if (channel) {
-      const validChannels = ['web', 'voice', 'whatsapp', 'social'];
-      if (!validChannels.includes(channel)) {
-        return Response.json(
-          { error: `Invalid channel. Must be one of: ${validChannels.join(', ')}` },
-          { status: 400 }
-        );
-      }
-      query = query.eq('channel', channel);
-    }
 
     // Filter by brand
     if (brand) {
@@ -61,9 +59,85 @@ export async function GET(request: NextRequest) {
     // Apply pagination
     query = query.range(offset, offset + limit - 1);
 
-    const { data, error, count } = await query;
+    const { data, error } = await query;
 
     if (error) {
+      // Fallback to old sessions table if channel table doesn't exist
+      if ((error.code === '42P01' || error.code === '42703') && channel) {
+        console.log(`[Sessions API] ${tableName} table not found, using fallback`);
+        let fallbackQuery = supabase
+          .from('sessions')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (channel) {
+          fallbackQuery = fallbackQuery.eq('channel', channel);
+        }
+        if (brand) {
+          fallbackQuery = fallbackQuery.eq('brand', brand.toLowerCase());
+        }
+        if (externalSessionId) {
+          fallbackQuery = fallbackQuery.eq('external_session_id', externalSessionId);
+        }
+        if (startDate) {
+          fallbackQuery = fallbackQuery.gte('created_at', startDate);
+        }
+        if (endDate) {
+          fallbackQuery = fallbackQuery.lte('created_at', endDate);
+        }
+        fallbackQuery = fallbackQuery.range(offset, offset + limit - 1);
+
+        const { data: fallbackData, error: fallbackError } = await fallbackQuery;
+        
+        if (fallbackError) {
+          console.error('[Sessions API] Fallback query error:', fallbackError);
+          return Response.json(
+            { error: 'Failed to fetch sessions', details: fallbackError.message },
+            { status: 500 }
+          );
+        }
+
+        // Get total count for pagination (fallback)
+        let fallbackCountQuery = supabase
+          .from('sessions')
+          .select('*', { count: 'exact', head: true });
+
+        if (channel) {
+          fallbackCountQuery = fallbackCountQuery.eq('channel', channel);
+        }
+        if (brand) {
+          fallbackCountQuery = fallbackCountQuery.eq('brand', brand.toLowerCase());
+        }
+        if (externalSessionId) {
+          fallbackCountQuery = fallbackCountQuery.eq('external_session_id', externalSessionId);
+        }
+        if (startDate) {
+          fallbackCountQuery = fallbackCountQuery.gte('created_at', startDate);
+        }
+        if (endDate) {
+          fallbackCountQuery = fallbackCountQuery.lte('created_at', endDate);
+        }
+
+        const { count: fallbackTotalCount } = await fallbackCountQuery;
+
+        return Response.json({
+          sessions: fallbackData || [],
+          pagination: {
+            limit,
+            offset,
+            total: fallbackTotalCount || 0,
+            hasMore: (fallbackTotalCount || 0) > offset + limit,
+          },
+          filters: {
+            channel: channel || null,
+            brand: brand || null,
+            externalSessionId: externalSessionId || null,
+            startDate: startDate || null,
+            endDate: endDate || null,
+          },
+        });
+      }
+
       console.error('[Sessions API] Query error:', error);
       return Response.json(
         { error: 'Failed to fetch sessions', details: error.message },
@@ -73,12 +147,9 @@ export async function GET(request: NextRequest) {
 
     // Get total count for pagination (without limit)
     let countQuery = supabase
-      .from('sessions')
+      .from(tableName)
       .select('*', { count: 'exact', head: true });
 
-    if (channel) {
-      countQuery = countQuery.eq('channel', channel);
-    }
     if (brand) {
       countQuery = countQuery.eq('brand', brand.toLowerCase());
     }

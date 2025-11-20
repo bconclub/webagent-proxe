@@ -145,7 +145,9 @@ export function useChatStream({ brand, apiUrl, onMessageComplete }: UseChatStrea
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          break;
+        }
 
         const chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
@@ -159,12 +161,32 @@ export function useChatStream({ brand, apiUrl, onMessageComplete }: UseChatStrea
           if (trimmed.startsWith('data: ')) {
             try {
               const jsonStr = trimmed.slice(6);
-              const data = JSON.parse(jsonStr);
+              
+              if (!jsonStr || jsonStr.trim() === '') {
+                continue; // Skip empty JSON strings
+              }
+              
+              let data;
+              try {
+                data = JSON.parse(jsonStr);
+              } catch (parseError) {
+                if (process.env.NODE_ENV !== 'production') {
+                  console.warn('[useChatStream] Failed to parse JSON:', jsonStr.substring(0, 100));
+                }
+                continue; // Skip invalid JSON
+              }
+              
+              // Ensure data is an object
+              if (!data || typeof data !== 'object') {
+                continue; // Skip non-object data
+              }
 
               if (data.type === 'chunk') {
                 // Process text chunks for smooth character-by-character streaming
-                const newText = data.text || '';
-                if (newText) {
+                // Strict type checking to handle null or malformed data
+                const newText = (typeof data.text === 'string') ? data.text : '';
+                
+                if (newText && typeof newText === 'string') {
                   // Add to queue for sequential character streaming
                   streamingQueueRef.current.push(newText);
                   
@@ -178,7 +200,15 @@ export function useChatStream({ brand, apiUrl, onMessageComplete }: UseChatStrea
                         return;
                       }
                       
-                      const textToProcess = streamingQueueRef.current.shift() || '';
+                      const textToProcess = streamingQueueRef.current.shift();
+                      
+                      // Safeguard against non-string data
+                      if (typeof textToProcess !== 'string') {
+                        // Skip invalid data and continue processing queue
+                        setTimeout(processQueue, 0);
+                        return;
+                      }
+                      
                       const chars = textToProcess.split('');
                       let charIndex = 0;
                       
@@ -225,13 +255,15 @@ export function useChatStream({ brand, apiUrl, onMessageComplete }: UseChatStrea
                 }
               } else if (data.type === 'followUps') {
                 // Store followUps but they will only be displayed when hasStreamed is true
+                const followUps = Array.isArray(data.followUps) ? data.followUps : [];
                 setMessages((prev) =>
                   prev.map((msg) =>
-                    msg.id === streamingMessage.id ? { ...msg, followUps: data.followUps || [] } : msg
+                    msg.id === streamingMessage.id ? { ...msg, followUps: followUps } : msg
                   )
                 );
               } else if (data.type === 'error') {
-                setError(data.error || 'Unknown error');
+                const errorMessage = typeof data.error === 'string' ? data.error : 'Unknown error';
+                setError(errorMessage);
                 setMessages((prev) =>
                   prev.map((msg) =>
                     msg.id === streamingMessage.id
@@ -239,7 +271,7 @@ export function useChatStream({ brand, apiUrl, onMessageComplete }: UseChatStrea
                           ...msg,
                           isStreaming: false,
                           hasStreamed: true,
-                          text: msg.text || `Error: ${data.error || 'Unknown error'}`,
+                          text: msg.text || `Error: ${errorMessage}`,
                         }
                       : msg
                   )
@@ -294,7 +326,10 @@ export function useChatStream({ brand, apiUrl, onMessageComplete }: UseChatStrea
                 setTimeout(checkAndComplete, 100);
               }
             } catch (parseError) {
-              // Silently handle parse errors
+              // Log parse errors in development
+              if (process.env.NODE_ENV !== 'production') {
+                console.warn('[useChatStream] Parse error:', parseError, 'Line:', trimmed);
+              }
             }
           }
         }
