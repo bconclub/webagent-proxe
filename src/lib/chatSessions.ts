@@ -52,6 +52,24 @@ function getChannelTable(channel: Channel): string {
   return channelTableMap[channel] || 'web_sessions';
 }
 
+// Helper function to get current date/time in UTC+5:30 (IST)
+function getISTTimestamp(): string {
+  const now = new Date();
+  // Convert UTC to IST (UTC+5:30 = 5 hours 30 minutes = 330 minutes)
+  const istOffsetMinutes = 330;
+  const istTime = new Date(now.getTime() + (istOffsetMinutes * 60 * 1000));
+  
+  // Format as ISO string with +05:30 timezone
+  const year = istTime.getUTCFullYear();
+  const month = String(istTime.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(istTime.getUTCDate()).padStart(2, '0');
+  const hours = String(istTime.getUTCHours()).padStart(2, '0');
+  const minutes = String(istTime.getUTCMinutes()).padStart(2, '0');
+  const seconds = String(istTime.getUTCSeconds()).padStart(2, '0');
+  const milliseconds = String(istTime.getUTCMilliseconds()).padStart(3, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}+05:30`;
+}
+
 // Helper function to normalize phone number for all_leads deduplication
 function normalizePhone(phone: string | null | undefined): string | null {
   if (!phone) return null;
@@ -103,7 +121,7 @@ async function ensureAllLeads(
         .from('all_leads')
         .update({
           last_touchpoint: 'web',
-          last_interaction_at: new Date().toISOString(),
+          last_interaction_at: getISTTimestamp(),
           customer_name: customerName || undefined,
           email: email || undefined,
           phone: phone || undefined,
@@ -550,7 +568,7 @@ export async function addUserInput(
       const newInput: UserInput = {
         input: input.trim(),
         intent: intent,
-        created_at: new Date().toISOString(),
+        created_at: getISTTimestamp(),
       };
       
       const updatedInputs = [...existingInputs, newInput].slice(-20);
@@ -561,7 +579,7 @@ export async function addUserInput(
         .update({
           user_inputs_summary: updatedInputs,
           message_count: messageCount,
-          last_message_at: new Date().toISOString(),
+          last_message_at: getISTTimestamp(),
         })
         .eq('external_session_id', externalSessionId);
 
@@ -701,7 +719,7 @@ export async function fetchSummary(
       
       return {
         summary: fallbackData.conversation_summary,
-        lastMessageCreatedAt: fallbackData.last_message_at || new Date().toISOString(),
+        lastMessageCreatedAt: fallbackData.last_message_at || getISTTimestamp(),
       };
     }
     console.error('[Supabase] Failed to fetch summary', error);
@@ -712,7 +730,7 @@ export async function fetchSummary(
 
   return {
     summary: data.conversation_summary,
-    lastMessageCreatedAt: data.last_message_at || new Date().toISOString(),
+    lastMessageCreatedAt: data.last_message_at || getISTTimestamp(),
   };
 }
 
@@ -773,7 +791,7 @@ export async function storeBooking(
       booking_time: booking.time,
       google_event_id: booking.googleEventId ?? null,
       booking_status: booking.status ?? 'confirmed',
-      booking_created_at: new Date().toISOString(),
+      booking_created_at: getISTTimestamp(),
     })
     .eq('external_session_id', externalSessionId);
 
@@ -787,7 +805,7 @@ export async function storeBooking(
           booking_time: booking.time,
           google_event_id: booking.googleEventId ?? null,
           booking_status: booking.status ?? 'confirmed',
-          booking_created_at: new Date().toISOString(),
+          booking_created_at: getISTTimestamp(),
         })
         .eq('external_session_id', externalSessionId);
       
@@ -814,7 +832,7 @@ export async function checkExistingBooking(
   const supabase = getSupabaseClient(brand);
   if (!supabase) {
     console.warn('[chatSessions] Supabase client unavailable in checkExistingBooking', { brand });
-    return null;
+    return { exists: false };
   }
 
   if (!phone && !email) {
@@ -833,7 +851,7 @@ export async function checkExistingBooking(
     let error = null;
 
     if (normalizedPhone) {
-      // Try by phone
+      // Try by phone (exact match first)
       const { data: phoneData, error: phoneError } = await supabase
         .from(tableName)
         .select('booking_date, booking_time, booking_status, booking_created_at')
@@ -847,23 +865,31 @@ export async function checkExistingBooking(
       
       if (phoneData && phoneData.booking_date) {
         data = phoneData;
+      } else if (phoneError && (phoneError.code === '42P01' || phoneError.code === '42703')) {
+        // Table or column doesn't exist, will fallback below
+        error = phoneError;
       } else {
-        // Try normalized phone
-        const { data: normalizedData, error: normalizedError } = await supabase
-          .from(tableName)
-          .select('booking_date, booking_time, booking_status, booking_created_at')
-          .eq('brand', brand.toLowerCase())
-          .eq('customer_phone_normalized', normalizedPhone)
-          .not('booking_date', 'is', null)
-          .not('booking_time', 'is', null)
-          .order('booking_created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        
-        if (normalizedData && normalizedData.booking_date) {
-          data = normalizedData;
-        } else {
-          error = normalizedError || phoneError;
+        // Try normalized phone only if column exists (will fail gracefully if it doesn't)
+        try {
+          const { data: normalizedData, error: normalizedError } = await supabase
+            .from(tableName)
+            .select('booking_date, booking_time, booking_status, booking_created_at')
+            .eq('brand', brand.toLowerCase())
+            .eq('customer_phone_normalized', normalizedPhone)
+            .not('booking_date', 'is', null)
+            .not('booking_time', 'is', null)
+            .order('booking_created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (normalizedData && normalizedData.booking_date) {
+            data = normalizedData;
+          } else if (normalizedError && normalizedError.code !== '42703') {
+            // Only set error if it's not a "column doesn't exist" error
+            error = normalizedError;
+          }
+        } catch (e) {
+          // Column doesn't exist, ignore and continue
         }
       }
     }
@@ -888,56 +914,63 @@ export async function checkExistingBooking(
       }
     }
 
-    if (error) {
-      // Fallback to old sessions table
-      if (error.code === '42P01' || error.code === '42703') {
-        // Try phone first in fallback
-        let fallbackData = null;
-        let fallbackError = null;
+    // If we got data, return it
+    if (data && data.booking_date) {
+      return {
+        exists: true,
+        bookingDate: data.booking_date,
+        bookingTime: data.booking_time,
+        bookingStatus: data.booking_status,
+        bookingCreatedAt: data.booking_created_at,
+      };
+    }
 
-        if (phone) {
-          const { data: phoneData, error: phoneErr } = await supabase
-            .from('sessions')
-            .select('booking_date, booking_time, booking_status, booking_created_at')
-            .eq('brand', brand.toLowerCase())
-            .eq('phone', phone)
-            .not('booking_date', 'is', null)
-            .not('booking_time', 'is', null)
-            .order('booking_created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          
-          if (phoneData && phoneData.booking_date) {
-            fallbackData = phoneData;
-          } else {
-            fallbackError = phoneErr;
-          }
+    // If error indicates table/column doesn't exist, try fallback
+    if (error && (error.code === '42P01' || error.code === '42703')) {
+      // Try phone first in fallback
+      let fallbackData = null;
+      let fallbackError = null;
+
+      if (phone) {
+        const { data: phoneData, error: phoneErr } = await supabase
+          .from('sessions')
+          .select('booking_date, booking_time, booking_status, booking_created_at')
+          .eq('brand', brand.toLowerCase())
+          .eq('phone', phone)
+          .not('booking_date', 'is', null)
+          .not('booking_time', 'is', null)
+          .order('booking_created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (phoneData && phoneData.booking_date) {
+          fallbackData = phoneData;
+        } else {
+          fallbackError = phoneErr;
         }
+      }
 
-        // If no phone match, try email
-        if (!fallbackData && email) {
-          const { data: emailData, error: emailErr } = await supabase
-            .from('sessions')
-            .select('booking_date, booking_time, booking_status, booking_created_at')
-            .eq('brand', brand.toLowerCase())
-            .eq('email', email)
-            .not('booking_date', 'is', null)
-            .not('booking_time', 'is', null)
-            .order('booking_created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          
-          if (emailData && emailData.booking_date) {
-            fallbackData = emailData;
-          } else {
-            fallbackError = emailErr || fallbackError;
-          }
+      // If no phone match, try email
+      if (!fallbackData && email) {
+        const { data: emailData, error: emailErr } = await supabase
+          .from('sessions')
+          .select('booking_date, booking_time, booking_status, booking_created_at')
+          .eq('brand', brand.toLowerCase())
+          .eq('email', email)
+          .not('booking_date', 'is', null)
+          .not('booking_time', 'is', null)
+          .order('booking_created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (emailData && emailData.booking_date) {
+          fallbackData = emailData;
+        } else {
+          fallbackError = emailErr || fallbackError;
         }
+      }
 
-        if (fallbackError || !fallbackData) {
-          return { exists: false };
-        }
-
+      if (fallbackData && fallbackData.booking_date) {
         return {
           exists: true,
           bookingDate: fallbackData.booking_date,
@@ -946,22 +979,15 @@ export async function checkExistingBooking(
           bookingCreatedAt: fallbackData.booking_created_at,
         };
       }
+    }
 
+    // Log error if it wasn't a table/column missing error
+    if (error && error.code !== '42P01' && error.code !== '42703') {
       console.error('[Supabase] Failed to check existing booking', error);
-      return { exists: false };
     }
 
-    if (!data || !data.booking_date || !data.booking_time) {
-      return { exists: false };
-    }
-
-    return {
-      exists: true,
-      bookingDate: data.booking_date,
-      bookingTime: data.booking_time,
-      bookingStatus: data.booking_status,
-      bookingCreatedAt: data.booking_created_at,
-    };
+    // No booking found
+    return { exists: false };
   } catch (error) {
     console.error('[chatSessions] Error checking existing booking', error);
     return { exists: false };

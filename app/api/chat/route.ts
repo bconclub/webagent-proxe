@@ -332,23 +332,28 @@ export async function POST(request: NextRequest) {
     let existingBookingMessage = null;
 
     if (isBookingAttempt && (userProfile.email || userProfile.phone)) {
-      const existingBooking = await checkExistingBooking(
-        userProfile.phone || null,
-        userProfile.email || null,
-        normalizedBrand as 'proxe' | 'windchasers'
-      );
+      try {
+        const existingBooking = await checkExistingBooking(
+          userProfile.phone || null,
+          userProfile.email || null,
+          normalizedBrand as 'proxe' | 'windchasers'
+        );
 
-      if (existingBooking?.exists && existingBooking.bookingDate && existingBooking.bookingTime) {
-        // Format date and time
-        const date = new Date(existingBooking.bookingDate);
-        const formattedDate = date.toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        });
-        const formattedTime = existingBooking.bookingTime;
-        existingBookingMessage = `You already have a booking scheduled for ${formattedDate} at ${formattedTime}.`;
+        if (existingBooking?.exists && existingBooking.bookingDate && existingBooking.bookingTime) {
+          // Format date and time
+          const date = new Date(existingBooking.bookingDate);
+          const formattedDate = date.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          });
+          const formattedTime = existingBooking.bookingTime;
+          existingBookingMessage = `You already have a booking scheduled for ${formattedDate} at ${formattedTime}.`;
+        }
+      } catch (bookingCheckError) {
+        // Log error but don't crash - allow booking to proceed
+        console.error('[Chat API] Error checking existing booking:', bookingCheckError);
       }
     }
 
@@ -600,7 +605,18 @@ export async function POST(request: NextRequest) {
           // Generate and save conversation summary (async, don't wait)
           if (externalSessionId && cleanedResponse) {
             const conversationSummary = `${message}\n\n${cleanedResponse}`;
-            const lastMessageAt = new Date().toISOString();
+            // Get IST timestamp (UTC+5:30)
+            const now = new Date();
+            const istOffsetMinutes = 330; // 5 hours 30 minutes
+            const istTime = new Date(now.getTime() + (istOffsetMinutes * 60 * 1000));
+            const year = istTime.getUTCFullYear();
+            const month = String(istTime.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(istTime.getUTCDate()).padStart(2, '0');
+            const hours = String(istTime.getUTCHours()).padStart(2, '0');
+            const minutes = String(istTime.getUTCMinutes()).padStart(2, '0');
+            const seconds = String(istTime.getUTCSeconds()).padStart(2, '0');
+            const milliseconds = String(istTime.getUTCMilliseconds()).padStart(3, '0');
+            const lastMessageAt = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}+05:30`;
             upsertSummary(externalSessionId, conversationSummary, lastMessageAt, brand as 'proxe' | 'windchasers').catch(err => {
               console.error('[Chat API] Failed to save summary:', err);
             });

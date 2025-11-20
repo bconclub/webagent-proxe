@@ -1402,18 +1402,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               // Show message about existing booking
               const bookingMessage = `You already have a booking scheduled for ${formattedDate} at ${formattedTime}.`;
               
-              // Add as AI message
-              const messageId = `booking-info-${Date.now()}`;
-              const bookingInfoMessage: Message = {
-                id: messageId,
-                type: 'ai',
-                text: bookingMessage,
-                isStreaming: false,
-                hasStreamed: true,
-                followUps: [],
-              };
-              
-              setMessages((prev) => [...prev, bookingInfoMessage]);
+              // Add as AI message using addAIMessage from hook
+              addAIMessage(bookingMessage);
               setBookingCompleted(true);
               return; // Don't show calendar
             }
