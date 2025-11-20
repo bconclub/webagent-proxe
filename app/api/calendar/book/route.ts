@@ -49,7 +49,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for existing booking by phone or email
-    const existingBooking = await checkExistingBooking(phone, email, brand as 'proxe' | 'windchasers');
+    let existingBooking = null;
+    try {
+      existingBooking = await checkExistingBooking(phone, email, brand as 'proxe' | 'windchasers');
+    } catch (bookingCheckError) {
+      // Log error but don't crash - allow booking to proceed
+      console.error('[Booking API] Error checking existing booking:', bookingCheckError);
+    }
     
     if (existingBooking?.exists && existingBooking.bookingDate && existingBooking.bookingTime) {
       const formattedDate = formatDate(existingBooking.bookingDate);

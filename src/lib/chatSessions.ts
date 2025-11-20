@@ -54,20 +54,35 @@ function getChannelTable(channel: Channel): string {
 
 // Helper function to get current date/time in UTC+5:30 (IST)
 function getISTTimestamp(): string {
-  const now = new Date();
-  // Convert UTC to IST (UTC+5:30 = 5 hours 30 minutes = 330 minutes)
-  const istOffsetMinutes = 330;
-  const istTime = new Date(now.getTime() + (istOffsetMinutes * 60 * 1000));
-  
-  // Format as ISO string with +05:30 timezone
-  const year = istTime.getUTCFullYear();
-  const month = String(istTime.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(istTime.getUTCDate()).padStart(2, '0');
-  const hours = String(istTime.getUTCHours()).padStart(2, '0');
-  const minutes = String(istTime.getUTCMinutes()).padStart(2, '0');
-  const seconds = String(istTime.getUTCSeconds()).padStart(2, '0');
-  const milliseconds = String(istTime.getUTCMilliseconds()).padStart(3, '0');
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}+05:30`;
+  try {
+    const now = new Date();
+    // Get IST time components using Intl.DateTimeFormat
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    
+    const parts = formatter.formatToParts(now);
+    const year = parts.find(p => p.type === 'year')?.value || '2024';
+    const month = parts.find(p => p.type === 'month')?.value || '01';
+    const day = parts.find(p => p.type === 'day')?.value || '01';
+    const hours = parts.find(p => p.type === 'hour')?.value || '00';
+    const minutes = parts.find(p => p.type === 'minute')?.value || '00';
+    const seconds = parts.find(p => p.type === 'second')?.value || '00';
+    const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}+05:30`;
+  } catch (error) {
+    // Fallback to UTC if IST conversion fails
+    console.error('[getISTTimestamp] Error converting to IST, using UTC:', error);
+    return new Date().toISOString();
+  }
 }
 
 // Helper function to normalize phone number for all_leads deduplication
