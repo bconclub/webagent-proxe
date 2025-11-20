@@ -1498,25 +1498,15 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
       // Show message about existing booking
       const bookingMessage = `You already have a booking scheduled for ${formattedDate} at ${formattedTime}.`;
       
-      // Add as AI message
-      const messageId = `booking-info-${Date.now()}`;
-      const bookingInfoMessage = {
-        id: messageId,
-        type: 'ai' as const,
-        text: bookingMessage,
-        isStreaming: false,
-        hasStreamed: true,
-        followUps: [],
-      };
-      
-      setMessages((prev) => [...prev, bookingInfoMessage]);
+      // Add as AI message using addAIMessage from hook
+      addAIMessage(bookingMessage);
       setBookingCompleted(true);
       
       return false; // Don't show calendar
     }
     
     return true; // Allow booking
-  }, [userProfile.phone, userProfile.email, brandKey]);
+  }, [userProfile.phone, userProfile.email, brandKey, addAIMessage]);
 
   // Handle mobile keyboard appearance for chat input
   useEffect(() => {
