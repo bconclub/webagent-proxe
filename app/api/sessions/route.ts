@@ -7,14 +7,14 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const channel = searchParams.get('channel'); // web, voice, whatsapp, social
-    const brand = searchParams.get('brand') || 'proxe'; // proxe, windchasers
+    const brand = searchParams.get('brand') || 'proxe';
     const externalSessionId = searchParams.get('externalSessionId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
-    const supabase = getSupabaseClient(brand as 'proxe' | 'windchasers');
+    const supabase = getSupabaseClient(brand as 'proxe');
     if (!supabase) {
       return Response.json(
         { error: 'Supabase client not configured for this brand' },

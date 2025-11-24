@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-export type SupabaseBrandKey = 'proxe' | 'windchasers';
+export type SupabaseBrandKey = 'proxe';
 
 const clientCache: Partial<Record<SupabaseBrandKey, SupabaseClient>> = {};
 
@@ -8,13 +8,6 @@ const clientConfig: Record<SupabaseBrandKey, { url?: string; anonKey?: string }>
   proxe: {
     url: process.env.NEXT_PUBLIC_PROXE_SUPABASE_URL ?? process.env.PROXE_SUPABASE_URL,
     anonKey: process.env.NEXT_PUBLIC_PROXE_SUPABASE_ANON_KEY ?? process.env.PROXE_SUPABASE_ANON_KEY,
-  },
-  windchasers: {
-    url:
-      process.env.NEXT_PUBLIC_WINDCHASERS_SUPABASE_URL ?? process.env.WINDCHASERS_SUPABASE_URL,
-    anonKey:
-      process.env.NEXT_PUBLIC_WINDCHASERS_SUPABASE_ANON_KEY ??
-      process.env.WINDCHASERS_SUPABASE_ANON_KEY,
   },
 };
 
@@ -27,10 +20,10 @@ export function getSupabaseClient(brand: SupabaseBrandKey): SupabaseClient | nul
   
   // Debug: Log what environment variables are available
   if (process.env.NODE_ENV !== 'production') {
-    const urlVar = brand === 'proxe' ? 'NEXT_PUBLIC_PROXE_SUPABASE_URL' : 'NEXT_PUBLIC_WINDCHASERS_SUPABASE_URL';
-    const keyVar = brand === 'proxe' ? 'NEXT_PUBLIC_PROXE_SUPABASE_ANON_KEY' : 'NEXT_PUBLIC_WINDCHASERS_SUPABASE_ANON_KEY';
-    const serverUrlVar = brand === 'proxe' ? 'PROXE_SUPABASE_URL' : 'WINDCHASERS_SUPABASE_URL';
-    const serverKeyVar = brand === 'proxe' ? 'PROXE_SUPABASE_ANON_KEY' : 'WINDCHASERS_SUPABASE_ANON_KEY';
+    const urlVar = 'NEXT_PUBLIC_PROXE_SUPABASE_URL';
+    const keyVar = 'NEXT_PUBLIC_PROXE_SUPABASE_ANON_KEY';
+    const serverUrlVar = 'PROXE_SUPABASE_URL';
+    const serverKeyVar = 'PROXE_SUPABASE_ANON_KEY';
     
     console.log(`[Supabase] Checking config for brand "${brand}"`, {
       hasNextPublicUrl: Boolean(process.env[urlVar]),

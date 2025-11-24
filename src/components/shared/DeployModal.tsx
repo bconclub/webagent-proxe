@@ -98,9 +98,8 @@ export default function DeployModal({ isOpen, onClose, onFormSubmit }: DeployMod
       promptedPhone: true,
     };
     
-    // Store for both PROXe and Wind Chasers brands
+    // Store for PROXe brand
     storeUserProfile(userProfile, 'proxe');
-    storeUserProfile(userProfile, 'windchasers');
     
     setIsSubmitting(false);
     setSubmitSuccess(true);

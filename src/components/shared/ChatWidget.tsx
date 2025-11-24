@@ -47,10 +47,6 @@ const InfinitySymbol = () => (
   </svg>
 );
 
-// Wind Chasers Icon component - uses the SVG file
-const WindChasersIcon = () => (
-  <img src="/assets/icons/WC-Icon.svg" alt="Wind Chasers" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-);
 
 const ICONS = {
   search: (
@@ -91,19 +87,13 @@ const ICONS = {
       if (avatarType === 'logo' && brand === 'proxe') {
         return <PROXELogo />;
       }
-      if (avatarType === 'icon' && brand === 'windchasers') {
-        return <WindChasersIcon />;
-      }
       if (avatarType === 'image' && config.chatStructure.avatar.source) {
         return <img src={config.chatStructure.avatar.source} alt={config.name} style={{ width: '100%', height: '100%' }} />;
       }
     }
-    // Fallback: Use PROXE logo for PROXe brand, Wind Chasers icon for windchasers, infinity symbol for others
+    // Fallback: Use PROXE logo for PROXe brand, infinity symbol for others
     if (brand === 'proxe') {
       return <PROXELogo />;
-    }
-    if (brand === 'windchasers') {
-      return <WindChasersIcon />;
     }
     return <InfinitySymbol />;
   },
@@ -176,7 +166,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   const hasDraggedRef = useRef<boolean>(false);
   const interactionCountRef = useRef<number>(0);
   const historyRef = useRef<{ role: 'user' | 'assistant'; content: string }[]>([]);
-  const brandKey: 'proxe' | 'windchasers' = brand?.toLowerCase() === 'windchasers' ? 'windchasers' : 'proxe';
+  const brandKey: 'proxe' = 'proxe';
   const quickButtonOptions = dynamicQuickButtons ?? config?.quickButtons ?? [];
   const hasQuickButtons = quickButtonOptions.length > 0;
 

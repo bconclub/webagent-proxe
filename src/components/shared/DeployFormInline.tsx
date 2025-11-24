@@ -36,7 +36,7 @@ export function DeployFormInline({
 
   // Pre-fill form with existing user data
   useEffect(() => {
-    const existingUser = getStoredUser(brand === 'proxe' ? 'proxe' : 'windchasers');
+    const existingUser = getStoredUser('proxe');
     if (existingUser) {
       setFormData({
         name: existingUser.name || userProfile.name || '',
@@ -127,7 +127,7 @@ export function DeployFormInline({
     };
     
     // Store for the brand
-    storeUserProfile(userProfileData, brand === 'proxe' ? 'proxe' : 'windchasers');
+    storeUserProfile(userProfileData, 'proxe');
     
     // Notify parent of contact submission
     if (onContactSubmit) {

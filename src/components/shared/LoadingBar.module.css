@@ -166,8 +166,6 @@
   }
 }
 
-/* Wind Chasers theme */
-[data-brand="windchasers"] .loadingBar,
 [data-theme="warm-frost"] .loadingBar {
   background: linear-gradient(90deg, 
     #C4A574 0%, 

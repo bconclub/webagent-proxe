@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     // Check for existing booking by phone or email
     let existingBooking = null;
     try {
-      existingBooking = await checkExistingBooking(phone, email, brand as 'proxe' | 'windchasers');
+      existingBooking = await checkExistingBooking(phone, email, brand as 'proxe');
     } catch (bookingCheckError) {
       // Log error but don't crash - allow booking to proceed
       console.error('[Booking API] Error checking existing booking:', bookingCheckError);
@@ -114,8 +114,8 @@ export async function POST(request: NextRequest) {
     // Format display time
     const displayTime = formatTimeForDisplay(`${hour}:${minute.toString().padStart(2, '0')}`);
 
-    // Determine event title based on brand
-    const eventTitle = brand.toLowerCase() === 'windchasers' ? 'Wind Chasers Consultation' : 'PROXe Demo';
+    // Event title
+    const eventTitle = 'PROXe Demo';
 
     // Create event
     // Note: Service accounts cannot invite attendees without Domain-Wide Delegation

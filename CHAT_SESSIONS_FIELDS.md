@@ -78,7 +78,7 @@
 
 | Database Column | TypeScript Property | Type | Description |
 |----------------|-------------------|------|-------------|
-| `brand` | `brand` | `text` | Brand identifier: `'proxe'` \| `'windchasers'` (default: `'proxe'`) |
+| `brand` | `brand` | `text` | Brand identifier: `'proxe'` (default: `'proxe'`) |
 | `created_at` | `createdAt` | `timestamptz` | Session creation timestamp (auto-set) |
 | `updated_at` | `updatedAt` | `timestamptz` | Last update timestamp (auto-updated via trigger) |
 

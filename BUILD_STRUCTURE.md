@@ -18,7 +18,7 @@
 
 ## Project Overview
 
-**PROXe** is a multi-brand Next.js 14 application that provides AI-powered chat widgets, lead management, and booking functionality. The system supports multiple brands (PROXe, Wind Chasers) with dynamic theming and real-time chat capabilities.
+**PROXe** is a Next.js 14 application that provides AI-powered chat widgets, lead management, and booking functionality for PROXe with dynamic theming and real-time chat capabilities.
 
 ### Tech Stack
 - **Framework**: Next.js 14 (App Router)
@@ -95,7 +95,6 @@ PROXe/
 │   ├── proxe/                   # PROXe brand homepage
 │   │   ├── page.tsx
 │   │   └── page.module.css
-│   ├── windchasers/             # Wind Chasers brand page
 │   │   └── page.tsx
 │   ├── layout.tsx               # Root layout
 │   └── page.tsx                 # Default homepage (PROXe)
@@ -104,7 +103,6 @@ PROXe/
 │   ├── api/                      # API-related code
 │   │   └── prompts/             # AI prompts per brand
 │   │       ├── proxe-prompt.ts
-│   │       └── windchasers-prompt.ts
 │   │
 │   ├── components/              # React components
 │   │   ├── brand/               # Brand-specific components
@@ -124,7 +122,6 @@ PROXe/
 │   ├── configs/                 # Brand configurations
 │   │   ├── index.ts
 │   │   ├── proxe.config.ts
-│   │   └── windchasers.config.ts
 │   │
 │   ├── contexts/                # React contexts
 │   │   └── DeployModalContext.tsx
@@ -143,7 +140,6 @@ PROXe/
 │       ├── globals.css
 │       └── themes/              # Brand-specific themes
 │           ├── proxe.css
-│           └── windchasers.css
 │
 ├── supabase/                     # Database schema & migrations
 │   ├── chat_schema.sql         # Main database schema
@@ -201,7 +197,7 @@ The database uses a **multi-touchpoint architecture** with:
 | `first_touchpoint` | ENUM | Channel where customer first interacted: `'web'`, `'whatsapp'`, `'voice'`, `'social'` |
 | `last_touchpoint` | ENUM | Most recent channel |
 | `last_interaction_at` | TIMESTAMP | Timestamp of most recent interaction |
-| `brand` | ENUM | `'proxe'` or `'windchasers'` |
+| `brand` | ENUM | `'proxe'` |
 | `unified_context` | JSONB | Aggregated context from all channels |
 | `created_at` | TIMESTAMP | When record was created |
 | `updated_at` | TIMESTAMP | When record was last updated |
@@ -215,7 +211,7 @@ The database uses a **multi-touchpoint architecture** with:
 |--------|------|-------------|
 | `id` | UUID | Primary key |
 | `lead_id` | UUID | Foreign key to `all_leads.id` (nullable) |
-| `brand` | ENUM | `'proxe'` or `'windchasers'` |
+| `brand` | ENUM | `'proxe'` |
 | `customer_name` | TEXT | Customer's name |
 | `customer_email` | TEXT | Customer's email |
 | `customer_phone` | TEXT | Customer's phone |
@@ -292,7 +288,7 @@ See `supabase/migrations/007_add_web_sessions_rls_policies.sql` for complete RLS
 {
   "message": "User's message",
   "sessionId": "external_session_id",
-  "brand": "proxe" | "windchasers",
+  "brand": "proxe",
   "conversationHistory": [...]
 }
 ```
@@ -313,7 +309,7 @@ See `supabase/migrations/007_add_web_sessions_rls_policies.sql` for complete RLS
 {
   "sessionId": "external_session_id",
   "conversationHistory": [...],
-  "brand": "proxe" | "windchasers"
+  "brand": "proxe"
 }
 ```
 
@@ -331,7 +327,7 @@ See `supabase/migrations/007_add_web_sessions_rls_policies.sql` for complete RLS
 
 **Query Parameters**:
 - `date`: Date string (YYYY-MM-DD)
-- `brand`: `"proxe"` | `"windchasers"`
+- `brand`: `"proxe"`
 
 **Response**:
 ```json
@@ -352,7 +348,7 @@ See `supabase/migrations/007_add_web_sessions_rls_policies.sql` for complete RLS
   "name": "Customer Name",
   "email": "customer@example.com",
   "phone": "+1234567890",
-  "brand": "proxe" | "windchasers"
+  "brand": "proxe"
 }
 ```
 
@@ -371,7 +367,7 @@ See `supabase/migrations/007_add_web_sessions_rls_policies.sql` for complete RLS
 **Query Parameters**:
 - `startDate`: Start date filter
 - `endDate`: End date filter
-- `brand`: `"proxe"` | `"windchasers"`
+- `brand`: `"proxe"`
 
 ### Session APIs
 
@@ -380,7 +376,7 @@ See `supabase/migrations/007_add_web_sessions_rls_policies.sql` for complete RLS
 
 **Query Parameters**:
 - `channel`: `"web"` | `"voice"` | `"whatsapp"` | `"social"`
-- `brand`: `"proxe"` | `"windchasers"`
+- `brand`: `"proxe"`
 - `externalSessionId`: Filter by session ID
 - `startDate`, `endDate`: Date range filter
 - `limit`, `offset`: Pagination
@@ -430,7 +426,7 @@ See `supabase/migrations/007_add_web_sessions_rls_policies.sql` for complete RLS
 **Props**:
 ```typescript
 {
-  brand?: 'proxe' | 'windchasers';
+  brand?: 'proxe';
   apiKey?: string;
   initialMessage?: string;
 }
@@ -532,14 +528,11 @@ Each brand has its own configuration file in `src/configs/`:
 }
 ```
 
-#### `windchasers.config.ts`
-Similar structure for Wind Chasers brand
 
 ### Theme System
 
 Themes are defined in:
 - `src/styles/themes/proxe.css`
-- `src/styles/themes/windchasers.css`
 
 Uses CSS variables for dynamic theming:
 ```css
@@ -676,11 +669,6 @@ NEXT_PUBLIC_PROXE_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_PROXE_SUPABASE_ANON_KEY=eyJ...
 ```
 
-#### Supabase (Wind Chasers)
-```env
-NEXT_PUBLIC_WINDCHASERS_SUPABASE_URL=https://xxx.supabase.co
-NEXT_PUBLIC_WINDCHASERS_SUPABASE_ANON_KEY=eyJ...
-```
 
 #### Google Calendar
 ```env
@@ -695,8 +683,6 @@ GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\
 ```env
 PROXE_SUPABASE_URL=https://xxx.supabase.co
 PROXE_SUPABASE_ANON_KEY=eyJ...
-WINDCHASERS_SUPABASE_URL=https://xxx.supabase.co
-WINDCHASERS_SUPABASE_ANON_KEY=eyJ...
 ```
 
 ---
@@ -730,7 +716,6 @@ WINDCHASERS_SUPABASE_ANON_KEY=eyJ...
 **Build Scripts**:
 - `npm run build` - Standard build
 - `npm run build:proxe` - PROXe brand only
-- `npm run build:windchasers` - Wind Chasers brand only
 - `npm run build:all` - All brands
 
 ### Database Migration
@@ -810,7 +795,6 @@ Before deployment, run database migrations:
 
 5. **Access Application**:
    - PROXe: http://localhost:3002/
-   - Wind Chasers: http://localhost:3002/windchasers
 
 ### Code Structure Guidelines
 

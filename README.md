@@ -1,10 +1,10 @@
 # PROXe Chat Widget - Next.js React Application
 
-A modern, brand-themed chat widget built with Next.js, React, and TypeScript. Supports multiple brands (PROXe, Wind Chasers) with dynamic theming and real-time chat functionality.
+A modern, AI-powered chat widget built with Next.js, React, and TypeScript for PROXe with dynamic theming and real-time chat functionality.
 
 ## Features
 
-- **Multi-brand Support**: PROXe and Wind Chasers themes
+- **PROXe Brand Support**: Custom PROXe theme and branding
 - **Real-time Chat**: Streaming responses from Claude AI
 - **Responsive Design**: Works on desktop and mobile
 - **Dynamic Theming**: CSS variables for easy brand customization
@@ -22,7 +22,6 @@ A modern, brand-themed chat widget built with Next.js, React, and TypeScript. Su
 ├── app/                    # Next.js App Router pages
 │   ├── api/               # Next.js API routes
 │   ├── page.tsx           # PROXe brand homepage
-│   └── windchasers/       # Wind Chasers brand page
 ├── public/                 # Static assets
 ├── package.json            # Frontend dependencies
 ├── next.config.js          # Next.js configuration
@@ -53,14 +52,9 @@ CLAUDE_API_KEY=sk-ant-api03-your-key-here
 # Required: Supabase projects (frontend widgets use NEXT_PUBLIC_* keys)
 NEXT_PUBLIC_PROXE_SUPABASE_URL=https://zboanatspldypfrtrkfp.supabase.co
 NEXT_PUBLIC_PROXE_SUPABASE_ANON_KEY=your-proxe-anon-key
-NEXT_PUBLIC_WINDCHASERS_SUPABASE_URL=https://your-windchaser.supabase.co
-NEXT_PUBLIC_WINDCHASERS_SUPABASE_ANON_KEY=your-windchaser-anon-key
-
 # Optional (server-only keys if you prefer to keep anon keys off the client)
 PROXE_SUPABASE_URL=https://zboanatspldypfrtrkfp.supabase.co
 PROXE_SUPABASE_ANON_KEY=your-proxe-service-or-anon-key
-WINDCHASERS_SUPABASE_URL=https://your-windchaser.supabase.co
-WINDCHASERS_SUPABASE_ANON_KEY=your-windchaser-service-or-anon-key
 
 # Required: Google Calendar API credentials
 GOOGLE_CALENDAR_ID=your-calendar-id
@@ -84,7 +78,6 @@ Application will be available at `http://localhost:3002`
 ### 4. Access the Application
 
 - **PROXe Brand**: http://localhost:3002/
-- **Wind Chasers Brand**: http://localhost:3002/windchasers
 
 ## Chat Session Storage
 
@@ -123,8 +116,7 @@ Vercel automatically detects Next.js and provides zero-configuration deployment 
    **Required:**
    - `CLAUDE_API_KEY`: Your Anthropic Claude API key (get from [console.anthropic.com](https://console.anthropic.com/))
    - `NEXT_PUBLIC_PROXE_SUPABASE_URL` / `NEXT_PUBLIC_PROXE_SUPABASE_ANON_KEY`
-   - `NEXT_PUBLIC_WINDCHASERS_SUPABASE_URL` / `NEXT_PUBLIC_WINDCHASERS_SUPABASE_ANON_KEY`
-   - Optionally: server-only `PROXE_SUPABASE_*` and `WINDCHASERS_SUPABASE_*` if you proxy Supabase calls
+   - Optionally: server-only `PROXE_SUPABASE_*` if you proxy Supabase calls
    - `GOOGLE_CALENDAR_ID`: Google Calendar ID for bookings
    - `GOOGLE_SERVICE_ACCOUNT_EMAIL`: Google service account email
    - `GOOGLE_PRIVATE_KEY`: Google service account private key
@@ -147,8 +139,7 @@ The project uses standard Next.js structure:
 
 - `CLAUDE_API_KEY` - Anthropic Claude API key (get from [console.anthropic.com](https://console.anthropic.com/))
 - `NEXT_PUBLIC_PROXE_SUPABASE_URL` / `NEXT_PUBLIC_PROXE_SUPABASE_ANON_KEY`
-- `NEXT_PUBLIC_WINDCHASERS_SUPABASE_URL` / `NEXT_PUBLIC_WINDCHASERS_SUPABASE_ANON_KEY`
-- Optionally `PROXE_SUPABASE_URL` / `PROXE_SUPABASE_ANON_KEY` and `WINDCHASERS_SUPABASE_URL` / `WINDCHASERS_SUPABASE_ANON_KEY` if you prefer to keep anon keys server-side
+- Optionally `PROXE_SUPABASE_URL` / `PROXE_SUPABASE_ANON_KEY` if you prefer to keep anon keys server-side
 - `GOOGLE_CALENDAR_ID` - Google Calendar ID for bookings
 - `GOOGLE_SERVICE_ACCOUNT_EMAIL` - Google service account email
 - `GOOGLE_PRIVATE_KEY` - Google service account private key
@@ -158,7 +149,6 @@ The project uses standard Next.js structure:
 - `npm run dev` - Start development server (port 3002)
 - `npm run build` - Build for production
 - `npm run build:proxe` - Build PROXe brand only
-- `npm run build:windchasers` - Build Wind Chasers brand only
 - `npm run build:all` - Build all brands
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint

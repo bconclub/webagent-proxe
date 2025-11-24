@@ -14,10 +14,6 @@ const proxeSupabase = proxeSupabaseUrl && proxeSupabaseKey
   ? createClient(proxeSupabaseUrl, proxeSupabaseKey)
   : null;
 
-const windchasersSupabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://nfnwmkxgfgqgorwgonwf.supabase.co';
-const windchasersSupabaseKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mbndta3hnZmdxZ29yd2dvbndmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwOTU4MTcsImV4cCI6MjA3NTY3MTgxN30.fTwOPszajAM_MhulX4cPGWzzYchfHMaBNkCs_6S4ZYQ';
-const windchasersSupabase = createClient(windchasersSupabaseUrl, windchasersSupabaseKey);
-
 // Initialize Claude API
 const claudeApiKey = process.env.CLAUDE_API_KEY;
 
@@ -32,18 +28,9 @@ const anthropic = claudeApiKey ? new Anthropic({ apiKey: claudeApiKey }) : null;
 // Search knowledge base
 async function searchKnowledgeBase(query: string, brand: string = 'proxe', limit: number = 3) {
   try {
-    let supabaseClient;
-    
-    if (brand === 'proxe' || brand === 'PROXe') {
-      supabaseClient = proxeSupabase;
-      if (!supabaseClient) {
-        return [];
-      }
-    } else {
-      supabaseClient = windchasersSupabase;
-      if (!supabaseClient) {
-        return [];
-      }
+    const supabaseClient = proxeSupabase;
+    if (!supabaseClient) {
+      return [];
     }
 
     const searchTable = async (table: string, columns: string[], searchTerm: string, perColumnLimit: number = 2) => {
@@ -160,8 +147,7 @@ async function generateFollowUpWithClaude(userMessage: string, assistantMessage:
       }
     }
 
-    const brandPrompt = normalizedBrand === 'proxe'
-      ? `You create one short, direct follow-up call-to-action label for the PROXe chatbot.
+    const brandPrompt = `You create one short, direct follow-up call-to-action label for the PROXe chatbot.
 
 PROXe is an AI Operating System for business. It automates 24/7 customer interactions (WhatsApp, website, calls, content, dashboard). Users are Indian SMB owners (₹1-10Cr revenue) drowning in repetitive work.
 
@@ -187,17 +173,7 @@ IMPORTANT RULES:
 - NEVER suggest "sign up" or "join" - we book demos, not memberships
 
 If no relevant follow-up is appropriate or context doesn't warrant action, respond with only: SKIP
-Output ONLY the label text. No quotes. No explanation.`
-      : `You create one short follow-up call-to-action label for Wind Chasers chatbot button.
-
-Wind Chasers is an aviation training academy. Users are prospective pilots.
-
-IMPORTANT RULES:
-- Keep it encouraging, specific to the conversation, and 3-7 words
-- Use title case and you may add one emoji at the start if it feels natural
-- NEVER repeat what the user just asked or what was just explained
-- If no relevant follow-up is appropriate or it would be repetitive, respond with the single word SKIP
-- Output only the label text without quotation marks.`;
+Output ONLY the label text. No quotes. No explanation.`;
 
     // Use environment variable for model, fallback to claude-haiku-4-5-20251001
     const model = process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001';
@@ -293,7 +269,7 @@ export async function POST(request: NextRequest) {
 
     // Save user input to web_sessions (async, don't wait)
     if (externalSessionId) {
-      addUserInput(externalSessionId, message, undefined, brand as 'proxe' | 'windchasers').catch(err => {
+      addUserInput(externalSessionId, message, undefined, brand as 'proxe').catch(err => {
         console.error('[Chat API] Failed to save user input:', err);
       });
     }
@@ -336,7 +312,7 @@ export async function POST(request: NextRequest) {
         const existingBooking = await checkExistingBooking(
           userProfile.phone || null,
           userProfile.email || null,
-          normalizedBrand as 'proxe' | 'windchasers'
+          normalizedBrand as 'proxe'
         );
 
         if (existingBooking?.exists && existingBooking.bookingDate && existingBooking.bookingTime) {
@@ -627,13 +603,13 @@ export async function POST(request: NextRequest) {
               const seconds = parts.find(p => p.type === 'second')?.value || '00';
               const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
               const lastMessageAt = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}+05:30`;
-              upsertSummary(externalSessionId, conversationSummary, lastMessageAt, brand as 'proxe' | 'windchasers').catch(err => {
+              upsertSummary(externalSessionId, conversationSummary, lastMessageAt, brand as 'proxe').catch(err => {
                 console.error('[Chat API] Failed to save summary:', err);
               });
             } catch (error) {
               // Fallback to UTC if IST conversion fails
               const lastMessageAt = new Date().toISOString();
-              upsertSummary(externalSessionId, conversationSummary, lastMessageAt, brand as 'proxe' | 'windchasers').catch(err => {
+              upsertSummary(externalSessionId, conversationSummary, lastMessageAt, brand as 'proxe').catch(err => {
                 console.error('[Chat API] Failed to save summary:', err);
               });
             }

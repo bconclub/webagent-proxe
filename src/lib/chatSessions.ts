@@ -22,7 +22,7 @@ export interface SessionRecord {
   bookingStatus: 'pending' | 'confirmed' | 'cancelled' | null;
   googleEventId: string | null;
   bookingCreatedAt: string | null;
-  brand: 'proxe' | 'windchasers';
+  brand: 'proxe';
   channel: Channel;
   channelData: Record<string, any>;
   createdAt: string;
@@ -98,7 +98,7 @@ async function ensureAllLeads(
   customerName: string | null,
   email: string | null,
   phone: string | null,
-  brand: 'proxe' | 'windchasers'
+  brand: 'proxe'
 ): Promise<string | null> {
   const supabase = getSupabaseClient(brand);
   if (!supabase) {
@@ -202,7 +202,7 @@ function mapSession(row: any): SessionRecord {
 export async function ensureSession(
   externalSessionId: string,
   channel: Channel,
-  brand: 'proxe' | 'windchasers' = 'proxe'
+  brand: 'proxe' = 'proxe'
 ): Promise<SessionRecord | null> {
   const supabase = getSupabaseClient(brand);
   if (!supabase) {
@@ -400,7 +400,7 @@ function isCompleteLead(profile: { userName?: string | null; phone?: string | nu
 export async function updateSessionProfile(
   externalSessionId: string,
   profile: { userName?: string; phone?: string | null; email?: string | null; websiteUrl?: string | null },
-  brand: 'proxe' | 'windchasers' = 'proxe'
+  brand: 'proxe' = 'proxe'
 ) {
   console.log('[updateSessionProfile] Called', { externalSessionId, brand, profile });
   
@@ -538,7 +538,7 @@ export async function addUserInput(
   externalSessionId: string,
   input: string,
   intent?: string,
-  brand: 'proxe' | 'windchasers' = 'proxe'
+  brand: 'proxe' = 'proxe'
 ) {
   const supabase = getSupabaseClient(brand);
   if (!supabase) {
@@ -646,7 +646,7 @@ export async function upsertSummary(
   externalSessionId: string,
   summary: string,
   lastMessageCreatedAt: string,
-  brand: 'proxe' | 'windchasers' = 'proxe'
+  brand: 'proxe' = 'proxe'
 ) {
   console.log('[upsertSummary] Called', { externalSessionId, brand, summaryLength: summary.length });
   
@@ -700,7 +700,7 @@ export async function upsertSummary(
 
 export async function fetchSummary(
   externalSessionId: string,
-  brand: 'proxe' | 'windchasers' = 'proxe'
+  brand: 'proxe' = 'proxe'
 ): Promise<SessionSummary | null> {
   const supabase = getSupabaseClient(brand);
   if (!supabase) {
@@ -757,7 +757,7 @@ export async function storeBooking(
     googleEventId?: string;
     status?: 'pending' | 'confirmed' | 'cancelled';
   },
-  brand: 'proxe' | 'windchasers' = 'proxe'
+  brand: 'proxe' = 'proxe'
 ) {
   const supabase = getSupabaseClient(brand);
   if (!supabase) {
@@ -836,7 +836,7 @@ export async function storeBooking(
 export async function checkExistingBooking(
   phone?: string | null,
   email?: string | null,
-  brand: 'proxe' | 'windchasers' = 'proxe'
+  brand: 'proxe' = 'proxe'
 ): Promise<{
   exists: boolean;
   bookingDate?: string | null;
@@ -1012,7 +1012,7 @@ export async function checkExistingBooking(
 export async function updateChannelData(
   externalSessionId: string,
   channelData: Record<string, any>,
-  brand: 'proxe' | 'windchasers' = 'proxe'
+  brand: 'proxe' = 'proxe'
 ) {
   const supabase = getSupabaseClient(brand);
   if (!supabase) {

@@ -555,13 +555,6 @@
   background: var(--primary-color, #5B1A8C);
 }
 
-[data-brand="windchasers"] .dateSelected {
-  background: var(--primary-color, #C4A574);
-}
-
-[data-brand="windchasers"] .timeSlotSelected {
-  background: var(--primary-color, #C4A574);
-}
 
 /* Mobile responsive */
 @media (max-width: 768px) {

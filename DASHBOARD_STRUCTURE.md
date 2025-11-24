@@ -486,7 +486,7 @@ Command Center/
   - `first_touchpoint` (web, whatsapp, voice, social)
   - `last_touchpoint` (most recent channel)
   - `last_interaction_at`
-  - `brand` (proxe, windchasers)
+  - `brand` (proxe)
   - `unified_context` (JSONB)
 - **Deduplication**: `(customer_phone_normalized, brand)`
 

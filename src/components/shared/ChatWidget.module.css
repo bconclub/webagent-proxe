@@ -148,20 +148,6 @@
   box-shadow: none;
 }
 
-/* Wind Chasers brand */
-[data-brand="windchasers"] .quickBtn,
-[data-theme="warm-frost"] .quickBtn {
-  background: rgba(196, 165, 116, 0.25);
-  border-color: transparent;
-  box-shadow: none;
-}
-
-[data-brand="windchasers"] .quickBtn:hover,
-[data-theme="warm-frost"] .quickBtn:hover {
-  background: rgba(196, 165, 116, 0.35);
-  border-color: transparent;
-  box-shadow: none;
-}
 
 .searchbar {
   width: 240px; /* 60% of 400px */
@@ -225,8 +211,6 @@
   background-size: 200% 100%;
 }
 
-/* Wind Chasers - Gold/Brown accent gradient */
-[data-brand="windchasers"] .searchbar::before,
 [data-theme="warm-frost"] .searchbar::before {
   background: linear-gradient(90deg, 
     #C4A574 0%, 
@@ -1050,8 +1034,6 @@
   background-size: 200% 100%;
 }
 
-/* Wind Chasers - Gold/Brown accent gradient */
-[data-brand="windchasers"] .chatInputWrapper::before,
 [data-theme="warm-frost"] .chatInputWrapper::before {
   background: linear-gradient(90deg, 
     #C4A574 0%, 
@@ -1410,8 +1392,6 @@
   background-size: 200% 100%;
 }
 
-/* Wind Chasers - Gold/Brown accent gradient */
-[data-brand="windchasers"] .inlinePromptInputWrapper::before,
 [data-theme="warm-frost"] .inlinePromptInputWrapper::before {
   background: linear-gradient(90deg, 
     #C4A574 0%, 

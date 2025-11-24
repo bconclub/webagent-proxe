@@ -7,9 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "build:proxe": "NEXT_PUBLIC_BRAND=proxe next build",
-    "build:windchasers": "NEXT_PUBLIC_BRAND=windchasers next build",
-    "build:all": "npm run build:proxe && npm run build:windchasers"
+    "build:proxe": "NEXT_PUBLIC_BRAND=proxe next build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",

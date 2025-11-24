@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useEffect, ReactNode } from 'react';
 import { BrandConfig, getBrandConfig } from '@/src/configs';
 import '@/src/styles/themes/proxe.css';
-import '@/src/styles/themes/windchasers.css';
 
 interface ThemeContextType {
   config: BrandConfig;
@@ -29,7 +28,7 @@ export function ThemeProvider({
     // Set data attributes for CSS selectors - CSS variables are defined in theme CSS files
     const root = document.documentElement;
     root.setAttribute('data-brand', brandName.toLowerCase());
-    root.setAttribute('data-theme', brandName === 'proxe' ? 'purple-frost' : 'warm-frost');
+    root.setAttribute('data-theme', 'purple-frost');
   };
 
   return (
