@@ -886,7 +886,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
   const handleAssistantMessageComplete = async (message: Message) => {
     if (message.text) {
-      appendHistory({ role: 'assistant', content: message.text });
+      // Strip HTML tags before adding to history for summarization
+      const plainText = message.text.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+      appendHistory({ role: 'assistant', content: plainText });
       // Don't store assistant messages - we focus on user inputs and summaries
     }
 
@@ -1451,7 +1453,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             date: bookingData.date,
             time: bookingData.time,
             googleEventId: bookingData.googleEventId,
-            status: 'confirmed',
+            status: 'Call Booked',
           },
           brandKey
         );

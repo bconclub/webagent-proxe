@@ -19,7 +19,7 @@ export interface SessionRecord {
   messageCount: number;
   bookingDate: string | null;
   bookingTime: string | null;
-  bookingStatus: 'pending' | 'confirmed' | 'cancelled' | null;
+  bookingStatus: 'pending' | 'confirmed' | 'Call Booked' | 'cancelled' | null;
   googleEventId: string | null;
   bookingCreatedAt: string | null;
   brand: 'proxe';
@@ -98,7 +98,8 @@ async function ensureAllLeads(
   customerName: string | null,
   email: string | null,
   phone: string | null,
-  brand: 'proxe'
+  brand: 'proxe',
+  externalSessionId?: string
 ): Promise<string | null> {
   const supabase = getSupabaseClient(brand);
   if (!supabase) {
@@ -112,10 +113,33 @@ async function ensureAllLeads(
   }
 
   try {
+    // Fetch conversation context from web_sessions if session ID provided
+    let unifiedContext: any = {};
+    if (externalSessionId) {
+      const tableName = getChannelTable('web');
+      const { data: sessionData } = await supabase
+        .from(tableName)
+        .select('conversation_summary, booking_status, booking_date, booking_time, user_inputs_summary')
+        .eq('external_session_id', externalSessionId)
+        .maybeSingle();
+      
+      if (sessionData) {
+        unifiedContext = {
+          web: {
+            conversation_summary: sessionData.conversation_summary || null,
+            booking_status: sessionData.booking_status || null,
+            booking_date: sessionData.booking_date || null,
+            booking_time: sessionData.booking_time || null,
+            user_inputs: sessionData.user_inputs_summary || [],
+          }
+        };
+      }
+    }
+
     // Check if all_leads table exists (might not be migrated yet)
     const { data: existing, error: fetchError } = await supabase
       .from('all_leads')
-      .select('id')
+      .select('id, unified_context')
       .eq('customer_phone_normalized', normalizedPhone)
       .eq('brand', brand)
       .maybeSingle();
@@ -131,6 +155,16 @@ async function ensureAllLeads(
     }
 
     if (existing) {
+      // Merge with existing unified_context
+      const existingContext = existing.unified_context || {};
+      const mergedContext = {
+        ...existingContext,
+        web: {
+          ...(existingContext.web || {}),
+          ...unifiedContext.web,
+        }
+      };
+
       // Update last_touchpoint and last_interaction_at
       await supabase
         .from('all_leads')
@@ -140,6 +174,7 @@ async function ensureAllLeads(
           customer_name: customerName || undefined,
           email: email || undefined,
           phone: phone || undefined,
+          unified_context: Object.keys(mergedContext).length > 0 ? mergedContext : undefined,
         })
         .eq('id', existing.id);
       return existing.id;
@@ -157,6 +192,7 @@ async function ensureAllLeads(
         last_touchpoint: 'web',
         last_interaction_at: new Date().toISOString(),
         brand: brand,
+        unified_context: Object.keys(unifiedContext).length > 0 ? unifiedContext : null,
       })
       .select('id')
       .single();
@@ -488,7 +524,8 @@ export async function updateSessionProfile(
       profile.userName || null,
       profile.email || null,
       profile.phone || null,
-      brand
+      brand,
+      externalSessionId
     );
 
     // Update web_sessions with lead_id if we got one
@@ -672,7 +709,7 @@ export async function upsertSummary(
       last_message_at: lastMessageCreatedAt,
     })
     .eq('external_session_id', externalSessionId)
-    .select();
+    .select('lead_id, booking_status, booking_date, booking_time, user_inputs_summary');
 
   if (error) {
     // Fallback to old sessions table
@@ -695,6 +732,43 @@ export async function upsertSummary(
     }
   } else {
     console.log('[Supabase] Successfully updated summary', { externalSessionId, updatedRows: data?.length });
+    
+    // Update unified_context in all_leads if lead_id exists
+    if (data && data.length > 0 && data[0].lead_id) {
+      const sessionData = data[0];
+      const unifiedContext = {
+        web: {
+          conversation_summary: summary,
+          booking_status: sessionData.booking_status || null,
+          booking_date: sessionData.booking_date || null,
+          booking_time: sessionData.booking_time || null,
+          user_inputs: sessionData.user_inputs_summary || [],
+        }
+      };
+
+      // Get existing unified_context and merge
+      const { data: existingLead } = await supabase
+        .from('all_leads')
+        .select('unified_context')
+        .eq('id', data[0].lead_id)
+        .maybeSingle();
+
+      const existingContext = existingLead?.unified_context || {};
+      const mergedContext = {
+        ...existingContext,
+        web: {
+          ...(existingContext.web || {}),
+          ...unifiedContext.web,
+        }
+      };
+
+      await supabase
+        .from('all_leads')
+        .update({
+          unified_context: mergedContext,
+        })
+        .eq('id', data[0].lead_id);
+    }
   }
 }
 
@@ -755,7 +829,7 @@ export async function storeBooking(
     date: string; // YYYY-MM-DD format
     time: string; // "11:00 AM" format
     googleEventId?: string;
-    status?: 'pending' | 'confirmed' | 'cancelled';
+    status?: 'pending' | 'confirmed' | 'Call Booked' | 'cancelled';
   },
   brand: 'proxe' = 'proxe'
 ) {
@@ -799,16 +873,17 @@ export async function storeBooking(
     return;
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from(tableName)
     .update({
       booking_date: booking.date,
       booking_time: booking.time,
       google_event_id: booking.googleEventId ?? null,
-      booking_status: booking.status ?? 'confirmed',
+      booking_status: booking.status ?? 'Call Booked',
       booking_created_at: getISTTimestamp(),
     })
-    .eq('external_session_id', externalSessionId);
+    .eq('external_session_id', externalSessionId)
+    .select('lead_id, conversation_summary, user_inputs_summary');
 
   if (error) {
     // Fallback to old sessions table
@@ -819,7 +894,7 @@ export async function storeBooking(
           booking_date: booking.date,
           booking_time: booking.time,
           google_event_id: booking.googleEventId ?? null,
-          booking_status: booking.status ?? 'confirmed',
+          booking_status: booking.status ?? 'Call Booked',
           booking_created_at: getISTTimestamp(),
         })
         .eq('external_session_id', externalSessionId);
@@ -830,6 +905,41 @@ export async function storeBooking(
     } else {
       console.error('[Supabase] Failed to store booking', error);
     }
+  } else if (data && data.length > 0 && data[0].lead_id) {
+    // Update unified_context in all_leads
+    const sessionData = data[0];
+    const unifiedContext = {
+      web: {
+        conversation_summary: sessionData.conversation_summary || null,
+        booking_status: booking.status ?? 'Call Booked',
+        booking_date: booking.date,
+        booking_time: booking.time,
+        user_inputs: sessionData.user_inputs_summary || [],
+      }
+    };
+
+    // Get existing unified_context and merge
+    const { data: existingLead } = await supabase
+      .from('all_leads')
+      .select('unified_context')
+      .eq('id', data[0].lead_id)
+      .maybeSingle();
+
+    const existingContext = existingLead?.unified_context || {};
+    const mergedContext = {
+      ...existingContext,
+      web: {
+        ...(existingContext.web || {}),
+        ...unifiedContext.web,
+      }
+    };
+
+    await supabase
+      .from('all_leads')
+      .update({
+        unified_context: mergedContext,
+      })
+      .eq('id', data[0].lead_id);
   }
 }
 
@@ -841,7 +951,7 @@ export async function checkExistingBooking(
   exists: boolean;
   bookingDate?: string | null;
   bookingTime?: string | null;
-  bookingStatus?: 'pending' | 'confirmed' | 'cancelled' | null;
+  bookingStatus?: 'pending' | 'confirmed' | 'Call Booked' | 'cancelled' | null;
   bookingCreatedAt?: string | null;
 } | null> {
   const supabase = getSupabaseClient(brand);
