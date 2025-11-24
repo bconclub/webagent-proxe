@@ -580,39 +580,78 @@ export async function POST(request: NextRequest) {
           
           // Generate and save conversation summary (async, don't wait)
           if (externalSessionId && cleanedResponse) {
-            const conversationSummary = `${message}\n\n${cleanedResponse}`;
-            // Get IST timestamp (UTC+5:30)
-            try {
-              const now = new Date();
-              const formatter = new Intl.DateTimeFormat('en-US', {
-                timeZone: 'Asia/Kolkata',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-              });
-              const parts = formatter.formatToParts(now);
-              const year = parts.find(p => p.type === 'year')?.value || '2024';
-              const month = parts.find(p => p.type === 'month')?.value || '01';
-              const day = parts.find(p => p.type === 'day')?.value || '01';
-              const hours = parts.find(p => p.type === 'hour')?.value || '00';
-              const minutes = parts.find(p => p.type === 'minute')?.value || '00';
-              const seconds = parts.find(p => p.type === 'second')?.value || '00';
-              const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
-              const lastMessageAt = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}+05:30`;
-              upsertSummary(externalSessionId, conversationSummary, lastMessageAt, brand as 'proxe').catch(err => {
-                console.error('[Chat API] Failed to save summary:', err);
-              });
-            } catch (error) {
-              // Fallback to UTC if IST conversion fails
-              const lastMessageAt = new Date().toISOString();
-              upsertSummary(externalSessionId, conversationSummary, lastMessageAt, brand as 'proxe').catch(err => {
-                console.error('[Chat API] Failed to save summary:', err);
-              });
-            }
+            // Strip HTML from cleanedResponse before using it
+            const strippedResponse = cleanedResponse.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+            
+            // Build conversation history for summarization
+            const conversationHistory = [
+              ...recentHistory,
+              { role: 'user' as const, content: message },
+              { role: 'assistant' as const, content: strippedResponse }
+            ];
+
+            // Call the summarize API to get proper AI-generated summary
+            (async () => {
+              try {
+                const summarizeResponse = await fetch(`${request.nextUrl.origin}/api/chat/summarize`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    summary: summary || '',
+                    history: conversationHistory,
+                    brand: brand,
+                  }),
+                });
+
+                if (!summarizeResponse.ok) {
+                  throw new Error(`Summarize API returned ${summarizeResponse.status}`);
+                }
+
+                const summarizeData = await summarizeResponse.json();
+                const aiGeneratedSummary = summarizeData.summary || summary || '';
+
+                // Get IST timestamp (UTC+5:30)
+                let lastMessageAt: string;
+                try {
+                  const now = new Date();
+                  const formatter = new Intl.DateTimeFormat('en-US', {
+                    timeZone: 'Asia/Kolkata',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                  });
+                  const parts = formatter.formatToParts(now);
+                  const year = parts.find(p => p.type === 'year')?.value || '2024';
+                  const month = parts.find(p => p.type === 'month')?.value || '01';
+                  const day = parts.find(p => p.type === 'day')?.value || '01';
+                  const hours = parts.find(p => p.type === 'hour')?.value || '00';
+                  const minutes = parts.find(p => p.type === 'minute')?.value || '00';
+                  const seconds = parts.find(p => p.type === 'second')?.value || '00';
+                  const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+                  lastMessageAt = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}+05:30`;
+                } catch (error) {
+                  // Fallback to UTC if IST conversion fails
+                  lastMessageAt = new Date().toISOString();
+                }
+
+                // Save the AI-generated summary
+                await upsertSummary(externalSessionId, aiGeneratedSummary, lastMessageAt, brand as 'proxe');
+              } catch (summarizeError) {
+                console.error('[Chat API] Failed to generate summary via summarize API:', summarizeError);
+                // Fallback: save a basic summary if summarize API fails
+                const fallbackSummary = summary || `${message}\n\n${strippedResponse}`;
+                const lastMessageAt = new Date().toISOString();
+                upsertSummary(externalSessionId, fallbackSummary, lastMessageAt, brand as 'proxe').catch(err => {
+                  console.error('[Chat API] Failed to save fallback summary:', err);
+                });
+              }
+            })();
           }
           
           controller.close();

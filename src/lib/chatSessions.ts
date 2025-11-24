@@ -165,17 +165,21 @@ async function ensureAllLeads(
         }
       };
 
-      // Update last_touchpoint and last_interaction_at
+      // Build update object conditionally
+      const updates: any = {
+        last_touchpoint: 'web',
+        last_interaction_at: getISTTimestamp(),
+        unified_context: Object.keys(mergedContext).length > 0 ? mergedContext : undefined,
+      };
+
+      // Only add name/email/phone if they have values
+      if (customerName) updates.customer_name = customerName;
+      if (email) updates.email = email;
+      if (phone) updates.phone = phone;
+
       await supabase
         .from('all_leads')
-        .update({
-          last_touchpoint: 'web',
-          last_interaction_at: getISTTimestamp(),
-          customer_name: customerName || undefined,
-          email: email || undefined,
-          phone: phone || undefined,
-          unified_context: Object.keys(mergedContext).length > 0 ? mergedContext : undefined,
-        })
+        .update(updates)
         .eq('id', existing.id);
       return existing.id;
     }
@@ -518,30 +522,7 @@ export async function updateSessionProfile(
 
   console.log('[updateSessionProfile] Update successful', { externalSessionId, updatedRows: data?.length });
 
-  // Ensure all_leads record exists/updated after profile update and link it
-  if (profile.userName || profile.email || profile.phone) {
-    const leadId = await ensureAllLeads(
-      profile.userName || null,
-      profile.email || null,
-      profile.phone || null,
-      brand,
-      externalSessionId
-    );
-
-    // Update web_sessions with lead_id if we got one
-    if (leadId) {
-      const { error: leadIdError } = await supabase
-        .from(tableName)
-        .update({ lead_id: leadId })
-        .eq('external_session_id', externalSessionId);
-
-      if (leadIdError && leadIdError.code !== '42702') { // Ignore "column doesn't exist" errors
-        console.warn('[updateSessionProfile] Failed to update lead_id', leadIdError);
-      }
-    }
-  }
-
-  // After successful update, check if we now have a complete lead
+  // Fetch the complete updated profile from database
   const { data: updatedSession } = await supabase
     .from(tableName)
     .select('customer_name, customer_email, customer_phone')
@@ -566,6 +547,29 @@ export async function updateSessionProfile(
       email: mergedProfile.email,
       phone: mergedProfile.phone,
     });
+
+    // Ensure all_leads record exists/updated after profile update using complete database values
+    if (mergedProfile.userName || mergedProfile.email || mergedProfile.phone) {
+      const leadId = await ensureAllLeads(
+        mergedProfile.userName,
+        mergedProfile.email,
+        mergedProfile.phone,
+        brand,
+        externalSessionId
+      );
+
+      // Update web_sessions with lead_id if we got one
+      if (leadId) {
+        const { error: leadIdError } = await supabase
+          .from(tableName)
+          .update({ lead_id: leadId })
+          .eq('external_session_id', externalSessionId);
+
+        if (leadIdError && leadIdError.code !== '42702') { // Ignore "column doesn't exist" errors
+          console.warn('[updateSessionProfile] Failed to update lead_id', leadIdError);
+        }
+      }
+    }
   } else {
     console.warn('[updateSessionProfile] Could not fetch updated session', { externalSessionId });
   }

@@ -12,7 +12,6 @@ import styles from './ChatWidget.module.css';
 import {
   ensureSession,
   updateSessionProfile,
-  addUserInput,
   fetchSummary,
   upsertSummary,
   storeBooking,
@@ -545,13 +544,6 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     setRecentHistory(historyRef.current);
   };
 
-  const recordUserInput = async (input: string, intent?: string) => {
-    if (externalSessionId) {
-      await addUserInput(externalSessionId, input, intent, brandKey);
-    } else if (process.env.NODE_ENV !== 'production') {
-      console.warn('[ChatWidget] Unable to store user input, missing externalSessionId');
-    }
-  };
 
   const buildRequestPayload = () => ({
     session: {
@@ -714,10 +706,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     setIsExpanded(false);
     setShowQuickButtons(false);
 
-    // Store the display message (without context prefix) in history and database
+    // Store the display message (without context prefix) in history
     appendHistory({ role: 'user', content: displayMessage });
-    // Record user input (focus on user questions/intents, not assistant responses)
-    recordUserInput(displayMessage);
+    // Note: User input is saved server-side in /api/chat route to avoid duplicates
 
     // Send contextual message (with name context) to AI, but display original message in chat
     sendMessage(contextualMessage, nextCount, buttons, buildRequestPayload(), skipAddingUserMessage, displayMessage);
