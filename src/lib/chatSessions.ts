@@ -834,6 +834,9 @@ export async function storeBooking(
     time: string; // "11:00 AM" format
     googleEventId?: string;
     status?: 'pending' | 'confirmed' | 'Call Booked' | 'cancelled';
+    name?: string; // Optional: update contact info if provided
+    email?: string; // Optional: update contact info if provided
+    phone?: string; // Optional: update contact info if provided
   },
   brand: 'proxe' = 'proxe'
 ) {
@@ -845,47 +848,31 @@ export async function storeBooking(
 
   const tableName = getChannelTable('web');
 
-  // Only store booking for complete leads
-  const { data: existingSession, error: sessionError } = await supabase
-    .from(tableName)
-    .select('customer_name, customer_email, customer_phone')
-    .eq('external_session_id', externalSessionId)
-    .maybeSingle();
-
-  let isComplete = false;
-  if (sessionError && (sessionError.code === '42P01' || sessionError.code === '42703')) {
-    const { data: fallbackSession } = await supabase
-      .from('sessions')
-      .select('user_name, email, phone')
-      .eq('external_session_id', externalSessionId)
-      .maybeSingle();
+  // If contact info is provided, update the session first
+  if (booking.name || booking.email || booking.phone) {
+    const profileUpdates: { userName?: string; email?: string; phone?: string } = {};
+    if (booking.name) profileUpdates.userName = booking.name;
+    if (booking.email) profileUpdates.email = booking.email;
+    if (booking.phone) profileUpdates.phone = booking.phone;
     
-    isComplete = fallbackSession && 
-      fallbackSession.user_name?.trim() && 
-      fallbackSession.email?.trim() && 
-      fallbackSession.phone?.trim();
-  } else if (existingSession) {
-    isComplete = existingSession.customer_name?.trim() && 
-      existingSession.customer_email?.trim() && 
-      existingSession.customer_phone?.trim();
+    await updateSessionProfile(externalSessionId, profileUpdates, brand);
   }
 
-  if (!isComplete) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[chatSessions] Skipping booking storage - incomplete lead');
-    }
-    return;
-  }
+  // Always store booking details (don't require complete lead)
+  // Booking details are valuable even if contact info isn't complete yet
+
+  // Build update object
+  const bookingUpdate: Record<string, any> = {
+    booking_date: booking.date,
+    booking_time: booking.time,
+    google_event_id: booking.googleEventId ?? null,
+    booking_status: booking.status ?? 'Call Booked',
+    booking_created_at: getISTTimestamp(),
+  };
 
   const { data, error } = await supabase
     .from(tableName)
-    .update({
-      booking_date: booking.date,
-      booking_time: booking.time,
-      google_event_id: booking.googleEventId ?? null,
-      booking_status: booking.status ?? 'Call Booked',
-      booking_created_at: getISTTimestamp(),
-    })
+    .update(bookingUpdate)
     .eq('external_session_id', externalSessionId)
     .select('lead_id, conversation_summary, user_inputs_summary');
 

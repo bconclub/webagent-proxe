@@ -1436,7 +1436,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
         phone: bookingData.phone,
       });
 
-      // Store booking details in Supabase
+      // Store booking details in Supabase (include contact info to ensure it's saved)
       if (externalSessionId && bookingData.date && bookingData.time) {
         await storeBooking(
           externalSessionId,
@@ -1445,6 +1445,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
             time: bookingData.time,
             googleEventId: bookingData.googleEventId,
             status: 'Call Booked',
+            name: bookingData.name,
+            email: bookingData.email,
+            phone: bookingData.phone,
           },
           brandKey
         );
@@ -2055,6 +2058,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               }
             }}
             onFocus={(e) => {
+              if (showDeployForm) {
+                closeDeployForm();
+              }
               if (shouldAutoOpenChat) {
                 setIsOpen(true);
                 setIsExpanded(false);
@@ -2688,6 +2694,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
               }
               if (showVideo) {
                 closeVideoWidget();
+              }
+              if (showDeployForm) {
+                closeDeployForm();
               }
               // Scroll input into view above keyboard on mobile
     const scrollInputIntoView = () => {

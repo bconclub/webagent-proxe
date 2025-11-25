@@ -3,7 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { getBrandConfig } from '@/src/configs';
 import { buildPrompt } from '@/src/lib/promptBuilder';
-import { addUserInput, upsertSummary, checkExistingBooking } from '@/src/lib/chatSessions';
+import { addUserInput, upsertSummary, checkExistingBooking, fetchSummary } from '@/src/lib/chatSessions';
 
 export const runtime = 'nodejs'; // Use Node.js runtime for streaming support
 
@@ -593,13 +593,27 @@ export async function POST(request: NextRequest) {
             // Call the summarize API to get proper AI-generated summary
             (async () => {
               try {
+                // Fetch the latest summary from Supabase to ensure we have the full context
+                let latestSummary = summary || '';
+                if (externalSessionId) {
+                  try {
+                    const summaryData = await fetchSummary(externalSessionId, brand as 'proxe');
+                    if (summaryData?.summary) {
+                      latestSummary = summaryData.summary;
+                    }
+                  } catch (fetchError) {
+                    console.warn('[Chat API] Failed to fetch summary from Supabase, using client summary:', fetchError);
+                    // Fall back to client-provided summary if fetch fails
+                  }
+                }
+
                 const summarizeResponse = await fetch(`${request.nextUrl.origin}/api/chat/summarize`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
                   },
                   body: JSON.stringify({
-                    summary: summary || '',
+                    summary: latestSummary,
                     history: conversationHistory,
                     brand: brand,
                   }),
@@ -610,7 +624,7 @@ export async function POST(request: NextRequest) {
                 }
 
                 const summarizeData = await summarizeResponse.json();
-                const aiGeneratedSummary = summarizeData.summary || summary || '';
+                const aiGeneratedSummary = summarizeData.summary || latestSummary || '';
 
                 // Get IST timestamp (UTC+5:30)
                 let lastMessageAt: string;
@@ -645,7 +659,18 @@ export async function POST(request: NextRequest) {
               } catch (summarizeError) {
                 console.error('[Chat API] Failed to generate summary via summarize API:', summarizeError);
                 // Fallback: save a basic summary if summarize API fails
-                const fallbackSummary = summary || `${message}\n\n${strippedResponse}`;
+                // Try to get latest summary from Supabase for fallback
+                let fallbackSummary = summary || `${message}\n\n${strippedResponse}`;
+                if (externalSessionId) {
+                  try {
+                    const summaryData = await fetchSummary(externalSessionId, brand as 'proxe');
+                    if (summaryData?.summary) {
+                      fallbackSummary = `${summaryData.summary}\n\n${message}\n\n${strippedResponse}`;
+                    }
+                  } catch (fetchError) {
+                    // Use the basic fallback if fetch fails
+                  }
+                }
                 const lastMessageAt = new Date().toISOString();
                 upsertSummary(externalSessionId, fallbackSummary, lastMessageAt, brand as 'proxe').catch(err => {
                   console.error('[Chat API] Failed to save fallback summary:', err);
