@@ -529,49 +529,124 @@ export async function POST(request: NextRequest) {
           const lowerMessage = message.toLowerCase();
           const isFirstMessage = messageCount === 1 || messageCount === 0;
           
+          // Check if user already has a booking scheduled
+          let hasExistingBooking = false;
+          let existingBookingDetails = null;
+          if (userProfile.email || userProfile.phone) {
+            try {
+              const existingBooking = await checkExistingBooking(
+                userProfile.phone || null,
+                userProfile.email || null,
+                normalizedBrand as 'proxe'
+              );
+              
+              if (existingBooking?.exists && existingBooking.bookingDate && existingBooking.bookingTime) {
+                hasExistingBooking = true;
+                existingBookingDetails = existingBooking;
+              }
+            } catch (bookingCheckError) {
+              // Log error but don't crash - allow buttons to be generated
+              console.error('[Chat API] Error checking existing booking for button filtering:', bookingCheckError);
+            }
+          }
+          
           // Get brand config for follow-up buttons
           const brandConfig = getBrandConfig(normalizedBrand);
           const defaultFollowUps = brandConfig.followUpButtons || [];
           const firstMessageButtons = brandConfig.firstMessageButtons || defaultFollowUps.slice(0, 3);
+          
+          // Helper function to check if a button is booking-related
+          const isBookingButton = (button: string): boolean => {
+            const lowerButton = button.toLowerCase();
+            const bookingKeywords = ['book', 'schedule', 'call', 'demo', 'meeting', 'appointment'];
+            return bookingKeywords.some(keyword => lowerButton.includes(keyword));
+          };
           
           let followUpsArray: string[] = [];
           
           // Track used buttons (normalize to lowercase for comparison)
           const usedButtonsLower = (usedButtons || []).map((b: string) => b.toLowerCase());
           
-          // First message: show the 3 configured first message buttons
-          if (isFirstMessage) {
-            followUpsArray = firstMessageButtons;
-          } 
-          // Subsequent messages: show ONE random button from the available options
-          else {
-            // Available buttons for subsequent messages
-            const availableButtons = defaultFollowUps.length > 0 ? defaultFollowUps : ['Schedule a Call'];
+          // If user has existing booking, filter out booking buttons and add reschedule/view options
+          if (hasExistingBooking) {
+            // Filter out booking-related buttons from default lists
+            const nonBookingButtons = defaultFollowUps.filter(btn => !isBookingButton(btn));
+            const nonBookingFirstButtons = firstMessageButtons.filter(btn => !isBookingButton(btn));
             
-            // Filter out buttons that have been used or are similar to used buttons
-            const unusedButtons = availableButtons.filter(followUp => {
-              const lowerFollowUp = followUp.toLowerCase();
-              const isUsed = usedButtonsLower.includes(lowerFollowUp);
-              const isSimilar = isSimilarToAny(followUp, usedButtons);
-              return !isUsed && !isSimilar;
-            });
+            // Add reschedule/view booking buttons
+            const bookingActionButtons = ['Reschedule Call', 'View Booking Details'];
             
-            // If all buttons have been used, reset and use all available buttons
-            const buttonsToChooseFrom = unusedButtons.length > 0 ? unusedButtons : availableButtons;
-            
-            // Ensure we have buttons to choose from
-            if (buttonsToChooseFrom.length > 0) {
-              // Randomly select one button
-              const randomIndex = Math.floor(Math.random() * buttonsToChooseFrom.length);
-              followUpsArray = [buttonsToChooseFrom[randomIndex]];
-            } else {
-              followUpsArray = ['Schedule a Call'];
+            // First message: show non-booking buttons + booking action buttons
+            if (isFirstMessage) {
+              // Combine non-booking first message buttons with booking action buttons
+              followUpsArray = [...nonBookingFirstButtons, ...bookingActionButtons].slice(0, 3);
+            } 
+            // Subsequent messages: show ONE random button from non-booking options or booking actions
+            else {
+              // Combine non-booking buttons with booking action buttons
+              const availableButtons = [
+                ...nonBookingButtons,
+                ...bookingActionButtons
+              ];
+              
+              // Filter out buttons that have been used or are similar to used buttons
+              const unusedButtons = availableButtons.filter(followUp => {
+                const lowerFollowUp = followUp.toLowerCase();
+                const isUsed = usedButtonsLower.includes(lowerFollowUp);
+                const isSimilar = isSimilarToAny(followUp, usedButtons);
+                return !isUsed && !isSimilar;
+              });
+              
+              // If all buttons have been used, reset and use all available buttons
+              const buttonsToChooseFrom = unusedButtons.length > 0 ? unusedButtons : availableButtons;
+              
+              // Ensure we have buttons to choose from
+              if (buttonsToChooseFrom.length > 0) {
+                // Randomly select one button
+                const randomIndex = Math.floor(Math.random() * buttonsToChooseFrom.length);
+                followUpsArray = [buttonsToChooseFrom[randomIndex]];
+              } else {
+                // Fallback to booking action buttons if nothing else available
+                followUpsArray = ['Reschedule Call'];
+              }
+            }
+          } else {
+            // No existing booking - use normal flow
+            // First message: show the 3 configured first message buttons
+            if (isFirstMessage) {
+              followUpsArray = firstMessageButtons;
+            } 
+            // Subsequent messages: show ONE random button from the available options
+            else {
+              // Available buttons for subsequent messages
+              const availableButtons = defaultFollowUps.length > 0 ? defaultFollowUps : ['Schedule a Call'];
+              
+              // Filter out buttons that have been used or are similar to used buttons
+              const unusedButtons = availableButtons.filter(followUp => {
+                const lowerFollowUp = followUp.toLowerCase();
+                const isUsed = usedButtonsLower.includes(lowerFollowUp);
+                const isSimilar = isSimilarToAny(followUp, usedButtons);
+                return !isUsed && !isSimilar;
+              });
+              
+              // If all buttons have been used, reset and use all available buttons
+              const buttonsToChooseFrom = unusedButtons.length > 0 ? unusedButtons : availableButtons;
+              
+              // Ensure we have buttons to choose from
+              if (buttonsToChooseFrom.length > 0) {
+                // Randomly select one button
+                const randomIndex = Math.floor(Math.random() * buttonsToChooseFrom.length);
+                followUpsArray = [buttonsToChooseFrom[randomIndex]];
+              } else {
+                followUpsArray = ['Schedule a Call'];
+              }
             }
           }
           
           // Final fallback: ensure we always have at least 1 follow-up button
           if (followUpsArray.length === 0 || !followUpsArray[0]) {
-            followUpsArray = ['Schedule a Call'];
+            // Use appropriate fallback based on booking status
+            followUpsArray = hasExistingBooking ? ['Reschedule Call'] : ['Schedule a Call'];
           }
 
           // Send follow-ups and done

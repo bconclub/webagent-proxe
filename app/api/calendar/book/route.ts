@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { checkExistingBooking } from '@/src/lib/chatSessions';
+import { checkExistingBooking, storeBooking } from '@/src/lib/chatSessions';
+import { createClient } from '@supabase/supabase-js';
 
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || 'bconclubx@gmail.com';
 const TIMEZONE = process.env.GOOGLE_CALENDAR_TIMEZONE || 'Asia/Kolkata';
@@ -39,13 +40,61 @@ async function getAuthClient() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { date, time, name, email, phone, brand = 'proxe' } = await request.json();
+    const { date, time, name, email, phone, brand = 'proxe', sessionId } = await request.json();
 
     if (!date || !time || !name || !email || !phone) {
       return NextResponse.json(
         { error: 'Missing required fields: date, time, name, email, phone' },
         { status: 400 }
       );
+    }
+
+    // Helper function to get Supabase client
+    const getSupabaseClient = () => {
+      const supabaseUrl = process.env.PROXE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.PROXE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (!supabaseUrl || !supabaseKey) return null;
+      return createClient(supabaseUrl, supabaseKey);
+    };
+
+    // Find sessionId if not provided (by email or phone)
+    let externalSessionId = sessionId;
+    if (!externalSessionId) {
+      try {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          // Try to find session by email first, then phone
+          const { data: sessionByEmail } = await supabase
+            .from('web_sessions')
+            .select('external_session_id')
+            .eq('customer_email', email)
+            .eq('brand', brand.toLowerCase())
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (sessionByEmail?.external_session_id) {
+            externalSessionId = sessionByEmail.external_session_id;
+          } else {
+            // Try by phone
+            const { data: sessionByPhone } = await supabase
+              .from('web_sessions')
+              .select('external_session_id')
+              .eq('customer_phone', phone)
+              .eq('brand', brand.toLowerCase())
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (sessionByPhone?.external_session_id) {
+              externalSessionId = sessionByPhone.external_session_id;
+            }
+          }
+        }
+      } catch (sessionLookupError) {
+        // Log but don't fail - we'll still create the calendar event
+        console.warn('[Booking API] Could not find sessionId:', sessionLookupError);
+      }
     }
 
     // Check for existing booking by phone or email
@@ -231,6 +280,31 @@ export async function POST(request: NextRequest) {
         },
         { status: 500 }
       );
+    }
+
+    // Save booking to database
+    if (externalSessionId) {
+      try {
+        await storeBooking(
+          externalSessionId,
+          {
+            date: dateStr, // Use the parsed dateStr (YYYY-MM-DD format)
+            time: time, // Original time format (e.g., "11:00 AM")
+            googleEventId: createdEvent.data.id,
+            status: 'confirmed',
+            name: name,
+            email: email,
+            phone: phone,
+          },
+          brand as 'proxe'
+        );
+        console.log('[Booking API] Successfully saved booking to database', { externalSessionId, eventId: createdEvent.data.id });
+      } catch (storeError) {
+        // Log error but don't fail the request - calendar event was created successfully
+        console.error('[Booking API] Failed to save booking to database:', storeError);
+      }
+    } else {
+      console.warn('[Booking API] No sessionId found, booking not saved to database. Calendar event created successfully.');
     }
 
     return NextResponse.json({

@@ -1451,9 +1451,68 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
           },
           brandKey
         );
+
+        // Format date and time for display message
+        const bookingDate = new Date(bookingData.date);
+        const formattedDate = bookingDate.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+        const formattedTime = bookingData.time; // Already in "11:00 AM" format
+
+        // Add system message to chat
+        const bookingMessage = `Your call is scheduled for ${formattedDate} at ${formattedTime}.`;
+        addAIMessage(bookingMessage);
+
+        // Update conversation summary to include booking info for AI context
+        try {
+          // Fetch current summary from database to ensure we have the latest
+          let currentSummary = conversationSummary || '';
+          try {
+            const summaryData = await fetchSummary(externalSessionId, brandKey);
+            if (summaryData?.summary) {
+              currentSummary = summaryData.summary;
+            }
+          } catch (fetchError) {
+            // Use state summary if fetch fails
+            console.warn('[ChatWidget] Could not fetch summary, using state:', fetchError);
+          }
+
+          const bookingContext = `\n\n[Booking Status: User has a call scheduled for ${formattedDate} at ${formattedTime}. Google Calendar Event ID: ${bookingData.googleEventId || 'N/A'}]`;
+          const updatedSummary = currentSummary + bookingContext;
+          
+          // Get IST timestamp
+          const now = new Date();
+          const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          });
+          const parts = formatter.formatToParts(now);
+          const year = parts.find(p => p.type === 'year')?.value || '2024';
+          const month = parts.find(p => p.type === 'month')?.value || '01';
+          const day = parts.find(p => p.type === 'day')?.value || '01';
+          const hours = parts.find(p => p.type === 'hour')?.value || '00';
+          const minutes = parts.find(p => p.type === 'minute')?.value || '00';
+          const seconds = parts.find(p => p.type === 'second')?.value || '00';
+          const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+          const lastMessageAt = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}+05:30`;
+
+          await upsertSummary(externalSessionId, updatedSummary, lastMessageAt, brandKey);
+          setConversationSummary(updatedSummary);
+        } catch (summaryError) {
+          console.error('[ChatWidget] Failed to update summary with booking info:', summaryError);
+        }
       }
     }
-  }, [handleContactPersist, externalSessionId, brandKey]);
+  }, [handleContactPersist, externalSessionId, brandKey, addAIMessage, conversationSummary]);
 
   // Check for existing booking before showing calendar
   const checkAndShowBooking = useCallback(async () => {
@@ -2304,6 +2363,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                           {...({
                             brand,
                             config,
+                            sessionId: externalSessionId || undefined,
                             onBookingComplete: handleBookingComplete,
                             prefillName: userProfile.name || '',
                             prefillEmail: userProfile.email || '',

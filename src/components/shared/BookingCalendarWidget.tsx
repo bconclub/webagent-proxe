@@ -12,6 +12,7 @@ export interface BookingCalendarWidgetProps {
   prefillName?: string;
   prefillEmail?: string;
   prefillPhone?: string;
+  sessionId?: string;
   onContactDraft?: (data: { name?: string; email?: string; phone?: string }) => void;
   onContactSubmit?: (data: { name?: string; email?: string; phone?: string }) => void | Promise<void>;
 }
@@ -49,6 +50,7 @@ export function BookingCalendarWidget({
   prefillName,
   prefillEmail,
   prefillPhone,
+  sessionId,
   onContactDraft,
   onContactSubmit,
 }: BookingCalendarWidgetProps) {
@@ -225,6 +227,8 @@ export function BookingCalendarWidget({
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
+          ...(sessionId && { sessionId }),
+          ...(brand && { brand }),
         }),
       });
 
