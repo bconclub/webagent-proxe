@@ -2536,15 +2536,26 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                   <p className={styles.exploreTitle}>Choose your PROXe</p>
                   <div className={styles.exploreButtonGroup}>
                     {exploreButtons.map((option, optionIndex) => {
-                      const buttonAccentIndex = optionIndex % 7;
-                      const buttonAccentClass = `accent-${buttonAccentIndex}`;
+                      // Map each PROXe type to its specific color class from "Meet Our PROXes" section
+                      let proxeColorClass = '';
+                      if (option.toLowerCase().includes('web')) {
+                        proxeColorClass = styles.exploreWeb;
+                      } else if (option.toLowerCase().includes('whatsapp')) {
+                        proxeColorClass = styles.exploreWhatsapp;
+                      } else if (option.toLowerCase().includes('voice')) {
+                        proxeColorClass = styles.exploreVoice;
+                      } else if (option.toLowerCase().includes('social')) {
+                        proxeColorClass = styles.exploreSocial;
+                      }
                       return (
                         <button
                           key={optionIndex}
-                          className={`${styles.followUpBtn} ${styles[buttonAccentClass]}`}
+                          className={`${styles.followUpBtn} ${proxeColorClass}`}
                           onClick={() => {
                             setExploreButtons(null);
-                            handleQuickButtonClick(option);
+                            // Send a message about the specific PROXe type
+                            const proxeMessage = `Tell me more about ${option}`;
+                            handleQuickButtonClick(proxeMessage);
                           }}
                         >
                           {option}
