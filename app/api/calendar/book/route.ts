@@ -290,7 +290,7 @@ export async function POST(request: NextRequest) {
           {
             date: dateStr, // Use the parsed dateStr (YYYY-MM-DD format)
             time: time, // Original time format (e.g., "11:00 AM")
-            googleEventId: createdEvent.data.id,
+            googleEventId: createdEvent.data.id || undefined,
             status: 'confirmed',
             name: name,
             email: email,
