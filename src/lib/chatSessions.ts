@@ -6,6 +6,16 @@ import { getSupabaseClient } from './supabaseClient';
 // WhatsApp and Social are ready for future implementation
 export type Channel = 'web' | 'whatsapp' | 'voice' | 'social';
 
+// Helper function to clean metadata strings from conversation summary
+function cleanSummary(summary: string | null | undefined): string {
+  if (!summary) return '';
+  return summary
+    .replace(/\[User's name is[^\]]+\]/gi, '')
+    .replace(/\[Booking Status:[^\]]+\]/gi, '')
+    .replace(/\n\n+/g, '\n')
+    .trim();
+}
+
 export interface SessionRecord {
   id: string;
   externalSessionId: string;
@@ -131,7 +141,7 @@ async function ensureAllLeads(
       if (sessionData) {
         unifiedContext = {
           web: {
-            conversation_summary: sessionData.conversation_summary || null,
+            conversation_summary: cleanSummary(sessionData.conversation_summary) || null,
             booking_status: sessionData.booking_status || null,
             booking_date: sessionData.booking_date || null,
             booking_time: sessionData.booking_time || null,
@@ -227,7 +237,7 @@ function mapSession(row: any): SessionRecord {
     phone: row.customer_phone ?? row.phone ?? null,
     email: row.customer_email ?? row.email ?? null,
     websiteUrl: row.website_url ?? null,
-    conversationSummary: row.conversation_summary ?? null,
+    conversationSummary: cleanSummary(row.conversation_summary) ?? null,
     lastMessageAt: row.last_message_at ?? null,
     userInputsSummary: Array.isArray(row.user_inputs_summary) ? row.user_inputs_summary : [],
     messageCount: row.message_count ?? 0,
@@ -816,7 +826,7 @@ export async function fetchSummary(
       if (!fallbackData || !fallbackData.conversation_summary) return null;
       
       return {
-        summary: fallbackData.conversation_summary,
+        summary: cleanSummary(fallbackData.conversation_summary),
         lastMessageCreatedAt: fallbackData.last_message_at || getISTTimestamp(),
       };
     }
@@ -827,7 +837,7 @@ export async function fetchSummary(
   if (!data || !data.conversation_summary) return null;
 
   return {
-    summary: data.conversation_summary,
+    summary: cleanSummary(data.conversation_summary),
     lastMessageCreatedAt: data.last_message_at || getISTTimestamp(),
   };
 }
@@ -906,7 +916,7 @@ export async function storeBooking(
     const sessionData = data[0];
     const unifiedContext = {
       web: {
-        conversation_summary: sessionData.conversation_summary || null,
+        conversation_summary: cleanSummary(sessionData.conversation_summary) || null,
         booking_status: booking.status ?? 'Call Booked',
         booking_date: booking.date,
         booking_time: booking.time,

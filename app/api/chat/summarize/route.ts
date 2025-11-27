@@ -18,15 +18,31 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const previousSummary: string = body.summary || '';
+    let previousSummary: string = body.summary || '';
     const history: HistoryItem[] = Array.isArray(body.history) ? body.history : [];
     const brand: string = body.brand || 'proxe';
+
+    // Clean metadata strings from previous summary (remove [User's name is...] and [Booking Status:...] patterns)
+    previousSummary = previousSummary
+      .replace(/\[User's name is[^\]]+\]/gi, '')
+      .replace(/\[Booking Status:[^\]]+\]/gi, '')
+      .replace(/\n\n+/g, '\n')
+      .trim();
 
     if (history.length === 0) {
       return Response.json({ summary: previousSummary }, { status: 200 });
     }
 
-    const formattedHistory = history
+    // Filter out metadata strings from history before formatting
+    const cleanedHistory = history.map(entry => ({
+      ...entry,
+      content: entry.content
+        .replace(/\[User's name is[^\]]+\]/gi, '')
+        .replace(/\[Booking Status:[^\]]+\]/gi, '')
+        .trim()
+    })).filter(entry => entry.content.length > 0);
+
+    const formattedHistory = cleanedHistory
       .map((entry) => `${entry.role === 'user' ? 'User' : 'Assistant'}: ${entry.content}`)
       .join('\n');
 
