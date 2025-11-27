@@ -88,9 +88,14 @@ function getISTTimestamp(): string {
 // Helper function to normalize phone number for all_leads deduplication
 function normalizePhone(phone: string | null | undefined): string | null {
   if (!phone) return null;
+  
   // Remove all non-digit characters
   const digits = phone.replace(/\D/g, '');
-  return digits || null;
+  
+  if (!digits || digits.length < 10) return null;
+  
+  // Always return last 10 digits for matching
+  return digits.slice(-10);
 }
 
 // Helper function to ensure all_leads record exists and return lead_id
