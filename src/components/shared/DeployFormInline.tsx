@@ -34,6 +34,13 @@ export function DeployFormInline({
     websiteUrl: '',
   });
 
+  // Helper to clean phone number (remove +1 prefix if present)
+  const cleanPhoneNumber = (phone: string | null | undefined): string => {
+    if (!phone) return '';
+    // Remove +1 prefix if present
+    return phone.replace(/^\+1\s*/, '').trim();
+  };
+
   // Pre-fill form with existing user data
   useEffect(() => {
     const existingUser = getStoredUser('proxe');
@@ -41,14 +48,14 @@ export function DeployFormInline({
       setFormData({
         name: existingUser.name || userProfile.name || '',
         email: existingUser.email || userProfile.email || '',
-        phoneNumber: existingUser.phone || userProfile.phone || '',
+        phoneNumber: cleanPhoneNumber(existingUser.phone || userProfile.phone),
         websiteUrl: existingUser.websiteUrl || userProfile.websiteUrl || '',
       });
     } else {
       setFormData({
         name: userProfile.name || '',
         email: userProfile.email || '',
-        phoneNumber: userProfile.phone || '',
+        phoneNumber: cleanPhoneNumber(userProfile.phone),
         websiteUrl: userProfile.websiteUrl || '',
       });
     }
@@ -202,7 +209,7 @@ export function DeployFormInline({
             value={formData.phoneNumber}
             onChange={handleChange}
             className={`${styles.deployInput} ${errors.phoneNumber ? styles.deployInputError : ''}`}
-            placeholder="+1 (555) 000-0000"
+            placeholder="Enter your phone number"
           />
           {errors.phoneNumber && <span className={styles.deployErrorText}>{errors.phoneNumber}</span>}
         </div>

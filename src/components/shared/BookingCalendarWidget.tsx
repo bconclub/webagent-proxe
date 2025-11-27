@@ -54,6 +54,13 @@ export function BookingCalendarWidget({
   onContactDraft,
   onContactSubmit,
 }: BookingCalendarWidgetProps) {
+  // Helper to clean phone number (remove +1 prefix if present)
+  const cleanPhoneNumber = (phone: string | null | undefined): string => {
+    if (!phone) return '';
+    // Remove +1 prefix if present
+    return phone.replace(/^\+1\s*/, '').trim();
+  };
+
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [showTimeSlots, setShowTimeSlots] = useState(false);
@@ -66,7 +73,7 @@ export function BookingCalendarWidget({
   const [formData, setFormData] = useState({
     name: prefillName || '',
     email: prefillEmail || '',
-    phone: prefillPhone || '',
+    phone: cleanPhoneNumber(prefillPhone),
   });
   useEffect(() => {
     setFormData((prev) => {
@@ -74,7 +81,7 @@ export function BookingCalendarWidget({
         ...prev,
         name: prefillName !== undefined ? prefillName : prev.name,
         email: prefillEmail !== undefined ? prefillEmail : prev.email,
-        phone: prefillPhone !== undefined ? prefillPhone : prev.phone,
+        phone: prefillPhone !== undefined ? cleanPhoneNumber(prefillPhone) : prev.phone,
       };
       return next;
     });
@@ -510,7 +517,7 @@ export function BookingCalendarWidget({
                 value={formData.phone}
                 onChange={handleInputChange}
                 required
-                placeholder="Phone Number"
+                placeholder="Enter your phone number"
               />
             </div>
 

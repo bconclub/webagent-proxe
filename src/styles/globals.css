@@ -112,6 +112,6 @@ body.chat-open [class*="chatWindow"] {
   -webkit-backdrop-filter: none !important;
   pointer-events: auto !important;
   position: relative !important;
-  z-index: 9999 !important;
+  z-index: 9998 !important;
 }
 

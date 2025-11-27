@@ -378,7 +378,9 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
 
   useEffect(() => {
     if (showPhonePrompt) {
-      setPhoneInput(userProfile.phone || '');
+      // Remove +1 prefix if present
+      const cleanPhone = userProfile.phone ? userProfile.phone.replace(/^\+1\s*/, '').trim() : '';
+      setPhoneInput(cleanPhone);
     }
   }, [showPhonePrompt, userProfile.phone]);
 
@@ -2707,7 +2709,8 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
                         autoFocus
                         ref={phonePromptInputRef}
                         className={styles.inlinePromptInput}
-                        placeholder="Phone number"
+                        type="tel"
+                        placeholder="Enter your phone number"
                         value={phoneInput}
                         onChange={(event) => setPhoneInput(event.target.value)}
                       />

@@ -18,6 +18,13 @@ export default function DeployModal({ isOpen, onClose, onFormSubmit }: DeployMod
     websiteUrl: '',
   });
 
+  // Helper to clean phone number (remove +1 prefix if present)
+  const cleanPhoneNumber = (phone: string | null | undefined): string => {
+    if (!phone) return '';
+    // Remove +1 prefix if present
+    return phone.replace(/^\+1\s*/, '').trim();
+  };
+
   // Pre-fill form with existing user data when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -26,7 +33,7 @@ export default function DeployModal({ isOpen, onClose, onFormSubmit }: DeployMod
         setFormData({
           name: existingUser.name || '',
           email: existingUser.email || '',
-          phoneNumber: existingUser.phone || '',
+          phoneNumber: cleanPhoneNumber(existingUser.phone),
           websiteUrl: existingUser.websiteUrl || '',
         });
       }
@@ -194,7 +201,7 @@ export default function DeployModal({ isOpen, onClose, onFormSubmit }: DeployMod
                 value={formData.phoneNumber}
                 onChange={handleChange}
                 className={`${styles.input} ${errors.phoneNumber ? styles.inputError : ''}`}
-                placeholder="+1 (555) 000-0000"
+                placeholder="Enter your phone number"
               />
               {errors.phoneNumber && <span className={styles.errorText}>{errors.phoneNumber}</span>}
             </div>
