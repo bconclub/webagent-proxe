@@ -3,7 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { getBrandConfig } from '@/src/configs';
 import { buildPrompt } from '@/src/lib/promptBuilder';
-import { addUserInput, upsertSummary, checkExistingBooking, fetchSummary } from '@/src/lib/chatSessions';
+import { addUserInput, upsertSummary, checkExistingBooking, fetchSummary, logMessage } from '@/src/lib/chatSessions';
 
 export const runtime = 'nodejs'; // Use Node.js runtime for streaming support
 
@@ -267,10 +267,37 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Message is required' }, { status: 400 });
     }
 
+    // Get lead_id from web_sessions for message logging
+    let leadId: string | null = null;
+    const inputReceivedAt = Date.now(); // Track when user message was received
+    
+    if (externalSessionId && proxeSupabase) {
+      try {
+        const { data: session } = await proxeSupabase
+          .from('web_sessions')
+          .select('lead_id')
+          .eq('external_session_id', externalSessionId)
+          .single();
+        
+        leadId = session?.lead_id || null;
+      } catch (err) {
+        console.error('[Chat API] Error fetching lead_id:', err);
+      }
+    }
+
     // Save user input to web_sessions (async, don't wait)
     if (externalSessionId) {
       addUserInput(externalSessionId, message, undefined, brand as 'proxe').catch(err => {
         console.error('[Chat API] Failed to save user input:', err);
+      });
+    }
+
+    // Log user message to messages table
+    if (leadId) {
+      logMessage(leadId, 'web', 'customer', message, 'text', {
+        input_received_at: inputReceivedAt
+      }).catch(err => {
+        console.error('[Chat API] Failed to log user message:', err);
       });
     }
 
@@ -524,6 +551,18 @@ export async function POST(request: NextRequest) {
             .replace(/^(Hi there!|Hello!|Hey!|Hi!)\s*/gi, '')
             .replace(/^(Hi|Hello|Hey),?\s*/gi, '')
             .trim();
+
+          // Log agent response to messages table
+          if (leadId && cleanedResponse) {
+            const outputSentAt = Date.now();
+            logMessage(leadId, 'web', 'agent', cleanedResponse, 'text', {
+              output_sent_at: outputSentAt,
+              input_received_at: inputReceivedAt,
+              input_to_output_gap_ms: outputSentAt - inputReceivedAt
+            }).catch(err => {
+              console.error('[Chat API] Failed to log agent message:', err);
+            });
+          }
 
           // Generate follow-ups based on brand - ALWAYS ensure every message has follow-up buttons
           const lowerMessage = message.toLowerCase();

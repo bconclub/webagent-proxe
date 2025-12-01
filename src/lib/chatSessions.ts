@@ -1188,3 +1188,55 @@ export async function updateChannelData(
     console.error('[Supabase] Failed to update channel data', error);
   }
 }
+
+// Log message to messages table for Dashboard Inbox
+export async function logMessage(
+  leadId: string,
+  channel: 'web' | 'whatsapp' | 'voice' | 'social',
+  sender: 'customer' | 'agent' | 'system',
+  content: string,
+  messageType: string = 'text',
+  metadata: any = {}
+) {
+  if (!leadId || !content) {
+    console.log('[logMessage] Missing leadId or content, skipping message log');
+    return null;
+  }
+
+  const supabase = getSupabaseClient('proxe');
+  
+  if (!supabase) {
+    console.error('[logMessage] Supabase client not available');
+    return null;
+  }
+  
+  try {
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
+        lead_id: leadId,
+        channel: channel,
+        sender: sender,
+        content: content,
+        message_type: messageType,
+        metadata: {
+          ...metadata,
+          logged_at: new Date().toISOString()
+        },
+        topic: 'chat',
+        extension: 'web'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[logMessage] Error logging message:', error);
+      return null;
+    }
+
+    return data;
+  } catch (err) {
+    console.error('[logMessage] Exception logging message:', err);
+    return null;
+  }
+}
