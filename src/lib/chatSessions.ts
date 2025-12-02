@@ -109,7 +109,7 @@ function normalizePhone(phone: string | null | undefined): string | null {
 }
 
 // Helper function to ensure all_leads record exists and return lead_id
-async function ensureAllLeads(
+export async function ensureAllLeads(
   customerName: string | null,
   email: string | null,
   phone: string | null,
@@ -1189,6 +1189,25 @@ export async function updateChannelData(
   }
 }
 
+// Helper function to strip HTML tags from content
+function stripHTML(html: string): string {
+  if (!html || typeof html !== 'string') return html;
+  // Remove HTML tags
+  let text = html.replace(/<[^>]*>/g, '');
+  // Decode HTML entities
+  text = text
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'");
+  // Clean up multiple spaces and newlines
+  text = text.replace(/\s+/g, ' ').trim();
+  return text;
+}
+
 // Log message to messages table for Dashboard Inbox
 export async function logMessage(
   leadId: string,
@@ -1198,8 +1217,22 @@ export async function logMessage(
   messageType: string = 'text',
   metadata: any = {}
 ) {
+  console.log('[logMessage] Called with:', {
+    leadId,
+    channel,
+    sender,
+    contentLength: content?.length,
+    messageType,
+    hasMetadata: !!metadata
+  });
+
   if (!leadId || !content) {
-    console.log('[logMessage] Missing leadId or content, skipping message log');
+    console.log('[logMessage] Missing leadId or content, skipping message log', {
+      hasLeadId: !!leadId,
+      hasContent: !!content,
+      leadId,
+      contentLength: content?.length
+    });
     return null;
   }
 
@@ -1210,33 +1243,69 @@ export async function logMessage(
     return null;
   }
   
+  // Strip HTML from content before logging
+  const cleanedContent = stripHTML(content);
+  
+  const insertData = {
+    lead_id: leadId,
+    channel: channel,
+    sender: sender,
+    content: cleanedContent,
+    message_type: messageType,
+    metadata: {
+      ...metadata,
+      logged_at: new Date().toISOString(),
+      topic: 'chat',
+      extension: 'web'
+    }
+  };
+
+  console.log('[logMessage] Inserting message:', {
+    lead_id: insertData.lead_id,
+    channel: insertData.channel,
+    sender: insertData.sender,
+    contentLength: insertData.content?.length,
+    message_type: insertData.message_type
+  });
+  
   try {
     const { data, error } = await supabase
       .from('messages')
-      .insert({
-        lead_id: leadId,
-        channel: channel,
-        sender: sender,
-        content: content,
-        message_type: messageType,
-        metadata: {
-          ...metadata,
-          logged_at: new Date().toISOString()
-        },
-        topic: 'chat',
-        extension: 'web'
-      })
+      .insert(insertData)
       .select()
       .single();
 
     if (error) {
-      console.error('[logMessage] Error logging message:', error);
+      console.error('[logMessage] Error logging message:', {
+        error,
+        errorCode: error.code,
+        errorMessage: error.message,
+        errorDetails: error.details,
+        errorHint: error.hint,
+        leadId,
+        channel,
+        sender
+      });
       return null;
     }
 
+    console.log('[logMessage] Message logged successfully:', {
+      messageId: data?.id,
+      leadId,
+      channel,
+      sender
+    });
+
     return data;
-  } catch (err) {
-    console.error('[logMessage] Exception logging message:', err);
+  } catch (err: any) {
+    console.error('[logMessage] Exception logging message:', {
+      error: err,
+      errorMessage: err?.message,
+      errorStack: err?.stack,
+      leadId,
+      channel,
+      sender
+    });
     return null;
   }
 }

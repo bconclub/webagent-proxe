@@ -3,7 +3,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 import { getBrandConfig } from '@/src/configs';
 import { buildPrompt } from '@/src/lib/promptBuilder';
-import { addUserInput, upsertSummary, checkExistingBooking, fetchSummary, logMessage } from '@/src/lib/chatSessions';
+import { addUserInput, upsertSummary, checkExistingBooking, fetchSummary, logMessage, ensureAllLeads, updateSessionProfile } from '@/src/lib/chatSessions';
+import { getSupabaseClient } from '@/src/lib/supabaseClient';
 
 export const runtime = 'nodejs'; // Use Node.js runtime for streaming support
 
@@ -267,37 +268,12 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Message is required' }, { status: 400 });
     }
 
-    // Get lead_id from web_sessions for message logging
-    let leadId: string | null = null;
     const inputReceivedAt = Date.now(); // Track when user message was received
-    
-    if (externalSessionId && proxeSupabase) {
-      try {
-        const { data: session } = await proxeSupabase
-          .from('web_sessions')
-          .select('lead_id')
-          .eq('external_session_id', externalSessionId)
-          .single();
-        
-        leadId = session?.lead_id || null;
-      } catch (err) {
-        console.error('[Chat API] Error fetching lead_id:', err);
-      }
-    }
 
     // Save user input to web_sessions (async, don't wait)
     if (externalSessionId) {
       addUserInput(externalSessionId, message, undefined, brand as 'proxe').catch(err => {
         console.error('[Chat API] Failed to save user input:', err);
-      });
-    }
-
-    // Log user message to messages table
-    if (leadId) {
-      logMessage(leadId, 'web', 'customer', message, 'text', {
-        input_received_at: inputReceivedAt
-      }).catch(err => {
-        console.error('[Chat API] Failed to log user message:', err);
       });
     }
 
@@ -552,15 +528,158 @@ export async function POST(request: NextRequest) {
             .replace(/^(Hi|Hello|Hey),?\s*/gi, '')
             .trim();
 
-          // Log agent response to messages table
-          if (leadId && cleanedResponse) {
+          // Update session profile with client-provided data (if any)
+          // This ensures profile data is saved to database and lead_id is created/updated
+          if (externalSessionId && (userProfile?.userName || userProfile?.email || userProfile?.phone)) {
+            console.log('[Chat API] Updating session profile with client data:', {
+              hasName: !!userProfile?.userName,
+              hasEmail: !!userProfile?.email,
+              hasPhone: !!userProfile?.phone,
+              name: userProfile?.userName,
+              email: userProfile?.email,
+              phone: userProfile?.phone
+            });
+            
+            try {
+              await updateSessionProfile(
+                externalSessionId,
+                {
+                  userName: userProfile?.userName,
+                  email: userProfile?.email,
+                  phone: userProfile?.phone,
+                  websiteUrl: userProfile?.websiteUrl
+                },
+                brand as 'proxe'
+              );
+              console.log('[Chat API] updateSessionProfile completed successfully');
+            } catch (err) {
+              console.error('[Chat API] Failed to update session profile:', err);
+            }
+          }
+
+          // Fetch lead_id now (after profile may have been updated)
+          // Also try to ensure lead exists if we have profile data
+          let leadId: string | null = null;
+          if (externalSessionId) {
+            try {
+              const supabase = getSupabaseClient('proxe');
+              if (!supabase) {
+                console.error('[Chat API] Supabase client not available');
+              } else {
+                // First, try to get lead_id from web_sessions
+                const { data: session, error: sessionError } = await supabase
+                  .from('web_sessions')
+                  .select('lead_id, customer_name, customer_email, customer_phone')
+                  .eq('external_session_id', externalSessionId)
+                  .single();
+                
+                if (sessionError) {
+                  console.error('[Chat API] Error fetching session:', sessionError);
+                } else {
+                  leadId = session?.lead_id || null;
+                  
+                  console.log('[Chat API] Fetched session data:', {
+                    leadId,
+                    hasPhone: !!session?.customer_phone,
+                    hasEmail: !!session?.customer_email,
+                    hasName: !!session?.customer_name,
+                    phone: session?.customer_phone,
+                    email: session?.customer_email,
+                    name: session?.customer_name
+                  });
+                  
+                  // If no lead_id but we have profile data, try to ensure/create the lead
+                  // Use database data first, fallback to client profile data
+                  const profileName = session?.customer_name || userProfile?.userName || null;
+                  const profileEmail = session?.customer_email || userProfile?.email || null;
+                  const profilePhone = session?.customer_phone || userProfile?.phone || null;
+                  
+                  if (!leadId && profilePhone) {
+                    console.log('[Chat API] No lead_id found, attempting to ensure lead exists with phone:', profilePhone);
+                    
+                    const createdLeadId = await ensureAllLeads(
+                      profileName,
+                      profileEmail,
+                      profilePhone,
+                      brand as 'proxe',
+                      externalSessionId
+                    );
+                    
+                    console.log('[Chat API] ensureAllLeads result:', createdLeadId);
+                    
+                    if (createdLeadId) {
+                      // Update web_sessions with the new lead_id
+                      const { error: updateError } = await supabase
+                        .from('web_sessions')
+                        .update({ lead_id: createdLeadId })
+                        .eq('external_session_id', externalSessionId);
+                      
+                      if (updateError) {
+                        console.error('[Chat API] Failed to update web_sessions with lead_id:', updateError);
+                      } else {
+                        leadId = createdLeadId;
+                        console.log('[Chat API] Created/ensured lead and updated web_sessions:', leadId);
+                      }
+                    } else {
+                      console.log('[Chat API] Could not create lead - ensureAllLeads returned null', {
+                        phone: profilePhone,
+                        normalizedPhone: profilePhone ? profilePhone.replace(/\D/g, '').slice(-10) : null
+                      });
+                    }
+                  } else if (!leadId && !profilePhone) {
+                    console.log('[Chat API] Cannot create lead - phone number is required but missing', {
+                      hasName: !!profileName,
+                      hasEmail: !!profileEmail,
+                      hasPhone: !!profilePhone
+                    });
+                  } else if (leadId) {
+                    console.log('[Chat API] Using existing lead_id:', leadId);
+                  }
+                }
+              }
+            } catch (err) {
+              console.error('[Chat API] Error fetching/ensuring lead_id:', err);
+            }
+          }
+
+          // Log messages to messages table (for Dashboard Inbox)
+          if (leadId) {
             const outputSentAt = Date.now();
-            logMessage(leadId, 'web', 'agent', cleanedResponse, 'text', {
+            
+            console.log('[Chat API] Attempting to log messages for lead:', leadId, {
+              messageLength: message?.length,
+              responseLength: cleanedResponse?.length
+            });
+            
+            // Log customer message
+            const customerLogResult = await logMessage(leadId, 'web', 'customer', message, 'text', {
+              input_received_at: inputReceivedAt
+            }).catch(err => {
+              console.error('[Chat API] Failed to log customer message:', err);
+              return null;
+            });
+            
+            console.log('[Chat API] Customer message log result:', customerLogResult ? 'Success' : 'Failed');
+            
+            // Log agent response
+            const agentLogResult = await logMessage(leadId, 'web', 'agent', cleanedResponse, 'text', {
               output_sent_at: outputSentAt,
               input_received_at: inputReceivedAt,
               input_to_output_gap_ms: outputSentAt - inputReceivedAt
             }).catch(err => {
               console.error('[Chat API] Failed to log agent message:', err);
+              return null;
+            });
+            
+            console.log('[Chat API] Agent message log result:', agentLogResult ? 'Success' : 'Failed');
+            console.log('[Chat API] Messages logged for lead:', leadId, {
+              customerLogged: !!customerLogResult,
+              agentLogged: !!agentLogResult
+            });
+          } else {
+            console.log('[Chat API] No lead_id available, skipping message logging', {
+              externalSessionId,
+              hasSupabaseClient: !!getSupabaseClient('proxe')
             });
           }
 
