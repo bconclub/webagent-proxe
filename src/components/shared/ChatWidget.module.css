@@ -1505,6 +1505,105 @@
   height: 18px;
 }
 
+/* Bubble Widget Styles */
+.bubbleButton {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-vibrant) 100%);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    0 0 30px var(--primary-color);
+  z-index: 9998;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+  overflow: hidden;
+}
+
+.bubbleButton:hover {
+  transform: scale(1.1);
+  box-shadow: 
+    0 6px 30px rgba(0, 0, 0, 0.4),
+    0 0 40px var(--primary-vibrant);
+}
+
+.bubbleButton:active {
+  transform: scale(0.95);
+}
+
+.bubbleIcon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+
+.bubbleIcon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Chatbox container for bubble style */
+.chatboxBubble {
+  position: fixed !important;
+  bottom: 100px !important;
+  right: 24px !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
+  -webkit-transform: none !important;
+  width: 400px !important;
+  max-width: calc(100vw - 48px) !important;
+  max-height: 500px !important;
+  height: auto !important;
+  animation: slideUpBubble 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUpBubble {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Mobile bubble styles */
+@media (max-width: 768px) {
+  .bubbleButton {
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+  }
+
+  .bubbleIcon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .chatboxBubble {
+    bottom: 80px !important;
+    right: 16px !important;
+    left: 16px !important;
+    width: auto !important;
+    max-width: calc(100vw - 32px) !important;
+    max-height: calc(100vh - 100px) !important;
+  }
+}
+
 /* Mobile styles - Fullscreen */
 @media (max-width: 768px) {
   .searchbarWrapper {

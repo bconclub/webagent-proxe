@@ -217,7 +217,7 @@ The database uses a **multi-touchpoint architecture** designed to track customer
 
 #### 3. `messages` - Universal Message Log
 
-**Purpose**: Append-only message log for audit trail
+**Purpose**: Append-only message log for audit trail and Dashboard Inbox
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -225,12 +225,16 @@ The database uses a **multi-touchpoint architecture** designed to track customer
 | `lead_id` | UUID | Foreign key to `all_leads.id` |
 | `channel` | ENUM | `'web'`, `'whatsapp'`, `'voice'`, `'social'` |
 | `sender` | ENUM | `'customer'`, `'agent'`, or `'system'` |
-| `content` | TEXT | Message content |
+| `content` | TEXT | Message content (plain text, HTML stripped) |
 | `message_type` | TEXT | `'text'`, `'image'`, `'audio'`, etc. |
-| `metadata` | JSONB | Additional message metadata |
+| `metadata` | JSONB | Additional message metadata (includes `topic`, `extension`, timing data) |
 | `created_at` | TIMESTAMP | When message was created |
 
-**Usage**: Audit trail of all conversations across channels
+**Usage**: 
+- Audit trail of all conversations across channels
+- **Dashboard Inbox**: Displays conversation history for each lead
+- **Content Cleaning**: HTML tags and entities are stripped before storage (plain text only)
+- **Metadata**: Stores `topic: 'chat'`, `extension: 'web'`, and timing information (`input_received_at`, `output_sent_at`, `input_to_output_gap_ms`)
 
 #### 4. `unified_leads` - Dashboard View
 
@@ -308,8 +312,10 @@ The database uses a **multi-touchpoint architecture** designed to track customer
 4. Calls Claude API with streaming
 5. Saves user input to `web_sessions`
 6. Streams response chunks to client
-7. Generates follow-up buttons
-8. Saves conversation summary (async)
+7. **Fetches/ensures `lead_id`** (after AI response, when profile updates complete)
+8. **Logs messages to `messages` table** (for Dashboard Inbox)
+9. Generates follow-up buttons
+10. Saves conversation summary (async)
 
 **Features**:
 - Streaming AI responses (real-time)
@@ -318,6 +324,9 @@ The database uses a **multi-touchpoint architecture** designed to track customer
 - **Dynamic follow-up button generation** (based on booking status)
 - Booking detection and validation
 - **Conversation summary cleaning** (removes metadata pollution)
+- **Message logging to Dashboard Inbox** (stores customer and agent messages in `messages` table)
+- **HTML content stripping** (messages stored as plain text, no HTML tags)
+- **Lead ID management** (ensures `lead_id` exists before logging messages)
 
 #### `POST /api/chat/summarize`
 
@@ -651,6 +660,8 @@ The system generates context-aware follow-up buttons based on user's booking sta
 - `checkExistingBooking()` - Check if user already has booking (by phone/email)
 - `normalizePhone()` - Normalize phone numbers (last 10 digits for matching)
 - `cleanSummary()` - Remove metadata patterns from summaries
+- `logMessage()` - Log messages to `messages` table (for Dashboard Inbox, with HTML stripping)
+- `ensureAllLeads()` - Ensure `all_leads` record exists and return `lead_id`
 
 **Features**:
 - Multi-channel support (currently web-focused)
@@ -721,6 +732,8 @@ The system generates context-aware follow-up buttons based on user's booking sta
    - Calls Claude API with streaming
    - Saves user input via addUserInput()
    - Streams response to client
+   - **Fetches/ensures lead_id** (after response generation)
+   - **Logs messages to messages table** (customer + agent messages, HTML stripped)
    ↓
 6. User continues conversation
    - Each message updates message_count
@@ -766,9 +779,17 @@ The system generates context-aware follow-up buttons based on user's booking sta
     - If no booking: Shows "Schedule a Call" / "Book a Demo"
     - After "Explore PROXe" interactions: Always shows "Book a Demo"
     ↓
-15. Dashboard reads from unified_leads view
+15. **Message logging** (after AI response generated)
+    - Fetches `lead_id` from `web_sessions` (or creates via `ensureAllLeads` if needed)
+    - **Logs customer message** to `messages` table (HTML stripped, plain text)
+    - **Logs agent response** to `messages` table (HTML stripped, plain text)
+    - Stores timing metadata (`input_received_at`, `output_sent_at`, `input_to_output_gap_ms`)
+    - Stores channel metadata (`topic: 'chat'`, `extension: 'web'`)
+    ↓
+16. Dashboard reads from unified_leads view
     - Real-time updates via Supabase Realtime
     - Displays lead in dashboard
+    - **Dashboard Inbox displays messages** from `messages` table (plain text, no HTML)
 ```
 
 ### Session Creation Flow
@@ -1205,6 +1226,8 @@ npm run start
 - Unified lead view
 - Channel-specific data
 - Booking tracking
+- **Message logging for Dashboard Inbox** (all chat messages stored in `messages` table)
+- **Plain text message storage** (HTML stripped for clean display in dashboard)
 
 ### 6. Security
 - Row Level Security (RLS)
@@ -1395,7 +1418,7 @@ PROXe Website + Web Agent/
 
 ### API Endpoints
 
-- `POST /api/chat` - Main chat endpoint
+- `POST /api/chat` - Main chat endpoint (logs messages to `messages` table)
 - `POST /api/chat/summarize` - Summarize conversation
 - `GET /api/calendar/availability` - Check available slots
 - `POST /api/calendar/book` - Create booking
@@ -1409,6 +1432,8 @@ PROXe Website + Web Agent/
 - `addUserInput()` - Save user message
 - `storeBooking()` - Save booking
 - `checkExistingBooking()` - Check for duplicate bookings
+- `logMessage()` - Log messages to `messages` table (for Dashboard Inbox)
+- `ensureAllLeads()` - Ensure `all_leads` record exists and return `lead_id`
 
 ---
 
@@ -1426,7 +1451,12 @@ PROXe Website + Web Agent/
 - ✅ Phone number normalization: Uses last 10 digits for matching (handles international formats)
 - ✅ Simplified phone input: Reverted to simple `tel` input (no country code dropdown)
 - ✅ UI enhancements: "Explore PROXe" buttons with brand-specific colors, calendar auto-scroll
-- ✅ Booking context updates: AI knows about bookings and can reference them naturally  
+- ✅ Booking context updates: AI knows about bookings and can reference them naturally
+- ✅ **Message logging for Dashboard Inbox**: All web chat messages (customer + agent) logged to `messages` table
+- ✅ **HTML content stripping**: Message content stored as plain text (HTML tags and entities removed)
+- ✅ **Lead ID management**: Ensures `lead_id` exists before logging messages, creates lead if needed
+- ✅ **Metadata structure**: `topic` and `extension` stored in `metadata` JSONB field (not separate columns)
+- ✅ **Timing metadata**: Stores `input_received_at`, `output_sent_at`, and `input_to_output_gap_ms` for analytics  
 
 **This document is the single source of truth for the PROXe Website + Web Agent build.**
 

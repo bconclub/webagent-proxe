@@ -30,6 +30,7 @@ interface ChatWidgetProps {
   brand: string;
   config: BrandConfig;
   apiUrl?: string;
+  widgetStyle?: 'searchbar' | 'bubble';
 }
 
 // PROXE Logo component (white icon version)
@@ -109,7 +110,7 @@ const cleanSummary = (summary: string | null | undefined): string => {
     .trim();
 };
 
-export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
+export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }: ChatWidgetProps) {
   const { openModal: openDeployModal, setOnFormSubmit } = useDeployModal();
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -1935,6 +1936,22 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
     const hasConversation = messages.length > 0;
     const shouldAutoOpenChat = hasEverOpenedRef.current && hasConversation;
 
+    // Bubble widget style
+    if (widgetStyle === 'bubble') {
+      return (
+        <button
+          className={styles.bubbleButton}
+          onClick={() => setIsOpen(true)}
+          aria-label="Open chat"
+        >
+          <div className={styles.bubbleIcon}>
+            {brand === 'proxe' ? <PROXELogo /> : ICONS.ai(brand, config)}
+          </div>
+        </button>
+      );
+    }
+
+    // Searchbar widget style (default)
     return (
       <>
         {shouldShowBlur && (
@@ -2133,7 +2150,7 @@ export function ChatWidget({ brand, config, apiUrl }: ChatWidgetProps) {
   return (
     <div 
       ref={chatboxContainerRef}
-      className={styles.chatboxContainer}
+      className={`${styles.chatboxContainer} ${widgetStyle === 'bubble' ? styles.chatboxBubble : ''}`}
     >
       <div className={styles.chatContent}>
         <div className={styles.chatHeader}>
