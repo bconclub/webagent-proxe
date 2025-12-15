@@ -2071,7 +2071,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
             ref={inputRef}
             type="text"
             className={styles.searchInput}
-            placeholder="Ask me anything..."
+            placeholder="see PROXe in action"
             value={inputValue}
             onChange={(e) => {
               setInputValue(e.target.value);

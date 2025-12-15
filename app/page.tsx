@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Image from 'next/image';
 
 import { BrandChatWidget } from '@/src/components/brand/BrandChatWidget';
@@ -18,6 +19,9 @@ import {
   WhatsappIcon,
   AiVoiceIcon,
   VideoAiIcon,
+  CallIcon,
+  EmailIcon,
+  SmsIcon,
 } from '@/src/components/shared/icons/HugeIcons';
 
 export default function HomePage() {
@@ -25,6 +29,28 @@ export default function HomePage() {
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [activeSolution, setActiveSolution] = useState<string | null>(null);
   const { openModal } = useDeployModal();
+  const [rotatingWord, setRotatingWord] = useState(0);
+  const rotatingWords = ['Owned', 'Handled', 'Captured', 'Secured'];
+  const [mounted, setMounted] = useState(false);
+  const [showWidget, setShowWidget] = useState(false);
+  const chatWidgetRef = useRef<HTMLDivElement>(null);
+  const heroSectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    const reveal = () => {
+      // slight delay to avoid showing during loader
+      setTimeout(() => setShowWidget(true), 300);
+    };
+
+    if (document.readyState === 'complete') {
+      reveal();
+    } else {
+      window.addEventListener('load', reveal, { once: true });
+    }
+
+    return () => window.removeEventListener('load', reveal);
+  }, []);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 768px)');
@@ -77,6 +103,44 @@ export default function HomePage() {
       };
     }
   }, [isMobile, activeSolution]);
+
+  // Rotate words effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRotatingWord((prev) => (prev + 1) % rotatingWords.length);
+    }, 2000); // Change word every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [rotatingWords.length]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Force chat widget to float above all content at bottom-right via portal
+  useEffect(() => {
+    const forceFloating = () => {
+      const container = chatWidgetRef.current;
+      if (!container) return;
+
+      const searchbarWrapper = container.querySelector('.searchbarWrapper') as HTMLElement;
+      if (searchbarWrapper) {
+        searchbarWrapper.style.setProperty('position', 'fixed', 'important');
+        searchbarWrapper.style.setProperty('bottom', '20px', 'important');
+        searchbarWrapper.style.setProperty('right', '20px', 'important');
+        searchbarWrapper.style.setProperty('left', 'auto', 'important');
+        searchbarWrapper.style.setProperty('top', 'auto', 'important');
+        searchbarWrapper.style.setProperty('transform', 'none', 'important');
+        searchbarWrapper.style.setProperty('z-index', '2147483647', 'important');
+      }
+    };
+
+    forceFloating();
+    const interval = setInterval(forceFloating, 100);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const proxeSolutions = [
     {
       id: 'web',
@@ -129,6 +193,7 @@ export default function HomePage() {
   ];
 
   return (
+    <>
     <main className={styles.pageContainer}>
       <svg width="0" height="0" style={{ position: 'absolute' }}>
         <defs>
@@ -163,93 +228,94 @@ export default function HomePage() {
         <DarkVeil speed={0.8} warpAmount={0.3} />
       </div>
       <Header />
-      <section className={styles.heroSection}>
-        <BlurText
-          text="Intelligence That Runs Your Business Better"
-          delay={150}
-          animateBy="words"
-          direction="top"
-          className={styles.heroTitle}
-        />
-        <p className={styles.heroSubtitle}>One AI Brain. Every channel. Zero blind spots.</p>
+      <section ref={heroSectionRef} className={styles.heroSection}>
+        <div className={styles.heroTitle}>
+          <BlurText
+            text="Every Conversation"
+            delay={150}
+            animateBy="words"
+            direction="top"
+          />
+          <div className={styles.heroTitleLine}>
+            <BlurText
+              text="Every Opportunity"
+              delay={150}
+              animateBy="words"
+              direction="top"
+            />
+            <span key={rotatingWord} className={styles.rotatingWord}>
+              {rotatingWords[rotatingWord]}
+            </span>
+          </div>
+        </div>
+        <p className={styles.heroSubtitle}>PROXe turns every potential customer into revenue. Listens across every channel. Never forgets. Always improving.</p>
+          <div className={styles.channelIcons}>
+            <div className={styles.channelIconItem}>
+              <HugeiconsIcon icon={BrowserIcon} size={36} />
+            <span className={styles.channelLabel}>Website</span>
+          </div>
+          <div className={styles.channelIconItem}>
+              <HugeiconsIcon icon={WhatsappIcon} size={36} />
+            <span className={styles.channelLabel}>WhatsApp</span>
+          </div>
+          <div className={styles.channelIconItem}>
+              <HugeiconsIcon icon={AiVoiceIcon} size={36} />
+            <span className={styles.channelLabel}>Voice</span>
+          </div>
+          <div className={styles.channelIconItem}>
+              <HugeiconsIcon icon={EmailIcon} size={36} />
+            <span className={styles.channelLabel}>Email</span>
+          </div>
+          <div className={styles.channelIconItem}>
+              <HugeiconsIcon icon={SmsIcon} size={36} />
+            <span className={styles.channelLabel}>SMS</span>
+          </div>
+        </div>
       </section>
-      <FadeInSection className={styles.solutionsSection} delay={100}>
-        <FadeInElement>
-          <h2 className={styles.sectionHeading}>Meet Our PROXes</h2>
-        </FadeInElement>
-        <FadeInElement delay={50}>
-          <p className={styles.sectionSubtitle}>
-            Deploy the channel-first agent that matches the way your customers already interact.
-          </p>
-        </FadeInElement>
-        <div className={styles.solutionsGrid}>
-          {proxeSolutions.map((solution, index) => (
-            <FadeInElement key={solution.id} delay={100 + index * 50}>
-              <article
-                data-solution-id={solution.id}
-                className={[
-                  styles.solutionCard,
-                  activeSolution === solution.id
-                    ? styles.solutionCardExpanded
-                    : styles.solutionCardCollapsed,
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                role="button"
-                tabIndex={0}
-                aria-expanded={activeSolution === solution.id}
-                onClick={() => {
-                  setActiveSolution((current) =>
-                    current === solution.id ? null : solution.id
-                  );
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    setActiveSolution((current) =>
-                      current === solution.id ? null : solution.id
-                    );
-                  }
-                }}
-              >
-              <div className={styles.solutionHeader}>
-                <div className={styles.solutionIcon} aria-hidden="true">
-                  <HugeiconsIcon icon={solution.icon} size={39} />
-                </div>
-                <div className={styles.solutionHeadingGroup}>
-                  <h3 className={styles.solutionTitle}>
-                    <span className={styles.titleFirstPart}>
-                      {solution.title.replace(' PROXe', '')}
-                    </span>
-                    <span className={styles.titleSecondPart}>PROXe</span>
-                  </h3>
-                </div>
-                <span className={styles.solutionToggleIcon} aria-hidden="true">
-                  {activeSolution === solution.id ? '−' : '+'}
-                </span>
-              </div>
-              <p className={styles.solutionTagline}>{solution.tagline}</p>
-              <div className={styles.solutionExpandable}>
-                <ul className={styles.solutionBenefitList}>
-                  {solution.benefits.map((benefit) => (
-                    <li key={benefit} className={styles.solutionBenefitItem}>
-                      {benefit}
-                    </li>
-                  ))}
-                </ul>
-                <button 
-                  className={styles.solutionCta} 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openModal();
-                  }}
-                >
-                  {solution.ctaLabel}
-                </button>
-              </div>
-              </article>
+      <FadeInSection className={styles.whyProxeSection} delay={100}>
+        <div className={styles.headingSubtextColumns}>
+          <div>
+            <FadeInElement>
+              <p className={styles.eyebrow}>PROXe</p>
             </FadeInElement>
-          ))}
+            <FadeInElement delay={50}>
+              <h2 className={styles.sectionHeading}>The complete AI system that turns conversations into opportunities</h2>
+            </FadeInElement>
+          </div>
+          <FadeInElement delay={100}>
+            <p className={styles.sectionSubtitle}>
+              Built for businesses that can't afford to lose leads. PROXe Captures everything. Remembers everything. Closes everything.
+            </p>
+          </FadeInElement>
+        </div>
+        <div className={styles.featureCardsGrid}>
+          <FadeInElement delay={150}>
+            <article className={styles.featureCard}>
+              <p className={styles.featureEyebrow}>Capture</p>
+              <h3 className={styles.featureTitle}>Never Miss Another Lead Ever</h3>
+              <p className={styles.featureDescription}>
+                Every message captured. WhatsApp, website, Instagram, SMS, email. 24/7 listening. No inquiry lost.
+              </p>
+            </article>
+          </FadeInElement>
+          <FadeInElement delay={200}>
+            <article className={styles.featureCard}>
+              <p className={styles.featureEyebrow}>Remember</p>
+              <h3 className={styles.featureTitle}>One Memory Across Channels</h3>
+              <p className={styles.featureDescription}>
+                Full conversation history. WhatsApp, website, Instagram, SMS, email. Same thread. Customers never repeat themselves.
+              </p>
+            </article>
+          </FadeInElement>
+          <FadeInElement delay={250}>
+            <article className={styles.featureCard}>
+              <p className={styles.featureEyebrow}>Close</p>
+              <h3 className={styles.featureTitle}>Complete Customer Journey</h3>
+              <p className={styles.featureDescription}>
+                Automated follow-ups. Smart nudges. Cross-channel reactivation. First touch to final close—fully handled.
+              </p>
+            </article>
+          </FadeInElement>
         </div>
       </FadeInSection>
       <FadeInSection className={styles.thirdSection} delay={200}>
@@ -331,9 +397,19 @@ export default function HomePage() {
           </article>
           </FadeInElement>
         </div>
-      </FadeInSection>
+       </FadeInSection>
       <FeaturedSectionStats />
-      <BrandChatWidget brand="proxe" apiUrl={apiUrl} />
     </main>
-  )
-}
+    {mounted && showWidget && typeof window !== 'undefined' && createPortal(
+      <div 
+        ref={chatWidgetRef}
+        className={`${styles.chatWidgetContainer} ${styles.chatWidgetScrolled} ${showWidget ? styles.widgetVisible : ''}`}
+        style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 2147483647, pointerEvents: 'none' }}
+      >
+        <BrandChatWidget brand="proxe" apiUrl={apiUrl} />
+      </div>,
+      document.body
+    )}
+     </>
+   )
+ }
