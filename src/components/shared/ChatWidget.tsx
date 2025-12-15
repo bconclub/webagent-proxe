@@ -74,6 +74,11 @@ const ICONS = {
       <line x1="6" y1="6" x2="18" y2="18"></line>
     </svg>
   ),
+  chevronDown: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 12 15 18 9"></polyline>
+    </svg>
+  ),
   user: (
     <svg viewBox="0 0 24 24" fill="currentColor">
       <circle cx="12" cy="8" r="4"/>
@@ -129,6 +134,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
   const [usedButtons, setUsedButtons] = useState<string[]>([]);
   const [showVideo, setShowVideo] = useState<string | null>(null);
   const [videoAnchorId, setVideoAnchorId] = useState<string | null>(null);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [sessionRecord, setSessionRecord] = useState<SessionRecord | null>(null);
@@ -157,6 +163,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
   const [exploreButtons, setExploreButtons] = useState<string[] | null>(null);
   const SEARCHBAR_BASE_OFFSET = 60;
   const SEARCHBAR_KEYBOARD_OFFSET = 20;
+  const [isDockedBubble, setIsDockedBubble] = useState(false);
   const SEARCHBAR_KEYBOARD_GAP = 5;
   const EMAIL_PROMPT_THRESHOLD = 5;
   const PHONE_PROMPT_THRESHOLD = 7;
@@ -177,8 +184,22 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
   const interactionCountRef = useRef<number>(0);
   const historyRef = useRef<{ role: 'user' | 'assistant'; content: string }[]>([]);
   const brandKey: 'proxe' = 'proxe';
-  const quickButtonOptions = dynamicQuickButtons ?? config?.quickButtons ?? [];
-  const hasQuickButtons = quickButtonOptions.length > 0;
+
+  const handleOpenChat = useCallback(() => {
+    setShowCloseConfirm(false);
+    setIsDockedBubble(true);
+    setIsOpen(true);
+    setIsExpanded(false);
+    setShowQuickButtons(false);
+    setIsInputActive(true);
+  }, []);
+
+  // Once chat opens, keep widget in docked bubble mode so it docks right as a bubble
+  useEffect(() => {
+    if (isOpen) {
+      setIsDockedBubble(true);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -592,6 +613,33 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     setVideoAnchorId(null);
   }, []);
 
+  const handleCloseChat = useCallback(() => {
+    setShowCloseConfirm(false);
+    setIsOpen(false);
+    setIsInputActive(false);
+    setIsExpanded(false);
+    setShowQuickButtons(false);
+    setIsSearchbarHovered(false);
+    setIsDockedBubble(false);
+    closeCalendarWidget();
+    closeVideoWidget();
+    setDynamicQuickButtons(null);
+    setExploreButtons(null);
+  }, [closeCalendarWidget, closeVideoWidget]);
+
+  const handleRequestCloseChat = useCallback(() => {
+    setShowCloseConfirm(true);
+  }, []);
+
+  const handleCancelCloseChat = useCallback(() => {
+    setShowCloseConfirm(false);
+  }, []);
+
+  const handleConfirmCloseChat = useCallback(() => {
+    setShowCloseConfirm(false);
+    handleCloseChat();
+  }, [handleCloseChat]);
+
   const queuePendingMessage = (message: string, buttons: string[], requirement: 'name' | 'email' | 'phone') => {
     if (process.env.NODE_ENV !== 'production') {
       console.log('[ChatWidget] Queueing pending message', { message, buttons });
@@ -982,52 +1030,51 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     };
   }, [isOpen, isExpanded, showQuickButtons, isInputActive, keyboardHeight]); // Run when these states change
 
-  // Apply styles based on device type
+  // Track desktop/mobile for behavior; layout handled by CSS (docked)
   useEffect(() => {
     const applyDeviceStyles = () => {
       const desktop = window.innerWidth >= 769;
       setIsDesktop(desktop);
-      
-      if (chatboxContainerRef.current && isOpen) {
-        setTimeout(() => {
-          if (chatboxContainerRef.current) {
-            if (desktop) {
-              // Desktop: Centered with fixed width
-              chatboxContainerRef.current.style.setProperty('position', 'fixed', 'important');
-              chatboxContainerRef.current.style.setProperty('top', '50%', 'important');
-              chatboxContainerRef.current.style.setProperty('left', '50%', 'important');
-              chatboxContainerRef.current.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
-              chatboxContainerRef.current.style.setProperty('-webkit-transform', 'translate(-50%, -50%)', 'important');
-              chatboxContainerRef.current.style.setProperty('right', 'auto', 'important');
-              chatboxContainerRef.current.style.setProperty('bottom', 'auto', 'important');
-              chatboxContainerRef.current.style.setProperty('width', '380px', 'important');
-              chatboxContainerRef.current.style.setProperty('max-width', '380px', 'important');
-            } else {
-              // Mobile: Fullscreen
-              chatboxContainerRef.current.style.setProperty('position', 'fixed', 'important');
-              chatboxContainerRef.current.style.setProperty('top', '0', 'important');
-              chatboxContainerRef.current.style.setProperty('left', '0', 'important');
-              chatboxContainerRef.current.style.setProperty('right', '0', 'important');
-              chatboxContainerRef.current.style.setProperty('bottom', '0', 'important');
-              chatboxContainerRef.current.style.setProperty('transform', 'none', 'important');
-              chatboxContainerRef.current.style.setProperty('-webkit-transform', 'none', 'important');
-              chatboxContainerRef.current.style.setProperty('width', '100%', 'important');
-              chatboxContainerRef.current.style.setProperty('max-width', '100%', 'important');
-              chatboxContainerRef.current.style.setProperty('height', 'auto', 'important');
-              chatboxContainerRef.current.style.setProperty('max-height', 'none', 'important');
-            }
-          }
-        }, 0);
-      }
     };
     applyDeviceStyles();
     window.addEventListener('resize', applyDeviceStyles);
     return () => window.removeEventListener('resize', applyDeviceStyles);
   }, [isOpen]);
 
-  // Lock body scroll when searchbar is hovered or clicked
+  // Force docked positioning (right, above bubble) when open
   useEffect(() => {
-    const shouldLock = isSearchbarHovered || isInputActive || isOpen;
+    if (!isOpen || !chatboxContainerRef.current) return;
+    const el = chatboxContainerRef.current;
+    const isMobile = window.innerWidth < 769;
+
+    el.style.setProperty('position', 'fixed', 'important');
+    el.style.setProperty('transform', 'none', 'important');
+    el.style.setProperty('-webkit-transform', 'none', 'important');
+
+    if (isMobile) {
+      el.style.setProperty('top', '0', 'important');
+      el.style.setProperty('left', '0', 'important');
+      el.style.setProperty('right', '0', 'important');
+      el.style.setProperty('bottom', '0', 'important');
+      el.style.setProperty('width', '100%', 'important');
+      el.style.setProperty('max-width', '100%', 'important');
+      el.style.setProperty('height', '100vh', 'important');
+      el.style.setProperty('max-height', '100vh', 'important');
+    } else {
+      el.style.setProperty('right', '24px', 'important');
+      el.style.setProperty('bottom', '96px', 'important');
+      el.style.setProperty('left', 'auto', 'important');
+      el.style.setProperty('top', 'auto', 'important');
+      el.style.setProperty('width', '420px', 'important');
+      el.style.setProperty('max-width', '90vw', 'important');
+      el.style.setProperty('height', '80vh', 'important');
+      el.style.setProperty('max-height', '80vh', 'important');
+    }
+  }, [isOpen, isDesktop]);
+
+  // Lock body scroll when interacting with the floating search bar (allow background interaction while chat is open)
+  useEffect(() => {
+    const shouldLock = (isSearchbarHovered || isInputActive) && !isOpen;
     if (!shouldLock) return;
 
     const bodyStyle = document.body.style;
@@ -1302,6 +1349,27 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     onMessageComplete: handleAssistantMessageComplete,
   });
 
+  const isMobileViewport = typeof window !== 'undefined' ? window.innerWidth < 769 : !isDesktop;
+  const isMobileNewChat = useMemo(
+    () => isMobileViewport && messages.length === 0,
+    [isMobileViewport, messages.length]
+  );
+
+  const mobileQuickActions = ["What's PROXe", 'Book a Demo', 'PROXe Pricing'];
+  const defaultQuickButtons = dynamicQuickButtons ?? config?.quickButtons ?? [];
+  const quickButtonOptions = isMobileNewChat ? mobileQuickActions : defaultQuickButtons;
+  const hasQuickButtons = quickButtonOptions.length > 0;
+
+  const isResponding = useMemo(
+    () =>
+      isLoading ||
+      messages.some(
+        (message) =>
+          message.type === 'ai' && (message.isStreaming || !message.hasStreamed)
+      ),
+    [isLoading, messages]
+  );
+
   // Register callback for when Deploy form is submitted
   useEffect(() => {
     const handleDeployFormSubmit = async () => {
@@ -1359,13 +1427,6 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
       }, 0);
     }
     
-    // Add/remove class to body for background blur
-    if (isOpen || isInputActive) {
-      document.body.classList.add('chat-open');
-    } else {
-      document.body.classList.remove('chat-open');
-    }
-    
     // Check if we should show calendar widget after AI response completes
     if (pendingCalendar && messages.length > 0 && !bookingCompleted) {
       const lastMessage = messages[messages.length - 1];
@@ -1421,9 +1482,6 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
       }
     }
     
-    return () => {
-      document.body.classList.remove('chat-open');
-    };
   }, [messages, isOpen, pendingCalendar, showCalendly, bookingCompleted, userProfile.phone, userProfile.email, brandKey]);
 
   // Handle booking completion
@@ -1704,6 +1762,15 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     const message = inputValue.trim();
     if (!message) return;
 
+    // On mobile, typing from the search widget should open the chat before sending
+    if (!isOpen) {
+      setIsDockedBubble(true);
+      setIsOpen(true);
+      setIsExpanded(false);
+      setShowQuickButtons(false);
+      setIsInputActive(true);
+    }
+
     // Close any open prompt cards when user sends a message from the input
     if (showNamePrompt) {
       setShowNamePrompt(false);
@@ -1723,6 +1790,31 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     submitMessage(message, usedButtons);
   };
 
+  const openChatAndFocus = useCallback(() => {
+    setIsDockedBubble(true);
+    setIsOpen(true);
+    setIsExpanded(false);
+    setShowQuickButtons(false);
+    setIsInputActive(true);
+    setTimeout(() => {
+      chatInputRef.current?.focus();
+    }, 50);
+  }, []);
+
+  const handleSearchWidgetPress = useCallback(() => {
+    if (isMobileNewChat) {
+      setIsExpanded(true);
+      setShowQuickButtons(true);
+      setIsInputActive(true);
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+      return;
+    }
+
+    openChatAndFocus();
+  }, [isMobileNewChat, openChatAndFocus]);
+
   const handleQuickButtonClick = (buttonText: string, e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
@@ -1731,6 +1823,11 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
 
     const message = buttonText.trim();
     if (!message) return;
+
+    setIsDockedBubble(true);
+    setIsOpen(true);
+    setIsExpanded(false);
+    setShowQuickButtons(false);
 
     if (process.env.NODE_ENV !== 'production') {
       console.log('[ChatWidget] Quick button clicked', { buttonText, message });
@@ -1924,24 +2021,142 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
       .replace(/\*(.+?)\*/g, '<em>$1</em>');
   };
   
-  const shouldShowBlur = (isExpanded || showQuickButtons) && !isOpen;
-
   useEffect(() => {
     if (isOpen) {
       hasEverOpenedRef.current = true;
     }
   }, [isOpen]);
   
-  if (!isOpen) {
-    const hasConversation = messages.length > 0;
-    const shouldAutoOpenChat = hasEverOpenedRef.current && hasConversation;
+  const hasConversation = messages.length > 0;
+  const searchbar = (
+    <div 
+      ref={searchbarWrapperRef} 
+      className={styles.searchbarWrapper}
+      aria-hidden={isOpen}
+      style={isOpen ? { visibility: 'hidden', pointerEvents: 'none' } : undefined}
+      onMouseEnter={() => {
+        setIsSearchbarHovered(true);
+        if (!isOpen && !hasConversation && hasQuickButtons) {
+          setIsExpanded(true);
+          setShowQuickButtons(true);
+        }
+      }}
+      onMouseLeave={() => {
+        setIsSearchbarHovered(false);
+        if (!isOpen && !isInputActive && !inputValue.trim()) {
+          setIsExpanded(false);
+          setShowQuickButtons(false);
+        }
+      }}
+    >
+      {isExpanded && showQuickButtons && hasQuickButtons && (
+        <div
+          ref={quickButtonsRef}
+          className={styles.quickButtons}
+          data-scroll-lock="allow"
+        >
+          {quickButtonOptions.map((buttonText, index) => (
+            <button
+              key={index}
+              className={styles.quickBtn}
+              onClick={(e) => {
+                // Only handle click if we didn't drag
+                if (!hasDraggedRef.current) {
+                  handleQuickButtonClick(buttonText, e);
+                }
+              }}
+            >
+              {buttonText}
+            </button>
+          ))}
+        </div>
+      )}
+      <div 
+        className={`${styles.searchbar} ${isExpanded ? styles.searchbarExpanded : ''}`}
+        onMouseDown={(e) => {
+          // Don't prevent default - let click event fire
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+            handleSearchWidgetPress();
+        }}
+        onTouchStart={(e) => {
+            handleSearchWidgetPress();
+        }}
+        style={{ cursor: 'pointer' }}
+      >
+        <div className={styles.searchIcon} onClick={(e) => {
+          e.stopPropagation();
+            handleSearchWidgetPress();
+        }}>
+          {ICONS.search}
+        </div>
+        <input
+          ref={inputRef}
+          type="text"
+          className={styles.searchInput}
+          placeholder="see PROXe in action"
+          value={inputValue}
+          onChange={(e) => {
+              const nextValue = e.target.value;
+              setInputValue(nextValue);
+              if (!isOpen && isMobileNewChat && nextValue.trim()) {
+                openChatAndFocus();
+              }
+            // Close any open prompt cards when user starts typing in searchbar
+              if (nextValue && (showNamePrompt || showEmailPrompt || showPhonePrompt)) {
+              if (showNamePrompt) {
+                setShowNamePrompt(false);
+                setNamePromptDismissed(true);
+              }
+              if (showEmailPrompt) {
+                setShowEmailPrompt(false);
+              }
+              if (showPhonePrompt) {
+                setShowPhonePrompt(false);
+              }
+            }
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+              handleSearchWidgetPress();
+          }}
+          onFocus={(e) => {
+            if (showDeployForm) {
+              closeDeployForm();
+            }
+              handleSearchWidgetPress();
+          }}
+          onBlur={handleInputBlur}
+          onKeyPress={(e) => {
+            if (e.key === 'Enter' && inputValue.trim()) {
+              handleSend();
+            }
+          }}
+        />
+        {inputValue.trim() && (
+          <button 
+            className={styles.sendBtn} 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSend();
+            }}
+          >
+            {ICONS.send}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
-    // Bubble widget style
-    if (widgetStyle === 'bubble') {
+  if (!isOpen) {
+    // Bubble widget style or docked bubble mode
+    if (widgetStyle === 'bubble' || isDockedBubble) {
       return (
         <button
           className={styles.bubbleButton}
-          onClick={() => setIsOpen(true)}
+          data-brand={brand}
+          onClick={handleOpenChat}
           aria-label="Open chat"
         >
           <div className={styles.bubbleIcon}>
@@ -1952,207 +2167,33 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     }
 
     // Searchbar widget style (default)
-    return (
-      <>
-        {shouldShowBlur && (
-          <div 
-            className={styles.blurOverlay}
-            data-brand={brand}
-            onClick={() => {
-              if (!isInputActive && !inputValue.trim()) {
-                setIsExpanded(false);
-                setShowQuickButtons(false);
-              }
-            }}
-          />
-        )}
-        <div 
-          ref={searchbarWrapperRef} 
-          className={styles.searchbarWrapper}
-          onMouseEnter={() => {
-            setIsSearchbarHovered(true);
-            if (!isOpen && !hasConversation && hasQuickButtons) {
-              setIsExpanded(true);
-              setShowQuickButtons(true);
-            }
-          }}
-          onMouseLeave={() => {
-            setIsSearchbarHovered(false);
-            if (!isOpen && !isInputActive && !inputValue.trim()) {
-              setIsExpanded(false);
-              setShowQuickButtons(false);
-            }
-          }}
-        >
-        {isExpanded && showQuickButtons && hasQuickButtons && (
-          <div
-            ref={quickButtonsRef}
-            className={styles.quickButtons}
-            data-scroll-lock="allow"
-          >
-            {quickButtonOptions.map((buttonText, index) => (
-              <button
-                key={index}
-                className={styles.quickBtn}
-                onClick={(e) => {
-                  // Only handle click if we didn't drag
-                  if (!hasDraggedRef.current) {
-                    handleQuickButtonClick(buttonText, e);
-                  }
-                }}
-              >
-                {buttonText}
-              </button>
-            ))}
-          </div>
-        )}
-        <div 
-          className={`${styles.searchbar} ${isExpanded ? styles.searchbarExpanded : ''}`}
-          onMouseDown={(e) => {
-            // Don't prevent default - let click event fire
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (shouldAutoOpenChat) {
-              setIsOpen(true);
-              setIsExpanded(false);
-              setShowQuickButtons(false);
-              setIsInputActive(true);
-              setTimeout(() => {
-                chatInputRef.current?.focus();
-              }, 50);
-            } else {
-              setIsExpanded(true);
-              setShowQuickButtons(true);
-              setIsInputActive(true);
-              setTimeout(() => {
-                inputRef.current?.focus();
-              }, 50);
-            }
-          }}
-          onTouchStart={(e) => {
-            if (shouldAutoOpenChat) {
-              setIsOpen(true);
-              setIsExpanded(false);
-              setShowQuickButtons(false);
-              setIsInputActive(true);
-              setTimeout(() => {
-                chatInputRef.current?.focus();
-              }, 50);
-            } else {
-              setIsExpanded(true);
-              setShowQuickButtons(true);
-              setIsInputActive(true);
-            }
-          }}
-          style={{ cursor: 'pointer' }}
-        >
-          <div className={styles.searchIcon} onClick={(e) => {
-            e.stopPropagation();
-            if (shouldAutoOpenChat) {
-              setIsOpen(true);
-              setIsExpanded(false);
-              setShowQuickButtons(false);
-              setIsInputActive(true);
-              setTimeout(() => {
-                chatInputRef.current?.focus();
-              }, 50);
-            } else {
-              setIsExpanded(true);
-              setShowQuickButtons(true);
-              setTimeout(() => {
-                inputRef.current?.focus();
-              }, 50);
-            }
-          }}>
-            {ICONS.search}
-          </div>
-          <input
-            ref={inputRef}
-            type="text"
-            className={styles.searchInput}
-            placeholder="see PROXe in action"
-            value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              // Close any open prompt cards when user starts typing in searchbar
-              if (e.target.value && (showNamePrompt || showEmailPrompt || showPhonePrompt)) {
-                if (showNamePrompt) {
-                  setShowNamePrompt(false);
-                  setNamePromptDismissed(true);
-                }
-                if (showEmailPrompt) {
-                  setShowEmailPrompt(false);
-                }
-                if (showPhonePrompt) {
-                  setShowPhonePrompt(false);
-                }
-              }
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (shouldAutoOpenChat) {
-                setIsOpen(true);
-                setIsExpanded(false);
-                setShowQuickButtons(false);
-                setIsInputActive(true);
-                setTimeout(() => {
-                  chatInputRef.current?.focus();
-                }, 50);
-              } else {
-                setIsExpanded(true);
-                setShowQuickButtons(true);
-                setIsInputActive(true);
-              }
-            }}
-            onFocus={(e) => {
-              if (showDeployForm) {
-                closeDeployForm();
-              }
-              if (shouldAutoOpenChat) {
-                setIsOpen(true);
-                setIsExpanded(false);
-                setShowQuickButtons(false);
-                setIsInputActive(true);
-                setTimeout(() => {
-                  chatInputRef.current?.focus();
-                }, 50);
-              } else {
-                setIsExpanded(true);
-                setShowQuickButtons(true);
-                setIsInputActive(true);
-              }
-            }}
-            onBlur={handleInputBlur}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' && inputValue.trim()) {
-                handleSend();
-              }
-            }}
-          />
-          {inputValue.trim() && (
-            <button 
-              className={styles.sendBtn} 
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSend();
-              }}
-            >
-              {ICONS.send}
-            </button>
-          )}
-        </div>
-      </div>
-      </>
-    );
+    return searchbar;
   }
 
   return (
+    <>
+    {searchbar}
     <div 
       ref={chatboxContainerRef}
-      className={`${styles.chatboxContainer} ${widgetStyle === 'bubble' ? styles.chatboxBubble : ''}`}
+      className={`${styles.chatboxContainer} ${styles.chatboxDocked} ${isResponding ? styles.chatboxResponding : ''}`}
+      data-brand={brand}
     >
       <div className={styles.chatContent}>
+        {showCloseConfirm && (
+          <div className={styles.closeConfirmOverlay} role="dialog" aria-modal="true">
+            <div className={styles.closeConfirmCard}>
+              <p className={styles.closeConfirmMessage}>Do you want to end this chat?</p>
+              <div className={styles.closeConfirmActions}>
+                <button className={styles.closeConfirmEndBtn} onClick={handleConfirmCloseChat}>
+                  End Chat
+                </button>
+                <button className={styles.closeConfirmContinueBtn} onClick={handleCancelCloseChat}>
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className={styles.chatHeader}>
         <div className={styles.brandName}>
           <div className={styles.avatar}>
@@ -2202,6 +2243,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
               setIsExpanded(false);
               setShowQuickButtons(false);
               setIsSearchbarHovered(false);
+              setIsDockedBubble(false);
               hasEverOpenedRef.current = false;
             }}
             title="Reset chat"
@@ -2210,17 +2252,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
           </button>
           <button
             className={styles.closeBtn}
-            onClick={() => {
-              setIsOpen(false);
-              setIsInputActive(false);
-              setIsExpanded(false);
-              setShowQuickButtons(false);
-              setIsSearchbarHovered(false);
-              closeCalendarWidget();
-              closeVideoWidget();
-              setDynamicQuickButtons(null);
-              setExploreButtons(null);
-            }}
+            onClick={handleRequestCloseChat}
           >
             {ICONS.close}
           </button>
@@ -2789,11 +2821,24 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
           {ICONS.send}
         </button>
       </div>
-      <div className={styles.chatFooter}>
-        Agent Powered By <a href="https://goproxe.com" target="_blank" rel="noopener noreferrer">PROXe</a>
       </div>
+      <div className={styles.chatFooter}>
+        Chat powered by <a href="https://goproxe.com" target="_blank" rel="noopener noreferrer">PROXe</a>
       </div>
     </div>
+    {isDesktop && (
+      <button
+        className={styles.bubbleButton}
+        onClick={isOpen ? handleCloseChat : handleOpenChat}
+        aria-label={isOpen ? "Close chat" : "Open chat"}
+        style={{ zIndex: 10001 }}
+      >
+        <div className={styles.bubbleIcon}>
+          {isOpen ? ICONS.chevronDown : (brand === 'proxe' ? <PROXELogo /> : ICONS.ai(brand, config))}
+        </div>
+      </button>
+    )}
+  </>
   );
 }
 

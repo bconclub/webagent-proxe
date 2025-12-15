@@ -270,7 +270,7 @@
   align-items: center;
   margin-top: 40px;
   z-index: 999999;
-  pointer-events: none;
+  pointer-events: auto;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   isolation: isolate;
 }
@@ -285,7 +285,7 @@
   transform: none !important;
   z-index: 2147483647 !important; /* Maximum z-index value */
   isolation: isolate !important;
-  pointer-events: none !important;
+  pointer-events: auto !important;
   opacity: 0;
   transform: translateY(20px);
   transition: opacity 0.35s ease, transform 0.35s ease;

@@ -18,7 +18,7 @@ export default function Header() {
       <div className={styles.navContainer}>
         <img src="/assets/proxe/PROXe-Logo.png" alt="PROXe Logo" className={styles.logo} />
         <nav className={styles.nav}>
-          <a href="#" className={styles.navLink}>PROXes</a>
+          <a href="#" className={styles.navLink}>Features</a>
           <a href="#" className={styles.navLink}>Pricing</a>
           <button className={styles.deployButton} onClick={handleDeployClick}>Deploy</button>
         </nav>
@@ -36,7 +36,7 @@ export default function Header() {
       </div>
       {menuOpen && (
         <div className={styles.mobileMenu}>
-          <a href="#" className={styles.mobileNavLink} onClick={() => setMenuOpen(false)}>PROXes</a>
+          <a href="#" className={styles.mobileNavLink} onClick={() => setMenuOpen(false)}>Features</a>
           <a href="#" className={styles.mobileNavLink} onClick={() => setMenuOpen(false)}>Pricing</a>
         </div>
       )}

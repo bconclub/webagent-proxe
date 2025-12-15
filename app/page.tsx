@@ -17,7 +17,6 @@ import {
   HugeiconsIcon,
   BrowserIcon,
   WhatsappIcon,
-  AiVoiceIcon,
   VideoAiIcon,
   CallIcon,
   EmailIcon,
@@ -169,7 +168,7 @@ export default function HomePage() {
     {
       id: 'voice',
       title: 'Voice PROXe',
-      icon: AiVoiceIcon,
+      icon: CallIcon,
       tagline: 'AI phone rep who never puts anyone on hold',
       benefits: [
         'Answers, qualifies & schedules every call',
@@ -204,6 +203,22 @@ export default function HomePage() {
           <linearGradient id="webIconGradientHover" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#2563eb" />
             <stop offset="100%" stopColor="#059669" />
+          </linearGradient>
+          <linearGradient id="whatsappIconGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#22c55e" />
+            <stop offset="100%" stopColor="#16a34a" />
+          </linearGradient>
+          <linearGradient id="voiceIconGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#f97316" />
+            <stop offset="100%" stopColor="#f59e0b" />
+          </linearGradient>
+          <linearGradient id="emailIconGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#8b5cf6" />
+            <stop offset="100%" stopColor="#6366f1" />
+          </linearGradient>
+          <linearGradient id="smsIconGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#06b6d4" />
+            <stop offset="100%" stopColor="#22d3ee" />
           </linearGradient>
         </defs>
       </svg>
@@ -251,23 +266,23 @@ export default function HomePage() {
         <p className={styles.heroSubtitle}>PROXe turns every potential customer into revenue. Listens across every channel. Never forgets. Always improving.</p>
           <div className={styles.channelIcons}>
             <div className={styles.channelIconItem}>
-              <HugeiconsIcon icon={BrowserIcon} size={36} />
+              <HugeiconsIcon icon={BrowserIcon} size={36} stroke="url(#webIconGradient)" />
             <span className={styles.channelLabel}>Website</span>
           </div>
           <div className={styles.channelIconItem}>
-              <HugeiconsIcon icon={WhatsappIcon} size={36} />
+              <HugeiconsIcon icon={WhatsappIcon} size={36} stroke="url(#whatsappIconGradient)" />
             <span className={styles.channelLabel}>WhatsApp</span>
           </div>
           <div className={styles.channelIconItem}>
-              <HugeiconsIcon icon={AiVoiceIcon} size={36} />
+              <HugeiconsIcon icon={CallIcon} size={36} stroke="url(#voiceIconGradient)" />
             <span className={styles.channelLabel}>Voice</span>
           </div>
           <div className={styles.channelIconItem}>
-              <HugeiconsIcon icon={EmailIcon} size={36} />
+              <HugeiconsIcon icon={EmailIcon} size={36} stroke="url(#emailIconGradient)" />
             <span className={styles.channelLabel}>Email</span>
           </div>
           <div className={styles.channelIconItem}>
-              <HugeiconsIcon icon={SmsIcon} size={36} />
+              <HugeiconsIcon icon={SmsIcon} size={36} stroke="url(#smsIconGradient)" />
             <span className={styles.channelLabel}>SMS</span>
           </div>
         </div>
@@ -404,7 +419,7 @@ export default function HomePage() {
       <div 
         ref={chatWidgetRef}
         className={`${styles.chatWidgetContainer} ${styles.chatWidgetScrolled} ${showWidget ? styles.widgetVisible : ''}`}
-        style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 2147483647, pointerEvents: 'none' }}
+        style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 2147483647, pointerEvents: 'auto' }}
       >
         <BrandChatWidget brand="proxe" apiUrl={apiUrl} />
       </div>,

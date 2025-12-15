@@ -1243,20 +1243,20 @@ npm run start
 PROXe Website + Web Agent/
 ├── app/                          # Next.js App Router
 │   ├── api/                      # API Routes
-│   │   ├── calendar/            # Calendar APIs
-│   │   │   ├── availability/  # GET - Check availability
-│   │   │   ├── book/           # POST - Create booking
-│   │   │   └── list/           # GET - List bookings
-│   │   ├── chat/               # Chat APIs
-│   │   │   ├── route.ts       # POST - Main chat endpoint
-│   │   │   └── summarize/      # POST - Summarize conversation
-│   │   └── sessions/           # Session APIs
-│   │       ├── route.ts       # GET - List sessions
-│   │       ├── web/           # GET - Web sessions
-│   │       └── voice/         # GET - Voice sessions
-│   ├── layout.tsx             # Root layout
-│   ├── page.tsx                # Homepage (Marketing + Chat Widget)
-│   └── page.module.css        # Homepage styles
+│   │   ├── calendar/             # Calendar APIs
+│   │   │   ├── availability/route.ts  # GET - Check availability
+│   │   │   ├── book/route.ts          # POST - Create booking
+│   │   │   └── list/route.ts          # GET - List bookings
+│   │   ├── chat/                 # Chat APIs
+│   │   │   ├── route.ts               # POST - Main chat endpoint (Claude + Supabase)
+│   │   │   └── summarize/route.ts     # POST - Summarize conversation
+│   │   └── sessions/             # Session APIs
+│   │       ├── route.ts               # GET - List sessions (multi-channel)
+│   │       ├── web/route.ts           # GET - Web sessions
+│   │       └── voice/route.ts         # GET - Voice sessions
+│   ├── layout.tsx                # Root layout
+│   ├── page.tsx                  # Homepage (Marketing + Chat Widget)
+│   └── page.module.css           # Homepage styles
 │
 ├── src/                          # Source code
 │   ├── api/                      # API-related code
@@ -1305,16 +1305,17 @@ PROXe Website + Web Agent/
 │       ├── icons/               # Brand icons & SVGs
 │       └── proxe/              # PROXe brand assets
 │
+├── README.md                     # Quick start guide
+├── BUILD_STRUCTURE.md            # Build architecture details
+├── DASHBOARD_STRUCTURE.md        # Dashboard integration
+├── CHAT_SESSIONS_FIELDS.md       # Session fields reference
+├── Website.md                    # Single source of truth (this file)
+├── Website PORXe.md              # Previous snapshot/reference
 ├── package.json                  # Dependencies & scripts
+├── package-lock.json
 ├── next.config.js               # Next.js configuration
 ├── tsconfig.json                 # TypeScript configuration
-│
-└── Documentation/
-    ├── PROJECT_PROXe.md         # This file - Single source of truth
-    ├── BUILD_STRUCTURE.md       # Build architecture details
-    ├── DASHBOARD_STRUCTURE.md   # Dashboard architecture
-    ├── CHAT_SESSIONS_FIELDS.md  # Session fields reference
-    └── README.md                # Quick start guide
+└── next-env.d.ts
 ```
 
 ---
@@ -1381,20 +1382,21 @@ PROXe Website + Web Agent/
 ✅ **API Routes** - Chat, calendar, sessions  
 ✅ **Database Integration** - Supabase connection  
 ✅ **Dashboard Connection** - Feeds data to Command Center  
+✅ **Knowledge Base Search** - Supabase tables: `system_prompts`, `agents`, `conversation_states`, `cta_triggers`, `model_context`, `chatbot_responses`  
 
 ### This Build Does NOT Contain
 
 ❌ **Dashboard UI** - Separate repository  
 ❌ **WhatsApp Agent** - Separate system  
-❌ **Voice Agent** - Separate system  
+❌ **Voice Agent UI** - Separate system (voice session API only)  
 ❌ **Social Agent** - Separate system  
 
 ### Current Status
 
-- **Active Channel**: Web (Website PROXe)
+- **Active Channel**: Web (voice sessions endpoint available for data; WhatsApp/Social agents not active)
 - **Brand**: PROXe only
-- **Database**: Supabase (PostgreSQL)
-- **AI Provider**: Anthropic Claude API
+- **Database**: Supabase (PostgreSQL) — primary tables `web_sessions`, `all_leads`, `messages` with legacy `sessions` fallback
+- **AI Provider**: Anthropic Claude API (model configurable via `CLAUDE_MODEL`, defaults to Claude Haiku 4.5)
 - **Calendar**: Google Calendar API
 - **Deployment**: Vercel (or VPS)
 
@@ -1407,6 +1409,7 @@ PROXe Website + Web Agent/
 - **Website**: `app/page.tsx`
 - **Chat Widget**: `src/components/shared/ChatWidget.tsx`
 - **Chat API**: `app/api/chat/route.ts`
+- **Voice Sessions API**: `app/api/sessions/voice/route.ts`
 - **Session Management**: `src/lib/chatSessions.ts`
 
 ### Database Tables
@@ -1416,6 +1419,15 @@ PROXe Website + Web Agent/
 - **`messages`** - Message audit log
 - **`unified_leads`** - Dashboard view (read-only)
 
+### Knowledge Base Tables (used by `/api/chat` search)
+
+- `system_prompts`
+- `agents`
+- `conversation_states`
+- `cta_triggers`
+- `model_context`
+- `chatbot_responses`
+
 ### API Endpoints
 
 - `POST /api/chat` - Main chat endpoint (logs messages to `messages` table)
@@ -1424,6 +1436,7 @@ PROXe Website + Web Agent/
 - `POST /api/calendar/book` - Create booking
 - `GET /api/sessions` - List sessions
 - `GET /api/sessions/web` - List web sessions
+- `GET /api/sessions/voice` - List voice sessions
 
 ### Key Functions
 
@@ -1439,24 +1452,17 @@ PROXe Website + Web Agent/
 
 ## Version & Maintenance
 
-**Current Version**: 1.1.0  
-**Last Updated**: January 2025  
+**Current Version**: 1.2.0  
+**Last Updated**: December 2025  
 **Maintained By**: PROXe Team
 
-**Recent Updates (v1.1.0)**:
-- ✅ Booking persistence: Bookings now saved to database after Google Calendar event creation
-- ✅ Post-booking system messages: Displays confirmation message in chat after booking
-- ✅ Dynamic follow-up buttons: Context-aware buttons based on booking status
-- ✅ Conversation summary cleaning: Removes metadata pollution (`[User's name is...]`, `[Booking Status:...]`)
-- ✅ Phone number normalization: Uses last 10 digits for matching (handles international formats)
-- ✅ Simplified phone input: Reverted to simple `tel` input (no country code dropdown)
-- ✅ UI enhancements: "Explore PROXe" buttons with brand-specific colors, calendar auto-scroll
-- ✅ Booking context updates: AI knows about bookings and can reference them naturally
-- ✅ **Message logging for Dashboard Inbox**: All web chat messages (customer + agent) logged to `messages` table
-- ✅ **HTML content stripping**: Message content stored as plain text (HTML tags and entities removed)
-- ✅ **Lead ID management**: Ensures `lead_id` exists before logging messages, creates lead if needed
-- ✅ **Metadata structure**: `topic` and `extension` stored in `metadata` JSONB field (not separate columns)
-- ✅ **Timing metadata**: Stores `input_received_at`, `output_sent_at`, and `input_to_output_gap_ms` for analytics  
+**Recent Updates (v1.2.0)**:
+- ✅ Knowledge base search pulls prioritized snippets from Supabase tables (`system_prompts`, `agents`, `conversation_states`, `cta_triggers`, `model_context`, `chatbot_responses`) before building Claude prompts
+- ✅ Multi-channel session APIs: channel-specific tables (`web_sessions`, `voice_sessions`) with graceful fallback to legacy `sessions` during migrations
+- ✅ Lead lifecycle hardening: phone normalization to last 10 digits, `ensureAllLeads` merges `unified_context`, writes `lead_id` back to `web_sessions`
+- ✅ Message logging pipeline: customer/agent messages logged to `messages` with HTML stripping and metadata (`topic`, `extension`, `input_received_at`, `output_sent_at`, `input_to_output_gap_ms`)
+- ✅ Booking protection: duplicate booking checks, IST timestamps, bookings persisted to `web_sessions` + `all_leads.unified_context`, reschedule/view buttons when a booking exists
+- ✅ Follow-up UX & resilience: contextual button generation (avoids repeats, respects bookings), Claude streaming retries with friendlier error surfaces
 
 **This document is the single source of truth for the PROXe Website + Web Agent build.**
 
