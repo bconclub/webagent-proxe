@@ -366,9 +366,9 @@
 .chatboxResponding::after {
   content: '';
   position: absolute;
-  inset: -1px;
+  inset: -2px;
   border-radius: 24px;
-  padding: 1px;
+  padding: 2px;
   background-size: 200% 100%;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
@@ -376,7 +376,7 @@
   mask-composite: exclude;
   pointer-events: none;
   animation: accentBorderFlow 3s linear infinite;
-  z-index: -1;
+  z-index: 3;
 }
 
 .chatboxResponding[data-brand="proxe"]::after,
@@ -444,13 +444,14 @@
   .chatboxContainer {
     border-width: 2px;
     border-radius: 22px;
-    margin: 4px !important;
+    margin: 0 !important;
   }
 
   .chatboxResponding::after {
-    inset: -3px;
-    padding: 4px;
+    inset: -2px;
+    padding: 2px;
     border-radius: 24px;
+    z-index: 4;
   }
 }
 
@@ -478,8 +479,8 @@
     right: 0 !important;
     left: 0 !important;
     top: 0 !important;
-    width: calc(100% - 8px) !important;
-    margin: 4px !important;
+    width: 100% !important;
+    margin: 0 !important;
     max-width: 100% !important;
     height: 100vh !important;
     max-height: 100vh !important;
