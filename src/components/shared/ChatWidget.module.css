@@ -442,12 +442,15 @@
 
 @media (max-width: 768px) {
   .chatboxContainer {
-    border-width: 3px;
+    border-width: 2px;
+    border-radius: 22px;
+    margin: 4px !important;
   }
 
   .chatboxResponding::after {
-    inset: -2px;
-    padding: 2px;
+    inset: -3px;
+    padding: 4px;
+    border-radius: 24px;
   }
 }
 
@@ -475,7 +478,8 @@
     right: 0 !important;
     left: 0 !important;
     top: 0 !important;
-    width: 100% !important;
+    width: calc(100% - 8px) !important;
+    margin: 4px !important;
     max-width: 100% !important;
     height: 100vh !important;
     max-height: 100vh !important;
