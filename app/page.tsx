@@ -217,8 +217,8 @@ export default function HomePage() {
             <stop offset="100%" stopColor="#6366f1" />
           </linearGradient>
           <linearGradient id="smsIconGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#06b6d4" />
-            <stop offset="100%" stopColor="#22d3ee" />
+            <stop offset="0%" stopColor="#3b82f6" />
+            <stop offset="100%" stopColor="#1e40af" />
           </linearGradient>
         </defs>
       </svg>

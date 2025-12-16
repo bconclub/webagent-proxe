@@ -34,35 +34,22 @@ export const HugeiconsIcon: React.FC<HugeiconsIconProps> = ({
 
 const strokeColor = 'currentColor';
 
-export const BrowserIcon: IconComponent = ({ stroke = strokeColor, strokeWidth = 1.5, ...props }) => (
-  <svg viewBox="0 0 24 24" {...props}>
-    <path
-      d="M2.5 12C2.5 7.52166 2.5 5.28249 3.89124 3.89124C5.28249 2.5 7.52166 2.5 12 2.5C16.4783 2.5 18.7175 2.5 20.1088 3.89124C21.5 5.28249 21.5 7.52166 21.5 12C21.5 16.4783 21.5 18.7175 20.1088 20.1088C18.7175 21.5 16.4783 21.5 12 21.5C7.52166 21.5 5.28249 21.5 3.89124 20.1088C2.5 18.7175 2.5 16.4783 2.5 12Z"
-      stroke={stroke}
-      strokeWidth={strokeWidth}
-    />
-    <path
-      d="M2.5 9H21.5"
-      stroke={stroke}
-      strokeWidth={strokeWidth}
-      strokeLinejoin="round"
-    />
-    <path
-      d="M7 6h.01"
-      stroke={stroke}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M11 6h.01"
-      stroke={stroke}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
+export const BrowserIcon: IconComponent = (props: React.SVGProps<SVGSVGElement>) => {
+  return (
+    <svg ref={svgRef} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} color={"currentColor"} fill={"none"} {...props}>
+      <defs>
+        <linearGradient id="webIconGradientLocal" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#3b82f6" />
+          <stop offset="100%" stopColor="#10b981" />
+        </linearGradient>
+      </defs>
+      <path d="M2.5 12C2.5 7.52166 2.5 5.28249 3.89124 3.89124C5.28249 2.5 7.52166 2.5 12 2.5C16.4783 2.5 18.7175 2.5 20.1088 3.89124C21.5 5.28249 21.5 7.52166 21.5 12C21.5 16.4783 21.5 18.7175 20.1088 20.1088C18.7175 21.5 16.4783 21.5 12 21.5C7.52166 21.5 5.28249 21.5 3.89124 20.1088C2.5 18.7175 2.5 16.4783 2.5 12Z" stroke="url(#webIconGradient)" strokeWidth="1.5" fill="none"></path>
+      <path d="M3.5 9H20.5" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"></path>
+      <circle cx="7" cy="6" r="0.75" fill="url(#webIconGradient)" stroke="none"></circle>
+      <circle cx="11" cy="6" r="0.75" fill="url(#webIconGradient)" stroke="none"></circle>
+    </svg>
+  );
+};
 
 export const WhatsappIcon: IconComponent = ({ stroke = strokeColor, strokeWidth = 1.5, ...props }) => (
   <svg viewBox="0 0 24 24" {...props}>
@@ -181,28 +168,10 @@ export const EmailIcon: IconComponent = ({ stroke = strokeColor, strokeWidth = 1
   </svg>
 );
 
-export const SmsIcon: IconComponent = ({ stroke = strokeColor, strokeWidth = 1.5, ...props }) => (
-  <svg viewBox="0 0 24 24" {...props}>
-    <path
-      d="M8 9H16"
-      stroke={stroke}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M8 13H14"
-      stroke={stroke}
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    <path
-      d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 13.5997 2.37562 15.1116 3.04346 16.4525C3.22094 16.8088 3.28001 17.2161 3.17712 17.6006L2.58151 19.8267C2.32295 20.793 3.20701 21.677 4.17335 21.4185L6.39939 20.8229C6.78393 20.72 7.19121 20.7791 7.54753 20.9565C8.88837 21.6244 10.4003 22 12 22Z"
-      stroke={stroke}
-      strokeWidth={strokeWidth}
-      strokeLinejoin="round"
-    />
+export const SmsIcon: IconComponent = ({ stroke = "currentColor", strokeWidth = 1.5, ...props }: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} color={"currentColor"} fill={"none"} {...props}>
+    <path d="M8.5 14.5H15.5M8.5 9.5H12" stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"></path>
+    <path d="M14.1706 20.8905C18.3536 20.6125 21.6856 17.2332 21.9598 12.9909C22.0134 12.1607 22.0134 11.3009 21.9598 10.4707C21.6856 6.22838 18.3536 2.84913 14.1706 2.57107C12.7435 2.47621 11.2536 2.47641 9.8294 2.57107C5.64639 2.84913 2.31441 6.22838 2.04024 10.4707C1.98659 11.3009 1.98659 12.1607 2.04024 12.9909C2.1401 14.536 2.82343 15.9666 3.62791 17.1746C4.09501 18.0203 3.78674 19.0758 3.30021 19.9978C2.94941 20.6626 2.77401 20.995 2.91484 21.2351C3.05568 21.4752 3.37026 21.4829 3.99943 21.4982C5.24367 21.5285 6.08268 21.1757 6.74868 20.6846C7.1264 20.4061 7.31527 20.2668 7.44544 20.2508C7.5756 20.2348 7.83177 20.3403 8.34401 20.5513C8.8044 20.7409 9.33896 20.8579 9.8294 20.8905C11.2536 20.9852 12.7435 20.9854 14.1706 20.8905Z" stroke={stroke} strokeWidth={strokeWidth} strokeLinejoin="round"></path>
   </svg>
 );
 
