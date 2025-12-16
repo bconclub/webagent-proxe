@@ -204,12 +204,13 @@
 
 .channelIcons {
   display: flex;
-  justify-content: space-evenly;
+  justify-content: center;
   align-items: center;
   margin-top: 28px;
   width: 100%;
   max-width: 600px;
   flex-wrap: wrap;
+  gap: 32px;
 }
 
 .channelIconItem {
@@ -349,21 +350,21 @@
 
 @media (max-width: 768px) {
   .channelIcons {
-    justify-content: space-between;
+    justify-content: center;
+    align-items: center;
     margin-top: 32px;
     flex-wrap: nowrap;
     max-width: 100%;
-    padding: 0 5px;
-    gap: 0;
+    padding: 0;
+    gap: 20px;
   }
   
   .channelIconItem {
-    flex: 1;
-    flex-shrink: 0;
-    min-width: 0;
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
+    min-width: 0;
   }
   
   .channelLabel {
@@ -1066,7 +1067,7 @@
   }
 
   .heroSubtitle {
-    font-size: 16px;
+    font-size: 17px;
     max-width: 100%;
     padding: 20px;
     margin-bottom: 16px;
@@ -1233,7 +1234,7 @@
   }
 
   .heroSubtitle {
-    font-size: 16.8px;
+    font-size: 18px;
   }
 
   .solutionsGrid {
