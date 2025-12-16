@@ -1763,7 +1763,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     const message = inputValue.trim();
     if (!message) return;
 
-    // On mobile, typing from the search widget should open the chat before sending
+    // Open the chat modal when user submits text from the search widget
     if (!isOpen) {
       setIsDockedBubble(true);
       setIsOpen(true);
@@ -1803,18 +1803,17 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
   }, []);
 
   const handleSearchWidgetPress = useCallback(() => {
-    if (isMobileNewChat) {
-      setIsExpanded(true);
-      setShowQuickButtons(true);
-      setIsInputActive(true);
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 50);
-      return;
-    }
-
-    openChatAndFocus();
-  }, [isMobileNewChat, openChatAndFocus]);
+    // On both mobile and desktop, clicking the search widget should just expand it and allow typing
+    // The chat modal should only open when:
+    // 1. Quick action button is clicked (handled in handleQuickButtonClick)
+    // 2. User enters text and submits (handled in handleSend)
+    setIsExpanded(true);
+    setShowQuickButtons(true);
+    setIsInputActive(true);
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
+  }, []);
 
   const handleQuickButtonClick = (buttonText: string, e?: React.MouseEvent) => {
     if (e) {
