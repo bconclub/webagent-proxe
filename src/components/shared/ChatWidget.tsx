@@ -161,6 +161,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
   const [phoneInput, setPhoneInput] = useState('');
   const [dynamicQuickButtons, setDynamicQuickButtons] = useState<string[] | null>(null);
   const [exploreButtons, setExploreButtons] = useState<string[] | null>(null);
+  const [hasInteractedWithSearchbar, setHasInteractedWithSearchbar] = useState(false);
   const SEARCHBAR_BASE_OFFSET = 60;
   const SEARCHBAR_KEYBOARD_OFFSET = 20;
   const [isDockedBubble, setIsDockedBubble] = useState(false);
@@ -2013,10 +2014,13 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
   const formatText = (text: string): string => {
     if (!text) return '';
     // Basic markdown to HTML conversion
-    // Only convert actual newlines (double newlines) to breaks, not single spaces
-    // Let text wrap naturally at container boundaries
+    // Convert double newlines to single break for tighter paragraph spacing
+    // Preserve line breaks for bullet points (lines starting with •)
+    // Single newlines become spaces to allow natural text wrapping
     return text
-      .replace(/\n\n+/g, '<br><br>')
+      .replace(/\n\n+/g, '<br>')
+      .replace(/\n(?=\s*•)/g, '<br>') // Preserve line breaks before bullet points
+      .replace(/\n/g, ' ')
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.+?)\*/g, '<em>$1</em>');
   };
@@ -2095,7 +2099,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
           ref={inputRef}
           type="text"
           className={styles.searchInput}
-          placeholder="see PROXe in action"
+          placeholder={hasInteractedWithSearchbar ? "Ask me anything" : "see PROXe in action"}
           value={inputValue}
           onChange={(e) => {
               const nextValue = e.target.value;
@@ -2119,9 +2123,11 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
           }}
           onClick={(e) => {
             e.stopPropagation();
+            setHasInteractedWithSearchbar(true);
               handleSearchWidgetPress();
           }}
           onFocus={(e) => {
+            setHasInteractedWithSearchbar(true);
             if (showDeployForm) {
               closeDeployForm();
             }
@@ -2823,7 +2829,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
       </div>
       </div>
       <div className={styles.chatFooter}>
-        Chat powered by <a href="https://goproxe.com" target="_blank" rel="noopener noreferrer">PROXe</a>
+        Chat powered by PROXe
       </div>
     </div>
     {isDesktop && (
