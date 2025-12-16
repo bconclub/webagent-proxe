@@ -1,3 +1,5 @@
+import { getProxeSystemPrompt } from '@/src/api/prompts/proxe-prompt';
+
 type HistoryEntry = {
   role: 'user' | 'assistant';
   content: string;
@@ -13,7 +15,14 @@ interface PromptOptions {
   bookingAlreadyScheduled?: boolean;
 }
 
-function buildCorePrompt(brand: string, userName?: string | null): string {
+function buildCorePrompt(brand: string, userName?: string | null, knowledgeBase?: string): string {
+  // Use the detailed PROXe prompt for proxe brand
+  if (brand.toLowerCase() === 'proxe') {
+    const nameLine = userName ? `\n\nThe user is ${userName}. Address them by name once, then continue naturally.` : '';
+    return getProxeSystemPrompt(knowledgeBase || '') + nameLine;
+  }
+
+  // Fallback for other brands
   const nameLine = userName ? `The user is ${userName}. Address them by name once, then continue naturally.` : '';
 
   return [
@@ -53,7 +62,8 @@ export function buildPrompt({
   message,
   bookingAlreadyScheduled,
 }: PromptOptions) {
-  const system = buildCorePrompt(brand, userName);
+  const isProxe = brand.toLowerCase() === 'proxe';
+  const system = buildCorePrompt(brand, userName, knowledgeBase);
 
   const summaryBlock = summary
     ? `Conversation summary so far:\n${summary}\n`
@@ -61,9 +71,12 @@ export function buildPrompt({
 
   const historyBlock = `Recent turns:\n${formatHistory(history)}\n`;
 
-  const knowledgeBlock = knowledgeBase && knowledgeBase.trim().length > 0
-    ? `Relevant knowledge base snippets:\n${knowledgeBase.trim()}\n`
-    : 'Relevant knowledge base snippets:\nNone found. Answer from brand knowledge.';
+  // For PROXe, knowledge base is already in system prompt, so don't duplicate it
+  const knowledgeBlock = isProxe
+    ? '' // Knowledge base already in system prompt via getProxeSystemPrompt
+    : (knowledgeBase && knowledgeBase.trim().length > 0
+      ? `Relevant knowledge base snippets:\n${knowledgeBase.trim()}\n`
+      : 'Relevant knowledge base snippets:\nNone found. Answer from brand knowledge.');
 
   const bookingNote = bookingAlreadyScheduled
     ? 'Reminder: the user already scheduled a booking. Acknowledge it and avoid rebooking.'
