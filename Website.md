@@ -58,6 +58,12 @@ This is a **single unified build** that combines marketing content with interact
 
 **File**: `app/page.tsx`
 
+**Styling** (`app/page.module.css`):
+- **Hero Title**: 65.6px (desktop), 36.736px (mobile ≤768px), 44px (small screens ≤480px)
+- **Hero Subtitle**: 24px (desktop), 17px (mobile ≤768px), 17px (small screens ≤480px)
+- Font family: Exo 2
+- Responsive design with breakpoints at 768px and 480px
+
 **Components Used**:
 - `Header` - Navigation header
 - `DarkVeil` - Animated background effect
@@ -1463,6 +1469,7 @@ PROXe Website + Web Agent/
 - ✅ Message logging pipeline: customer/agent messages logged to `messages` with HTML stripping and metadata (`topic`, `extension`, `input_received_at`, `output_sent_at`, `input_to_output_gap_ms`)
 - ✅ Booking protection: duplicate booking checks, IST timestamps, bookings persisted to `web_sessions` + `all_leads.unified_context`, reschedule/view buttons when a booking exists
 - ✅ Follow-up UX & resilience: contextual button generation (avoids repeats, respects bookings), Claude streaming retries with friendlier error surfaces
+- ✅ Hero subtext styling: Updated mobile font size to 17px (from 16px) for improved readability on mobile devices
 
 **This document is the single source of truth for the PROXe Website + Web Agent build.**
 
