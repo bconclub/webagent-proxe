@@ -36,7 +36,7 @@ const strokeColor = 'currentColor';
 
 export const BrowserIcon: IconComponent = (props: React.SVGProps<SVGSVGElement>) => {
   return (
-    <svg ref={svgRef} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} color={"currentColor"} fill={"none"} {...props}>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} color={"currentColor"} fill={"none"} {...props}>
       <defs>
         <linearGradient id="webIconGradientLocal" x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stopColor="#3b82f6" />
