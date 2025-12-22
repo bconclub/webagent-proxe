@@ -2151,6 +2151,9 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
           className={styles.searchInput}
           placeholder={hasInteractedWithSearchbar ? "Ask me anything" : "see PROXe in action"}
           value={inputValue}
+          autoComplete="off"
+          data-form-type="other"
+          data-lpignore="true"
           onChange={(e) => {
               const nextValue = e.target.value;
               setInputValue(nextValue);
@@ -2821,6 +2824,9 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
             className={styles.chatInput}
             placeholder="Type your message..."
             value={inputValue}
+            autoComplete="off"
+            data-form-type="other"
+            data-lpignore="true"
             onChange={(e) => {
               setInputValue(e.target.value);
               // Close any open prompt cards when user starts typing
