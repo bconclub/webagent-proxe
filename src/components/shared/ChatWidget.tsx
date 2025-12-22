@@ -1803,6 +1803,25 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
   }, []);
 
   const handleSearchWidgetPress = useCallback(() => {
+    // Check if there's an existing conversation
+    const hasExistingConversation = 
+      messages.length > 0 || 
+      conversationSummary.trim().length > 0 || 
+      (sessionRecord?.userInputsSummary && sessionRecord.userInputsSummary.length > 0);
+    
+    // If there's an existing conversation, open the chat directly
+    if (hasExistingConversation) {
+      setIsDockedBubble(true);
+      setIsOpen(true);
+      setIsExpanded(false);
+      setShowQuickButtons(false);
+      setIsInputActive(true);
+      setTimeout(() => {
+        chatInputRef.current?.focus();
+      }, 50);
+      return;
+    }
+    
     // On both mobile and desktop, clicking the search widget should just expand it and allow typing
     // The chat modal should only open when:
     // 1. Quick action button is clicked (handled in handleQuickButtonClick)
@@ -1813,7 +1832,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     setTimeout(() => {
       inputRef.current?.focus();
     }, 50);
-  }, []);
+  }, [messages.length, conversationSummary, sessionRecord]);
 
   const handleQuickButtonClick = (buttonText: string, e?: React.MouseEvent) => {
     if (e) {
@@ -1949,8 +1968,26 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     }
     setIsInputActive(true);
     if (!isOpen) {
+      // Check if there's an existing conversation
+      const hasExistingConversation = 
+        messages.length > 0 || 
+        conversationSummary.trim().length > 0 || 
+        (sessionRecord?.userInputsSummary && sessionRecord.userInputsSummary.length > 0);
+      
+      // If there's an existing conversation, open the chat directly
+      if (hasExistingConversation) {
+        setIsDockedBubble(true);
+        setIsOpen(true);
+        setIsExpanded(false);
+        setShowQuickButtons(false);
+        setTimeout(() => {
+          chatInputRef.current?.focus();
+        }, 50);
+        return;
+      }
+      
       setIsExpanded(true);
-      // Show quick buttons only when expanded
+      // Show quick buttons only when expanded and no existing conversation
       setShowQuickButtons(true);
     }
     
@@ -2012,14 +2049,24 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
 
   const formatText = (text: string): string => {
     if (!text) return '';
+    // Remove button instruction patterns (e.g., "→ BUTTON: Schedule a Demo") before formatting
+    // These are metadata instructions that shouldn't be displayed to users
+    let cleanedText = text
+      .replace(/→\s*BUTTON:\s*[^\n]*/gi, '') // Remove "→ BUTTON: ..." lines
+      .replace(/BUTTON:\s*[^\n]*/gi, '') // Remove "BUTTON: ..." lines (without arrow)
+      .replace(/\n\s*\n\s*\n/g, '\n\n') // Clean up multiple empty lines
+      .trim();
+    
     // Basic markdown to HTML conversion
-    // Convert double newlines to single break for tighter paragraph spacing
+    // Convert double newlines to breaks
+    // Preserve single newlines (they indicate intentional line breaks for formatting)
     // Preserve line breaks for bullet points (lines starting with •)
-    // Single newlines become spaces to allow natural text wrapping
-    return text
-      .replace(/\n\n+/g, '<br>')
+    // Convert <br> tags if already present
+    return cleanedText
+      .replace(/<br\s*\/?>/gi, '\n') // Normalize <br> tags to newlines first
+      .replace(/\n\n+/g, '<br><br>') // Double newlines become double breaks
       .replace(/\n(?=\s*•)/g, '<br>') // Preserve line breaks before bullet points
-      .replace(/\n/g, ' ')
+      .replace(/\n/g, '<br>') // Single newlines become breaks (for sentence separation)
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.+?)\*/g, '<em>$1</em>');
   };
@@ -2031,6 +2078,10 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
   }, [isOpen]);
   
   const hasConversation = messages.length > 0;
+  const hasExistingConversation = 
+    hasConversation || 
+    conversationSummary.trim().length > 0 || 
+    (sessionRecord?.userInputsSummary && sessionRecord.userInputsSummary.length > 0);
   const searchbar = (
     <div 
       ref={searchbarWrapperRef} 
@@ -2039,7 +2090,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
       style={isOpen ? { visibility: 'hidden', pointerEvents: 'none' } : undefined}
       onMouseEnter={() => {
         setIsSearchbarHovered(true);
-        if (!isOpen && !hasConversation && hasQuickButtons) {
+        if (!isOpen && !hasExistingConversation && hasQuickButtons) {
           setIsExpanded(true);
           setShowQuickButtons(true);
         }
