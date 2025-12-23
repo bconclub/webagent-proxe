@@ -16,6 +16,7 @@ import {
   upsertSummary,
   storeBooking,
   checkExistingBooking,
+  fetchConversations,
   type SessionRecord,
 } from '@/src/lib/chatSessions';
 import {
@@ -25,6 +26,7 @@ import {
   storeUserProfile,
   type LocalUserProfile,
 } from '@/src/lib/chatLocalStorage';
+import { getSupabaseClient } from '@/src/lib/supabaseClient';
 
 interface ChatWidgetProps {
   brand: string;
@@ -129,12 +131,13 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
   const [calendarAnchorId, setCalendarAnchorId] = useState<string | null>(null);
   const [pendingCalendar, setPendingCalendar] = useState(false);
   const [showDeployForm, setShowDeployForm] = useState<string | null>(null);
-  const [deployAnchorId, setDeployAnchorId] = useState<string | null>(null);
   const [bookingCompleted, setBookingCompleted] = useState(false);
   const [usedButtons, setUsedButtons] = useState<string[]>([]);
   const [showVideo, setShowVideo] = useState<string | null>(null);
   const [videoAnchorId, setVideoAnchorId] = useState<string | null>(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showPrivacyNotice, setShowPrivacyNotice] = useState(true);
   const [isDesktop, setIsDesktop] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [sessionRecord, setSessionRecord] = useState<SessionRecord | null>(null);
@@ -184,6 +187,10 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
   const hasDraggedRef = useRef<boolean>(false);
   const interactionCountRef = useRef<number>(0);
   const historyRef = useRef<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const deployFormScrolledRef = useRef<boolean>(false);
+  const conversationsToRestoreRef = useRef<Array<{ id: string; type: 'user' | 'ai'; text: string; created_at: string }>>([]);
+  const hasRestoredMessagesRef = useRef<boolean>(false);
+  const hasShownWelcomeRef = useRef<boolean>(false);
   const brandKey: 'proxe' = 'proxe';
 
   const handleOpenChat = useCallback(() => {
@@ -373,6 +380,41 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
           } else if (process.env.NODE_ENV !== 'production') {
             console.log('[ChatWidget] No prior user inputs for session', { sessionId: record.id });
           }
+          
+          // Fetch and restore conversation messages if we have a lead_id
+          // Get lead_id from web_sessions
+          const supabase = getSupabaseClient('proxe');
+          if (supabase && storedId) {
+            try {
+              const { data: sessionData, error: sessionError } = await supabase
+                .from('web_sessions')
+                .select('lead_id')
+                .eq('external_session_id', storedId)
+                .maybeSingle();
+              
+              if (!sessionError && sessionData?.lead_id) {
+                const conversations = await fetchConversations(sessionData.lead_id, 'web', brandKey);
+                if (conversations.length > 0 && !cancelled) {
+                  // Store conversations to restore when chat opens
+                  if (process.env.NODE_ENV !== 'production') {
+                    console.log('[ChatWidget] Found conversations to restore', {
+                      count: conversations.length,
+                      leadId: sessionData.lead_id
+                    });
+                  }
+                  // Convert to Message format and store in ref
+                  conversationsToRestoreRef.current = conversations.map((conv) => ({
+                    id: conv.id,
+                    type: conv.sender === 'customer' ? 'user' as const : 'ai' as const,
+                    text: conv.content,
+                    created_at: conv.created_at
+                  }));
+                }
+              }
+            } catch (err) {
+              console.error('[ChatWidget] Error fetching lead_id for conversation restoration:', err);
+            }
+          }
         }
       } catch (error) {
         console.error('[ChatWidget] Failed to initialise session', error);
@@ -392,11 +434,13 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     }
   }, [showNamePrompt, userProfile.name]);
 
-  useEffect(() => {
-    if (showNamePrompt && namePromptInputRef.current) {
-      namePromptInputRef.current.focus();
-    }
-  }, [showNamePrompt]);
+  // Removed auto-focus to prevent keyboard from automatically opening
+  // User will click on input to open keyboard, keeping full screen experience
+  // useEffect(() => {
+  //   if (showNamePrompt && namePromptInputRef.current) {
+  //     namePromptInputRef.current.focus();
+  //   }
+  // }, [showNamePrompt]);
 
   useEffect(() => {
     if (showEmailPrompt) {
@@ -404,11 +448,13 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     }
   }, [showEmailPrompt, userProfile.email]);
 
-  useEffect(() => {
-    if (showEmailPrompt && emailPromptInputRef.current) {
-      emailPromptInputRef.current.focus();
-    }
-  }, [showEmailPrompt]);
+  // Removed auto-focus to prevent keyboard from automatically opening
+  // User will click on input to open keyboard, keeping full screen experience
+  // useEffect(() => {
+  //   if (showEmailPrompt && emailPromptInputRef.current) {
+  //     emailPromptInputRef.current.focus();
+  //   }
+  // }, [showEmailPrompt]);
 
   useEffect(() => {
     if (showPhonePrompt) {
@@ -418,11 +464,13 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     }
   }, [showPhonePrompt, userProfile.phone]);
 
-  useEffect(() => {
-    if (showPhonePrompt && phonePromptInputRef.current) {
-      phonePromptInputRef.current.focus();
-    }
-  }, [showPhonePrompt]);
+  // Removed auto-focus to prevent keyboard from automatically opening
+  // User will click on input to open keyboard, keeping full screen experience
+  // useEffect(() => {
+  //   if (showPhonePrompt && phonePromptInputRef.current) {
+  //     phonePromptInputRef.current.focus();
+  //   }
+  // }, [showPhonePrompt]);
 
   const applyLocalProfile = useCallback((updates: LocalUserProfile) => {
     setUserProfile((prev) => {
@@ -604,9 +652,11 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     setCalendarAnchorId(null);
   }, []);
 
+  const deployFormRef = useRef<HTMLDivElement>(null);
+  
   const closeDeployForm = useCallback(() => {
     setShowDeployForm(null);
-    setDeployAnchorId(null);
+    deployFormScrolledRef.current = false;
   }, []);
 
   const closeVideoWidget = useCallback(() => {
@@ -624,9 +674,12 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     setIsDockedBubble(false);
     closeCalendarWidget();
     closeVideoWidget();
+    closeDeployForm();
     setDynamicQuickButtons(null);
     setExploreButtons(null);
-  }, [closeCalendarWidget, closeVideoWidget]);
+    // Don't reset hasRestoredMessagesRef - we want to restore conversations when reopening
+    // Only reset if user explicitly resets the chat
+  }, [closeCalendarWidget, closeVideoWidget, closeDeployForm]);
 
   const handleRequestCloseChat = useCallback(() => {
     setShowCloseConfirm(true);
@@ -1265,6 +1318,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
         const inputAreaElement = chatboxContainerRef.current?.querySelector(`.${styles.inputArea}`) as HTMLElement;
         const footerElement = chatboxContainerRef.current?.querySelector(`.${styles.chatFooter}`) as HTMLElement;
         const messagesArea = messagesAreaRef.current;
+        const mobileQuickActionsElement = chatboxContainerRef.current?.querySelector(`.${styles.mobileQuickActions}`) as HTMLElement;
         
         if (calculatedKeyboardHeight > 0) {
           // Keyboard is visible - adjust layout without cutting off top
@@ -1277,25 +1331,81 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
             chatboxContainerRef.current.style.setProperty('overscroll-behavior', 'none', 'important');
           }
           
-          // Adjust messages area to account for keyboard
-          if (messagesArea) {
-            const inputHeight = inputAreaElement?.offsetHeight || 60;
-            messagesArea.style.setProperty('padding-bottom', `${inputHeight + 10}px`, 'important');
-          }
-          
           if (inputAreaElement) {
             inputAreaElement.style.setProperty('position', 'fixed', 'important');
-            inputAreaElement.style.setProperty('bottom', '5px', 'important');
+            inputAreaElement.style.setProperty('bottom', '0', 'important');
             inputAreaElement.style.setProperty('left', '0', 'important');
             inputAreaElement.style.setProperty('right', '0', 'important');
+            inputAreaElement.style.setProperty('margin', '0', 'important');
+            inputAreaElement.style.setProperty('margin-left', '0', 'important');
+            inputAreaElement.style.setProperty('margin-right', '0', 'important');
+            inputAreaElement.style.setProperty('margin-bottom', '0', 'important');
             inputAreaElement.style.setProperty('transform', 'translateZ(0)', 'important');
             inputAreaElement.style.setProperty('-webkit-transform', 'translateZ(0)', 'important');
             inputAreaElement.style.setProperty('z-index', '9999', 'important');
+            // Add background to prevent scrolling content from showing through
+            inputAreaElement.style.setProperty('background', 'rgba(8, 10, 22, 0.95)', 'important');
+            inputAreaElement.style.setProperty('backdrop-filter', 'blur(20px) saturate(140%)', 'important');
+            inputAreaElement.style.setProperty('-webkit-backdrop-filter', 'blur(20px) saturate(140%)', 'important');
+            inputAreaElement.style.setProperty('padding-top', '12px', 'important');
+            inputAreaElement.style.setProperty('padding-bottom', 'max(12px, env(safe-area-inset-bottom, 12px))', 'important');
+            inputAreaElement.style.setProperty('padding-left', 'max(16px, env(safe-area-inset-left, 16px))', 'important');
+            inputAreaElement.style.setProperty('padding-right', 'max(16px, env(safe-area-inset-right, 16px))', 'important');
+            inputAreaElement.style.setProperty('width', '100%', 'important');
+            inputAreaElement.style.setProperty('box-sizing', 'border-box', 'important');
           }
           
-          // Hide footer when keyboard is visible to prevent jumping
+          // Position mobile quick actions and adjust messages area after input is positioned
+          // Use requestAnimationFrame to ensure accurate measurements
+          requestAnimationFrame(() => {
+            if (mobileQuickActionsElement && inputAreaElement) {
+              // Get full input area height (includes privacy notice if visible)
+              const inputAreaHeight = inputAreaElement.offsetHeight || 60;
+              // Position quick actions above the entire input area (0px bottom + full input area height + spacing)
+              const bottomPosition = inputAreaHeight + 0 + 8; // 8px spacing between quick actions and input area
+              mobileQuickActionsElement.style.setProperty('position', 'fixed', 'important');
+              mobileQuickActionsElement.style.setProperty('bottom', `${bottomPosition}px`, 'important');
+              mobileQuickActionsElement.style.setProperty('left', '0', 'important');
+              mobileQuickActionsElement.style.setProperty('right', '0', 'important');
+              mobileQuickActionsElement.style.setProperty('z-index', '9998', 'important');
+              mobileQuickActionsElement.style.setProperty('padding-left', 'max(16px, env(safe-area-inset-left, 16px))', 'important');
+              mobileQuickActionsElement.style.setProperty('padding-right', 'max(16px, env(safe-area-inset-right, 16px))', 'important');
+              
+              // Adjust messages area padding to account for both input area and quick actions
+              if (messagesArea) {
+                const quickActionsHeight = mobileQuickActionsElement.offsetHeight || 0;
+                const footerHeight = footerElement?.offsetHeight || 0;
+                messagesArea.style.setProperty('padding-bottom', `${inputAreaHeight + quickActionsHeight + footerHeight + 20}px`, 'important');
+              }
+            } else if (messagesArea && inputAreaElement) {
+              // If quick actions not visible, just account for input area and footer
+              const inputAreaHeight = inputAreaElement.offsetHeight || 60;
+              const footerHeight = footerElement?.offsetHeight || 0;
+              messagesArea.style.setProperty('padding-bottom', `${inputAreaHeight + footerHeight + 10}px`, 'important');
+            }
+          });
+          
+          // Keep footer visible but ensure it has background and proper positioning
           if (footerElement) {
-            footerElement.style.setProperty('display', 'none', 'important');
+            footerElement.style.removeProperty('display');
+            footerElement.style.setProperty('position', 'fixed', 'important');
+            footerElement.style.setProperty('bottom', '0', 'important');
+            footerElement.style.setProperty('left', '0', 'important');
+            footerElement.style.setProperty('right', '0', 'important');
+            footerElement.style.setProperty('z-index', '9997', 'important');
+            footerElement.style.setProperty('background', 'rgba(8, 10, 22, 0.95)', 'important');
+            footerElement.style.setProperty('backdrop-filter', 'blur(20px) saturate(140%)', 'important');
+            footerElement.style.setProperty('-webkit-backdrop-filter', 'blur(20px) saturate(140%)', 'important');
+            footerElement.style.setProperty('margin', '0', 'important');
+            footerElement.style.setProperty('width', '100%', 'important');
+            footerElement.style.setProperty('box-sizing', 'border-box', 'important');
+            // Position footer above input area
+            requestAnimationFrame(() => {
+              if (inputAreaElement && footerElement) {
+                const inputAreaHeight = inputAreaElement.offsetHeight || 60;
+                footerElement.style.setProperty('bottom', `${inputAreaHeight}px`, 'important');
+              }
+            });
           }
         } else {
           // Keyboard is hidden - restore normal position
@@ -1317,14 +1427,46 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
             inputAreaElement.style.removeProperty('bottom');
             inputAreaElement.style.removeProperty('left');
             inputAreaElement.style.removeProperty('right');
+            inputAreaElement.style.removeProperty('margin');
+            inputAreaElement.style.removeProperty('margin-left');
+            inputAreaElement.style.removeProperty('margin-right');
+            inputAreaElement.style.removeProperty('margin-bottom');
             inputAreaElement.style.removeProperty('transform');
             inputAreaElement.style.removeProperty('-webkit-transform');
             inputAreaElement.style.removeProperty('z-index');
+            inputAreaElement.style.removeProperty('background');
+            inputAreaElement.style.removeProperty('backdrop-filter');
+            inputAreaElement.style.removeProperty('-webkit-backdrop-filter');
+            inputAreaElement.style.removeProperty('padding-top');
+            inputAreaElement.style.removeProperty('padding-bottom');
+            inputAreaElement.style.removeProperty('padding-left');
+            inputAreaElement.style.removeProperty('padding-right');
+            inputAreaElement.style.removeProperty('width');
+            inputAreaElement.style.removeProperty('box-sizing');
           }
           
-          // Show footer when keyboard is hidden
+          // Restore mobile quick actions to normal sticky positioning
+          if (mobileQuickActionsElement) {
+            mobileQuickActionsElement.style.removeProperty('position');
+            mobileQuickActionsElement.style.removeProperty('bottom');
+            mobileQuickActionsElement.style.removeProperty('left');
+            mobileQuickActionsElement.style.removeProperty('right');
+            mobileQuickActionsElement.style.removeProperty('z-index');
+            mobileQuickActionsElement.style.removeProperty('padding-left');
+            mobileQuickActionsElement.style.removeProperty('padding-right');
+          }
+          
+          // Restore footer to normal positioning when keyboard is hidden
           if (footerElement) {
             footerElement.style.removeProperty('display');
+            footerElement.style.removeProperty('position');
+            footerElement.style.removeProperty('bottom');
+            footerElement.style.removeProperty('left');
+            footerElement.style.removeProperty('right');
+            footerElement.style.removeProperty('z-index');
+            footerElement.style.removeProperty('background');
+            footerElement.style.removeProperty('backdrop-filter');
+            footerElement.style.removeProperty('-webkit-backdrop-filter');
           }
         }
       }
@@ -1350,6 +1492,72 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     onMessageComplete: handleAssistantMessageComplete,
   });
 
+  const resetChatState = useCallback(() => {
+    closeCalendarWidget();
+    closeVideoWidget();
+    closeDeployForm();
+    setShowDeployForm(null);
+    deployFormScrolledRef.current = false;
+    setBookingCompleted(false);
+    setUsedButtons([]);
+    setMessageCount(0);
+    clearMessages();
+    historyRef.current = [];
+    setRecentHistory([]);
+    setConversationSummary('');
+    interactionCountRef.current = 0;
+    setPendingUserMessage(null);
+    setPendingButtons([]);
+    setPendingRequirement(null);
+    setShowNamePrompt(false);
+    setShowEmailPrompt(false);
+    setShowPhonePrompt(false);
+    setHasAskedName(false);
+    setHasAskedEmail(false);
+    setHasAskedPhone(false);
+    setHasReceivedFirstResponse(false);
+    setNamePromptDismissed(false);
+    setEmailPromptDismissed(false);
+    setPhonePromptDismissed(false);
+    setInputValue('');
+    setNameInput('');
+    setEmailInput('');
+    setPhoneInput('');
+    setUserProfile({});
+    storeUserProfile({}, brandKey);
+    setDynamicQuickButtons(null);
+    setExploreButtons(null);
+    // Reset conversation restoration flags
+    conversationsToRestoreRef.current = [];
+    hasRestoredMessagesRef.current = false;
+    hasShownWelcomeRef.current = false;
+    // Close the chat
+    setIsOpen(false);
+    setIsInputActive(false);
+    setIsExpanded(false);
+    setShowQuickButtons(false);
+    setIsSearchbarHovered(false);
+    setIsDockedBubble(false);
+    hasEverOpenedRef.current = false;
+  }, [brandKey, clearMessages, closeCalendarWidget, closeVideoWidget, closeDeployForm]);
+
+  const handleRequestResetChat = useCallback(() => {
+    if (messages.length > 0) {
+      setShowResetConfirm(true);
+      return;
+    }
+    resetChatState();
+  }, [messages.length, resetChatState]);
+
+  const handleConfirmResetChat = useCallback(() => {
+    setShowResetConfirm(false);
+    resetChatState();
+  }, [resetChatState]);
+
+  const handleCancelResetChat = useCallback(() => {
+    setShowResetConfirm(false);
+  }, []);
+
   const isMobileViewport = typeof window !== 'undefined' ? window.innerWidth < 769 : !isDesktop;
   const isMobileNewChat = useMemo(
     () => isMobileViewport && messages.length === 0,
@@ -1360,6 +1568,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
   const defaultQuickButtons = dynamicQuickButtons ?? config?.quickButtons ?? [];
   const quickButtonOptions = isMobileNewChat ? mobileQuickActions : defaultQuickButtons;
   const hasQuickButtons = quickButtonOptions.length > 0;
+  const showMobileQuickActions = isMobileViewport && isOpen && hasQuickButtons && messages.length <= 1;
 
   const isResponding = useMemo(
     () =>
@@ -1398,6 +1607,169 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     };
   }, [addAIMessage, setOnFormSubmit, externalSessionId, brandKey, persistUserProfile]);
 
+  // Restore conversation messages when chat opens
+  useEffect(() => {
+    if (isOpen && conversationsToRestoreRef.current.length > 0 && !hasRestoredMessagesRef.current && messages.length === 0 && addUserMessage && addAIMessage) {
+      // Restore messages from conversations table
+      const conversations = conversationsToRestoreRef.current;
+      
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[ChatWidget] Restoring conversation messages', {
+          count: conversations.length
+        });
+      }
+      
+      // Restore messages in order
+      conversations.forEach((conv) => {
+        if (conv.type === 'user') {
+          addUserMessage(conv.text);
+        } else {
+          addAIMessage(conv.text);
+        }
+      });
+      
+      // Mark as restored so we don't restore again
+      hasRestoredMessagesRef.current = true;
+      hasShownWelcomeRef.current = true; // Don't show welcome if we restored messages
+      
+      // Scroll to bottom after restoring
+      setTimeout(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
+        }
+      }, 100);
+    }
+  }, [isOpen, messages.length, addUserMessage, addAIMessage]);
+
+  // Re-fetch conversations when chat reopens (if not already restored)
+  useEffect(() => {
+    if (isOpen && messages.length === 0 && !hasRestoredMessagesRef.current && !hasShownWelcomeRef.current && externalSessionId) {
+      // Re-fetch conversations when chat reopens
+      const fetchConversationsOnReopen = async () => {
+        try {
+          const supabase = getSupabaseClient('proxe');
+          if (supabase && externalSessionId) {
+            const { data: sessionData, error: sessionError } = await supabase
+              .from('web_sessions')
+              .select('lead_id')
+              .eq('external_session_id', externalSessionId)
+              .maybeSingle();
+            
+            if (!sessionError && sessionData?.lead_id) {
+              const conversations = await fetchConversations(sessionData.lead_id, 'web', brandKey);
+              if (conversations.length > 0) {
+                // Store conversations to restore
+                conversationsToRestoreRef.current = conversations.map((conv) => ({
+                  id: conv.id,
+                  type: conv.sender === 'customer' ? 'user' as const : 'ai' as const,
+                  text: conv.content,
+                  created_at: conv.created_at
+                }));
+                
+                // Trigger restoration
+                if (addUserMessage && addAIMessage) {
+                  conversations.forEach((conv) => {
+                    if (conv.sender === 'customer') {
+                      addUserMessage(conv.content);
+                    } else {
+                      addAIMessage(conv.content);
+                    }
+                  });
+                  
+                  hasRestoredMessagesRef.current = true;
+                  hasShownWelcomeRef.current = true;
+                  
+                  // Scroll to bottom after restoring
+                  setTimeout(() => {
+                    if (messagesEndRef.current) {
+                      messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
+                    }
+                  }, 100);
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error('[ChatWidget] Error fetching conversations on reopen:', err);
+        }
+      };
+      
+      fetchConversationsOnReopen();
+    }
+  }, [isOpen, externalSessionId, messages.length, addUserMessage, addAIMessage, brandKey]);
+
+  // Re-fetch and restore conversations when chat reopens (if messages were cleared)
+  useEffect(() => {
+    if (isOpen && messages.length === 0 && !hasRestoredMessagesRef.current && !hasShownWelcomeRef.current && externalSessionId) {
+      // Re-fetch conversations when chat reopens and there are no messages
+      const fetchConversationsOnReopen = async () => {
+        try {
+          const supabase = getSupabaseClient('proxe');
+          if (supabase && externalSessionId) {
+            const { data: sessionData, error: sessionError } = await supabase
+              .from('web_sessions')
+              .select('lead_id')
+              .eq('external_session_id', externalSessionId)
+              .maybeSingle();
+            
+            if (!sessionError && sessionData?.lead_id) {
+              const conversations = await fetchConversations(sessionData.lead_id, 'web', brandKey);
+              if (conversations.length > 0 && addUserMessage && addAIMessage) {
+                // Store conversations to restore
+                conversationsToRestoreRef.current = conversations.map((conv) => ({
+                  id: conv.id,
+                  type: conv.sender === 'customer' ? 'user' as const : 'ai' as const,
+                  text: conv.content,
+                  created_at: conv.created_at
+                }));
+                
+                // Restore messages
+                conversations.forEach((conv) => {
+                  if (conv.sender === 'customer') {
+                    addUserMessage(conv.content);
+                  } else {
+                    addAIMessage(conv.content);
+                  }
+                });
+                
+                hasRestoredMessagesRef.current = true;
+                hasShownWelcomeRef.current = true;
+                
+                // Scroll to bottom after restoring
+                setTimeout(() => {
+                  if (messagesEndRef.current) {
+                    messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
+                  }
+                }, 100);
+                
+                return; // Don't show welcome message
+              }
+            }
+          }
+          
+          // No conversations found, show welcome message
+          if (addAIMessage) {
+            addAIMessage("Hey!👋 I am PROXe, ask me anything");
+            hasShownWelcomeRef.current = true;
+          }
+        } catch (err) {
+          console.error('[ChatWidget] Error fetching conversations on reopen:', err);
+          // On error, show welcome message
+          if (addAIMessage) {
+            addAIMessage("Hey!👋 I am PROXe, ask me anything");
+            hasShownWelcomeRef.current = true;
+          }
+        }
+      };
+      
+      fetchConversationsOnReopen();
+    } else if (isOpen && messages.length === 0 && !hasShownWelcomeRef.current && conversationsToRestoreRef.current.length === 0 && addAIMessage) {
+      // Show welcome message if no conversations to restore
+      addAIMessage("Hey!👋 I am PROXe, ask me anything");
+      hasShownWelcomeRef.current = true;
+    }
+  }, [isOpen, messages.length, externalSessionId, addAIMessage, addUserMessage, brandKey]);
+
   // Ensure viewport starts at absolute top when chat widget first opens
   useEffect(() => {
     if (isOpen && messagesAreaRef.current) {
@@ -1416,16 +1788,31 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     if (isOpen) {
       // Use setTimeout to ensure DOM is updated
       setTimeout(() => {
-        // On first message (1 or 2 messages total), scroll to TOP to show the first question
-        // For subsequent messages, scroll to bottom to show latest response
-        if (messages.length <= 2 && messagesAreaRef.current) {
+        // Check if last message is a booking confirmation
+        const lastMessage = messages[messages.length - 1];
+        const isBookingConfirmation = lastMessage && 
+          lastMessage.type === 'ai' && 
+          lastMessage.text && 
+          lastMessage.text.includes('scheduled for') &&
+          bookingCompleted;
+        
+        if (isBookingConfirmation) {
+          // Find and scroll to the booking confirmation message
+          const messageElement = document.querySelector(`[data-message-id="${lastMessage.id}"]`);
+          if (messageElement) {
+            messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          } else if (messagesEndRef.current) {
+            // Fallback: scroll to bottom
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+          }
+        } else if (messages.length <= 2 && messagesAreaRef.current) {
           // Scroll to top of messages area to show first question header
           messagesAreaRef.current.scrollTop = 0;
         } else if (messagesEndRef.current) {
           // Scroll to bottom for subsequent messages
           messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
-      }, 0);
+      }, 300);
     }
     
     // Check if we should show calendar widget after AI response completes
@@ -1643,6 +2030,20 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     };
   }, [isOpen, messages.length]);
 
+  // Scroll deploy form into view only once when it first appears
+  useEffect(() => {
+    if (showDeployForm && deployFormRef.current && !deployFormScrolledRef.current) {
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (deployFormRef.current) {
+            deployFormRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            deployFormScrolledRef.current = true;
+          }
+        }, 200);
+      });
+    }
+  }, [showDeployForm]);
+
   // Enable horizontal scrolling with mouse wheel and drag on desktop
   useEffect(() => {
     const quickButtonsElement = quickButtonsRef.current;
@@ -1797,42 +2198,29 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     setIsExpanded(false);
     setShowQuickButtons(false);
     setIsInputActive(true);
-    setTimeout(() => {
-      chatInputRef.current?.focus();
-    }, 50);
-  }, []);
-
-  const handleSearchWidgetPress = useCallback(() => {
-    // Check if there's an existing conversation
-    const hasExistingConversation = 
-      messages.length > 0 || 
-      conversationSummary.trim().length > 0 || 
-      (sessionRecord?.userInputsSummary && sessionRecord.userInputsSummary.length > 0);
-    
-    // If there's an existing conversation, open the chat directly
-    if (hasExistingConversation) {
-      setIsDockedBubble(true);
-      setIsOpen(true);
-      setIsExpanded(false);
-      setShowQuickButtons(false);
-      setIsInputActive(true);
+    if (!isMobileViewport) {
       setTimeout(() => {
         chatInputRef.current?.focus();
       }, 50);
-      return;
     }
-    
-    // On both mobile and desktop, clicking the search widget should just expand it and allow typing
-    // The chat modal should only open when:
-    // 1. Quick action button is clicked (handled in handleQuickButtonClick)
-    // 2. User enters text and submits (handled in handleSend)
-    setIsExpanded(true);
-    setShowQuickButtons(true);
+  }, [isMobileViewport]);
+
+  const handleSearchWidgetPress = useCallback(() => {
+    // Always open the chat modal when user interacts with search widget
+    setIsDockedBubble(true);
+    setIsOpen(true);
+    setIsExpanded(false);
+    setShowQuickButtons(false);
     setIsInputActive(true);
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 50);
-  }, [messages.length, conversationSummary, sessionRecord]);
+    if (!isMobileViewport) {
+      setTimeout(() => {
+        chatInputRef.current?.focus();
+      }, 50);
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+    }
+  }, [messages.length, conversationSummary, sessionRecord, isMobileViewport]);
 
   const handleQuickButtonClick = (buttonText: string, e?: React.MouseEvent) => {
     if (e) {
@@ -1882,21 +2270,11 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
       setTimeout(() => {
         const deployMessageId = `deploy-${Date.now()}`;
         setShowDeployForm(deployMessageId);
-        // Find the last user message (should be the one we just added)
-        const userMessages = messages.filter(m => m.type === 'user');
-        const lastUserMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
-        if (lastUserMessage?.id) {
-          setDeployAnchorId(lastUserMessage.id);
-        } else {
-          // Fallback: use the last message in the array
-          const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
-          setDeployAnchorId(lastMessage?.id || null);
-        }
+        deployFormScrolledRef.current = false;
         if (process.env.NODE_ENV !== 'production') {
           console.log('[ChatWidget] Deploy form opened', { 
             messagesCount: messages.length,
-            lastUserMessageId: lastUserMessage?.id,
-            anchorId: lastUserMessage?.id || messages[messages.length - 1]?.id 
+            deployMessageId
           });
         }
       }, 300);
@@ -1959,6 +2337,46 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     submitMessage(message, nextButtons);
   };
 
+  const renderWelcomeButtons = useCallback(
+    (wrapperClassName: string) => (
+      <div className={wrapperClassName}>
+        <div className={styles.welcomeQuickButtonsContainer}>
+          <div className={styles.welcomeQuickButtonRow}>
+            <button
+              className={`${styles.quickBtn} ${styles['accent-0']}`}
+              onClick={() => handleQuickButtonClick("What is PROXe?")}
+            >
+              What is PROXe?
+            </button>
+          </div>
+          <div className={styles.welcomeQuickButtonRow}>
+            <button
+              className={`${styles.quickBtn} ${styles['accent-1']}`}
+              onClick={() => handleQuickButtonClick("How does PROXe work?")}
+            >
+              How does PROXe work?
+            </button>
+            <button
+              className={`${styles.quickBtn} ${styles['accent-2']}`}
+              onClick={() => handleQuickButtonClick("Book a demo")}
+            >
+              Book a demo
+            </button>
+          </div>
+          <div className={styles.welcomeQuickButtonRow}>
+            <button
+              className={`${styles.quickBtn} ${styles['accent-3']}`}
+              onClick={() => handleQuickButtonClick("Deploy PROXe in my business")}
+            >
+              Deploy PROXe in my business
+            </button>
+          </div>
+        </div>
+      </div>
+    ),
+    [handleQuickButtonClick]
+  );
+
   const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     if (showCalendly) {
       closeCalendarWidget();
@@ -1980,9 +2398,11 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
         setIsOpen(true);
         setIsExpanded(false);
         setShowQuickButtons(false);
-        setTimeout(() => {
-          chatInputRef.current?.focus();
-        }, 50);
+        if (!isMobileViewport) {
+          setTimeout(() => {
+            chatInputRef.current?.focus();
+          }, 50);
+        }
         return;
       }
       
@@ -2090,41 +2510,11 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
       style={isOpen ? { visibility: 'hidden', pointerEvents: 'none' } : undefined}
       onMouseEnter={() => {
         setIsSearchbarHovered(true);
-        if (!isOpen && !hasExistingConversation && hasQuickButtons) {
-          setIsExpanded(true);
-          setShowQuickButtons(true);
-        }
       }}
       onMouseLeave={() => {
         setIsSearchbarHovered(false);
-        if (!isOpen && !isInputActive && !inputValue.trim()) {
-          setIsExpanded(false);
-          setShowQuickButtons(false);
-        }
       }}
     >
-      {isExpanded && showQuickButtons && hasQuickButtons && (
-        <div
-          ref={quickButtonsRef}
-          className={styles.quickButtons}
-          data-scroll-lock="allow"
-        >
-          {quickButtonOptions.map((buttonText, index) => (
-            <button
-              key={index}
-              className={styles.quickBtn}
-              onClick={(e) => {
-                // Only handle click if we didn't drag
-                if (!hasDraggedRef.current) {
-                  handleQuickButtonClick(buttonText, e);
-                }
-              }}
-            >
-              {buttonText}
-            </button>
-          ))}
-        </div>
-      )}
       <div 
         className={`${styles.searchbar} ${isExpanded ? styles.searchbarExpanded : ''}`}
         onMouseDown={(e) => {
@@ -2237,7 +2627,22 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
       className={`${styles.chatboxContainer} ${styles.chatboxDocked} ${isResponding ? styles.chatboxResponding : ''}`}
       data-brand={brand}
     >
-      <div className={styles.chatContent}>
+          <div className={styles.chatContent}>
+        {showResetConfirm && (
+          <div className={styles.closeConfirmOverlay} role="dialog" aria-modal="true">
+            <div className={styles.closeConfirmCard}>
+              <p className={styles.closeConfirmMessage}>Chat history will be lost. Do you wish to continue?</p>
+              <div className={styles.closeConfirmActions}>
+                <button className={styles.closeConfirmEndBtn} onClick={handleConfirmResetChat}>
+                  Reset Chat
+                </button>
+                <button className={styles.closeConfirmContinueBtn} onClick={handleCancelResetChat}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {showCloseConfirm && (
           <div className={styles.closeConfirmOverlay} role="dialog" aria-modal="true">
             <div className={styles.closeConfirmCard}>
@@ -2263,48 +2668,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
         <div className={styles.headerActions}>
           <button 
             className={styles.resetBtn} 
-            onClick={() => {
-              // Reset all state and close chat for a fresh start
-              closeCalendarWidget();
-              closeVideoWidget();
-              setBookingCompleted(false);
-              setUsedButtons([]);
-              setMessageCount(0);
-              clearMessages();
-              historyRef.current = [];
-              setRecentHistory([]);
-              setConversationSummary('');
-              interactionCountRef.current = 0;
-              setPendingUserMessage(null);
-              setPendingButtons([]);
-              setPendingRequirement(null);
-              setShowNamePrompt(false);
-              setShowEmailPrompt(false);
-              setShowPhonePrompt(false);
-              setHasAskedName(false);
-              setHasAskedEmail(false);
-              setHasAskedPhone(false);
-              setHasReceivedFirstResponse(false);
-              setNamePromptDismissed(false);
-              setEmailPromptDismissed(false);
-              setPhonePromptDismissed(false);
-              setInputValue('');
-              setNameInput('');
-              setEmailInput('');
-              setPhoneInput('');
-              setUserProfile({});
-              storeUserProfile({}, brandKey);
-              setDynamicQuickButtons(null);
-              setExploreButtons(null);
-              // Close the chat
-              setIsOpen(false);
-              setIsInputActive(false);
-              setIsExpanded(false);
-              setShowQuickButtons(false);
-              setIsSearchbarHovered(false);
-              setIsDockedBubble(false);
-              hasEverOpenedRef.current = false;
-            }}
+            onClick={handleRequestResetChat}
             title="Reset chat"
           >
             {ICONS.reset}
@@ -2343,7 +2707,10 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
           
           return (
           <React.Fragment key={message.id}>
-            <div className={`${styles.message} ${styles[message.type]} ${styles[accentClass]}`}>
+            <div 
+              className={`${styles.message} ${styles[message.type]} ${styles[accentClass]}`}
+              data-message-id={message.id}
+            >
               <div className={styles.messageContent}>
                 <div className={styles.bubble}>
                   {message.isStreaming && !message.text ? (
@@ -2459,68 +2826,6 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
               </div>
             )}
 
-            {showDeployForm && (deployAnchorId === message.id || (!deployAnchorId && index === messages.length - 1)) && (
-              <div 
-                key={showDeployForm}
-                className={`${styles.message} ${styles.ai} ${styles['accent-0']}`}
-                onClick={(e) => e.stopPropagation()}
-                ref={(el) => {
-                  if (el) {
-                    requestAnimationFrame(() => {
-                      setTimeout(() => {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                      }, 100);
-                    });
-                  }
-                }}
-              >
-                <div className={styles.messageContent}>
-                  <div className={styles.bubble}>
-                    <div className={styles.bubbleContent}>
-                      {/* Header with avatar and name inside the bubble */}
-                      <div className={styles.bubbleHeader}>
-                        <div className={styles.bubbleAvatar}>
-                          {ICONS.ai(brand, config)}
-                        </div>
-                        <span className={styles.bubbleName}>
-                          {config.name}
-                        </span>
-                        <button
-                          type="button"
-                          className={styles.calendarCloseBtn}
-                          onClick={closeDeployForm}
-                          aria-label="Close deploy form"
-                        >
-                          {ICONS.close}
-                        </button>
-                      </div>
-                      
-                      {/* Deploy Form */}
-                      <DeployFormInline
-                        brand={brand}
-                        config={config}
-                        userProfile={userProfile}
-                        onContactDraft={handleContactDraft}
-                        onContactSubmit={handleContactPersist}
-                        onFormSubmit={async () => {
-                          // Sync websiteUrl from localStorage to Supabase
-                          const storedUser = getStoredUser(brandKey);
-                          if (storedUser?.websiteUrl && externalSessionId) {
-                            await persistUserProfile({ websiteUrl: storedUser.websiteUrl });
-                          }
-                          
-                          // Add confirmation message to chat
-                          addAIMessage("Thanks! We've received your details. Our team will review them and get back to you within 24 hours. In the meantime, feel free to ask any questions about PROXe!");
-                          
-                          // Close the form
-                          closeDeployForm();
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {showVideo && videoAnchorId === message.id && (
               <div 
@@ -2586,6 +2891,61 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
           </React.Fragment>
           );
         })}
+
+        {showDeployForm && (
+          <div 
+            ref={deployFormRef}
+            key={showDeployForm}
+            className={`${styles.message} ${styles.ai} ${styles['accent-0']}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.messageContent}>
+              <div className={styles.bubble}>
+                <div className={styles.bubbleContent}>
+                  {/* Header with avatar and name inside the bubble */}
+                  <div className={styles.bubbleHeader}>
+                    <div className={styles.bubbleAvatar}>
+                      {ICONS.ai(brand, config)}
+                    </div>
+                    <span className={styles.bubbleName}>
+                      {config.name}
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.calendarCloseBtn}
+                      onClick={closeDeployForm}
+                      aria-label="Close deploy form"
+                    >
+                      {ICONS.close}
+                    </button>
+                  </div>
+                  
+                  {/* Deploy Form */}
+                  <DeployFormInline
+                    brand={brand}
+                    config={config}
+                    userProfile={userProfile}
+                    onContactDraft={handleContactDraft}
+                    onContactSubmit={handleContactPersist}
+                    onFormSubmit={async () => {
+                      // Sync websiteUrl from localStorage to Supabase
+                      const storedUser = getStoredUser(brandKey);
+                      if (storedUser?.websiteUrl && externalSessionId) {
+                        await persistUserProfile({ websiteUrl: storedUser.websiteUrl });
+                      }
+                      
+                      // Add confirmation message to chat
+                      addAIMessage("Thanks! We've received your details. Our team will review them and get back to you within 24 hours. In the meantime, feel free to ask any questions about PROXe!");
+                      
+                      // Close the form
+                      closeDeployForm();
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {exploreButtons && exploreButtons.length > 0 && (
           <div
@@ -2684,7 +3044,6 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
                   <form onSubmit={handleNameSubmit} className={styles.inlinePromptForm}>
                     <div className={styles.inlinePromptInputWrapper}>
                       <input
-                        autoFocus
                         ref={namePromptInputRef}
                         className={styles.inlinePromptInput}
                         placeholder="Your name"
@@ -2739,7 +3098,6 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
                   <form onSubmit={handleEmailSubmit} className={styles.inlinePromptForm}>
                     <div className={styles.inlinePromptInputWrapper}>
                       <input
-                        autoFocus
                         ref={emailPromptInputRef}
                         className={styles.inlinePromptInput}
                         placeholder="name@example.com"
@@ -2795,7 +3153,6 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
                   <form onSubmit={handlePhoneSubmit} className={styles.inlinePromptForm}>
                     <div className={styles.inlinePromptInputWrapper}>
                       <input
-                        autoFocus
                         ref={phonePromptInputRef}
                         className={styles.inlinePromptInput}
                         type="tel"
@@ -2813,47 +3170,61 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
             </div>
           </div>
         )}
-        
         <div ref={messagesEndRef} />
       </div>
+      {/* Mobile: keep quick actions docked near the bottom, same layout as desktop */}
+      {showMobileQuickActions && renderWelcomeButtons(styles.mobileQuickActions)}
+
+      {/* Desktop: quick buttons near input when showing welcome message */}
+      {(!isMobileViewport) && isOpen && hasShownWelcomeRef.current && messages.length === 1 && messages[0].type === 'ai' && !messages[0].isStreaming && conversationsToRestoreRef.current.length === 0 && renderWelcomeButtons(styles.welcomeQuickButtons)}
+
       <div className={styles.inputArea}>
-        <div className={styles.chatInputWrapper}>
-          <input
-            ref={chatInputRef}
-            type="text"
-            className={styles.chatInput}
-            placeholder="Type your message..."
-            value={inputValue}
-            autoComplete="off"
-            data-form-type="other"
-            data-lpignore="true"
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              // Close any open prompt cards when user starts typing
-              if (e.target.value && (showNamePrompt || showEmailPrompt || showPhonePrompt)) {
-                if (showNamePrompt) {
-                  setShowNamePrompt(false);
-                  setNamePromptDismissed(true);
+        {isOpen && showPrivacyNotice && (
+          <div className={styles.privacyNotice}>
+            <span className={styles.privacyPoweredIcon}>
+              <PROXELogo />
+            </span>
+            <span>Powered by PROXe</span>
+          </div>
+        )}
+        <div className={styles.chatInputRow}>
+          <div className={styles.chatInputWrapper}>
+            <input
+              ref={chatInputRef}
+              type="text"
+              className={styles.chatInput}
+              placeholder="Type your message..."
+              value={inputValue}
+              autoComplete="off"
+              data-form-type="other"
+              data-lpignore="true"
+              onChange={(e) => {
+                setInputValue(e.target.value);
+                // Close any open prompt cards when user starts typing
+                if (e.target.value && (showNamePrompt || showEmailPrompt || showPhonePrompt)) {
+                  if (showNamePrompt) {
+                    setShowNamePrompt(false);
+                    setNamePromptDismissed(true);
+                  }
+                  if (showEmailPrompt) {
+                    setShowEmailPrompt(false);
+                  }
+                  if (showPhonePrompt) {
+                    setShowPhonePrompt(false);
+                  }
                 }
-                if (showEmailPrompt) {
-                  setShowEmailPrompt(false);
+              }}
+              onFocus={(e) => {
+                if (showCalendly) {
+                  closeCalendarWidget();
                 }
-                if (showPhonePrompt) {
-                  setShowPhonePrompt(false);
+                if (showVideo) {
+                  closeVideoWidget();
                 }
-              }
-            }}
-            onFocus={(e) => {
-              if (showCalendly) {
-                closeCalendarWidget();
-              }
-              if (showVideo) {
-                closeVideoWidget();
-              }
-              if (showDeployForm) {
-                closeDeployForm();
-              }
-              // Scroll input into view above keyboard on mobile
+                if (showDeployForm) {
+                  closeDeployForm();
+                }
+                // Scroll input into view above keyboard on mobile
     const scrollInputIntoView = () => {
                 const input = e.target;
                 if (input) {
@@ -2882,10 +3253,8 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
         <button className={styles.sendBtn} onClick={handleSend} disabled={!inputValue.trim() || isLoading}>
           {ICONS.send}
         </button>
+        </div>
       </div>
-      </div>
-      <div className={styles.chatFooter}>
-        Chat powered by PROXe
       </div>
     </div>
     {isDesktop && (
@@ -2903,4 +3272,5 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
   </>
   );
 }
+
 

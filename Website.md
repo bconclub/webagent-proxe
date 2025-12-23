@@ -31,15 +31,17 @@ This is a **single unified build** that combines marketing content with interact
 
 ### Tech Stack
 
-- **Framework**: Next.js 14 (App Router)
-- **Language**: TypeScript
-- **Frontend**: React 18
+- **Framework**: Next.js 14.2.33 (App Router)
+- **Language**: TypeScript 5.5.0
+- **Frontend**: React 18.3.1
 - **Styling**: CSS Modules, CSS Variables
-- **AI**: Anthropic Claude API (configurable model)
-- **Database**: Supabase (PostgreSQL)
-- **Calendar**: Google Calendar API
-- **Animations**: Motion, Lottie React
-- **3D Graphics**: OGL (for background effects)
+- **AI**: Anthropic Claude API SDK 0.68.0 (default model: `claude-haiku-4-5-20251001`, configurable via `CLAUDE_MODEL`)
+- **Database**: Supabase JS 2.38.4 (PostgreSQL)
+- **Calendar**: Google APIs 164.1.0 (Google Calendar API)
+- **Animations**: Motion 12.23.24, Lottie React 2.4.1
+- **3D Graphics**: OGL 1.0.11 (for background effects)
+- **Charts**: Recharts 3.4.1
+- **Embedding**: @calcom/embed-react 1.5.3
 
 ---
 
@@ -553,6 +555,7 @@ The system generates context-aware follow-up buttons based on user's booking sta
 - Knowledge base search
 - **Dynamic follow-up button generation** (context-aware based on booking status)
 - **"Explore PROXe" buttons** with brand-specific colors matching "Meet Our PROXes" section
+- Attribution line shows PROXe icon followed by the text "Powered by PROXe" (icon precedes the sentence)
 
 **Key Functions**:
 - `initializeSession()` - Creates session in Supabase
@@ -1115,8 +1118,8 @@ npm run start
 
 **Build Scripts**:
 - `npm run dev` - Development server (port 3002)
-- `npm run build` - Production build
-- `npm run build:proxe` - PROXe brand build
+- `npm run build` - Production build (standalone output)
+- `npm run build:proxe` - PROXe brand build (sets `NEXT_PUBLIC_BRAND=proxe`)
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 
@@ -1127,9 +1130,15 @@ npm run start
 ```javascript
 {
   output: 'standalone',  // For Docker/VPS deployment
-  reactStrictMode: true
+  reactStrictMode: true   // React strict mode enabled
 }
 ```
+
+**TypeScript Configuration** (`tsconfig.json`):
+- Strict mode enabled
+- Module resolution: bundler
+- Path aliases: `@/*` maps to root directory
+- Includes Next.js types and environment definitions
 
 ### Deployment
 
@@ -1402,9 +1411,10 @@ PROXe Website + Web Agent/
 - **Active Channel**: Web (voice sessions endpoint available for data; WhatsApp/Social agents not active)
 - **Brand**: PROXe only
 - **Database**: Supabase (PostgreSQL) — primary tables `web_sessions`, `all_leads`, `messages` with legacy `sessions` fallback
-- **AI Provider**: Anthropic Claude API (model configurable via `CLAUDE_MODEL`, defaults to Claude Haiku 4.5)
-- **Calendar**: Google Calendar API
-- **Deployment**: Vercel (or VPS)
+- **AI Provider**: Anthropic Claude API SDK 0.68.0 (model configurable via `CLAUDE_MODEL` environment variable, defaults to `claude-haiku-4-5-20251001`)
+- **Calendar**: Google Calendar API (via googleapis 164.1.0)
+- **Deployment**: Vercel (recommended) or VPS/Docker (standalone build)
+- **Build Output**: Standalone mode for containerized deployments
 
 ---
 
@@ -1458,9 +1468,32 @@ PROXe Website + Web Agent/
 
 ## Version & Maintenance
 
-**Current Version**: 1.2.0  
-**Last Updated**: December 2025  
+**Package Version**: 1.0.0  
+**Build Version**: 1.2.0  
+**Last Updated**: January 2025  
 **Maintained By**: PROXe Team
+
+### Current Build Details
+
+**Dependencies**:
+- Next.js: ^14.2.33
+- React: ^18.3.1
+- React DOM: ^18.3.1
+- TypeScript: ^5.5.0
+- @anthropic-ai/sdk: ^0.68.0
+- @supabase/supabase-js: ^2.38.4
+- googleapis: ^164.1.0
+- motion: ^12.23.24
+- lottie-react: ^2.4.1
+- ogl: ^1.0.11
+- recharts: ^3.4.1
+- @calcom/embed-react: ^1.5.3
+
+**Build Configuration**:
+- Next.js Output: `standalone` (for Docker/VPS deployment)
+- React Strict Mode: Enabled
+- Development Port: 3002
+- TypeScript: Strict mode enabled
 
 **Recent Updates (v1.2.0)**:
 - ✅ Knowledge base search pulls prioritized snippets from Supabase tables (`system_prompts`, `agents`, `conversation_states`, `cta_triggers`, `model_context`, `chatbot_responses`) before building Claude prompts
@@ -1470,6 +1503,8 @@ PROXe Website + Web Agent/
 - ✅ Booking protection: duplicate booking checks, IST timestamps, bookings persisted to `web_sessions` + `all_leads.unified_context`, reschedule/view buttons when a booking exists
 - ✅ Follow-up UX & resilience: contextual button generation (avoids repeats, respects bookings), Claude streaming retries with friendlier error surfaces
 - ✅ Hero subtext styling: Updated mobile font size to 17px (from 16px) for improved readability on mobile devices
+- ✅ Claude API: Default model set to `claude-haiku-4-5-20251001` (configurable via `CLAUDE_MODEL` environment variable)
+- ✅ Standalone build output: Configured for containerized deployments and VPS hosting
 
 **This document is the single source of truth for the PROXe Website + Web Agent build.**
 

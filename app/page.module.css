@@ -97,6 +97,10 @@
   .rotatingWord {
     font-weight: 700;
   }
+
+  .heroSection {
+    transform: translateY(-20px);
+  }
 }
 
 @media (max-width: 768px) {

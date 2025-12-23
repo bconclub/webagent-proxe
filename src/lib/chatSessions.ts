@@ -1208,7 +1208,7 @@ function stripHTML(html: string): string {
   return text;
 }
 
-// Log message to messages table for Dashboard Inbox
+// Log message to conversations table for Dashboard Inbox
 export async function logMessage(
   leadId: string,
   channel: 'web' | 'whatsapp' | 'voice' | 'social',
@@ -1245,6 +1245,7 @@ export async function logMessage(
   
   // Strip HTML from content before logging
   const cleanedContent = stripHTML(content);
+  const tableName = 'conversations';
   
   const insertData = {
     lead_id: leadId,
@@ -1260,17 +1261,19 @@ export async function logMessage(
     }
   };
 
-  console.log('[logMessage] Inserting message:', {
+  console.log('[logMessage] Preparing to insert message:', {
+    tableName,
     lead_id: insertData.lead_id,
     channel: insertData.channel,
     sender: insertData.sender,
+    content: insertData.content,
     contentLength: insertData.content?.length,
     message_type: insertData.message_type
   });
   
   try {
     const { data, error } = await supabase
-      .from('messages')
+      .from(tableName)
       .insert(insertData)
       .select()
       .single();
@@ -1307,5 +1310,69 @@ export async function logMessage(
       sender
     });
     return null;
+  }
+}
+
+// Fetch conversations from conversations table for a lead_id
+export interface ConversationMessage {
+  id: string;
+  lead_id: string;
+  channel: 'web' | 'whatsapp' | 'voice' | 'social';
+  sender: 'customer' | 'agent' | 'system';
+  content: string;
+  message_type: string;
+  metadata: any;
+  created_at: string;
+}
+
+export async function fetchConversations(
+  leadId: string,
+  channel: 'web' | 'whatsapp' | 'voice' | 'social' = 'web',
+  brand: 'proxe' = 'proxe',
+  limit: number = 50
+): Promise<ConversationMessage[]> {
+  const supabase = getSupabaseClient(brand);
+  
+  if (!supabase) {
+    console.error('[fetchConversations] Supabase client not available');
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('lead_id', leadId)
+      .eq('channel', channel)
+      .order('created_at', { ascending: true })
+      .limit(limit);
+
+    if (error) {
+      console.error('[fetchConversations] Error fetching conversations:', {
+        error,
+        errorCode: error.code,
+        errorMessage: error.message,
+        leadId,
+        channel
+      });
+      return [];
+    }
+
+    console.log('[fetchConversations] Fetched conversations:', {
+      count: data?.length || 0,
+      leadId,
+      channel
+    });
+
+    return data || [];
+  } catch (err: any) {
+    console.error('[fetchConversations] Exception fetching conversations:', {
+      error: err,
+      errorMessage: err?.message,
+      errorStack: err?.stack,
+      leadId,
+      channel
+    });
+    return [];
   }
 }

@@ -31,10 +31,10 @@ function buildCorePrompt(brand: string, userName?: string | null, knowledgeBase?
     'Never miss a lead. Never forget a follow-up.',
     'If this is the FIRST assistant reply (no prior assistant messages in history), use this exact paragraph verbatim—no paraphrasing: "PROXe is the AI system that makes sure you never miss a lead again it turns every potential customer into revenue. Listens across website, WhatsApp, social DMs, and calls. When prospects go silent, nudges them back automatically. Never miss a lead. Never forget a follow-up."',
     'CTA labels must be used exactly as provided (e.g., "Learn More", "Book a Demo")—never rewrite, paraphrase, or add new labels.',
-    'FORMATTING: Use single line breaks between different points. One idea per line. Never create walls of text. For pricing: each plan gets its own line. For features: each feature gets its own line.',
+    'FORMATTING: You are a lead qualification assistant. Format ALL responses with double line breaks between paragraphs (<br><br>). Short, punchy sentences. Consistent spacing throughout. Never mix formatting styles mid-conversation. Apply this exact formatting to EVERY message, regardless of content type.',
     'If user asks about pricing, format with line breaks: "Starter: $99/month\n• Website + WhatsApp\n• 1,000 conversations\n\nPro: $249/month\n• Website + WhatsApp + Social DMs + Calls\n• Unlimited conversations\n\nBoth include: Unified Dashboard, Smart Flows, Priority support\n\n→ BUTTON: PROXe Starter - $99\n→ BUTTON: PROXe Pro - $249"',
     'Do not paraphrase the brand positioning; stick to the provided wording.',
-    'Talk sharp, no fluff. Echo their pain if obvious. Show the fix. Give fast outcome.',
+    'Talk sharp, no fluff. Echo their pain if obvious. Show the fix. Give fast outcome. ABSOLUTE MAXIMUM: 2 sentences per response. Never exceed 2 sentences.',
     'Lead with outcomes: identify intent, qualify leads, capture every opportunity.',
     'Never mention button labels; UI supplies them.',
     'Offer demos or callbacks when appropriate.',
@@ -87,7 +87,7 @@ export function buildPrompt({
     historyBlock,
     knowledgeBlock,
     bookingNote,
-    'Respond to the user\'s latest message using proper line breaks for readability. Use <br> tags within paragraphs to separate different points. Keep responses scannable and avoid walls of text. If information is missing, state it and suggest a concrete next step.',
+    'You are a lead qualification assistant. Format ALL responses with double line breaks between paragraphs (<br><br>). Short, punchy sentences. Consistent spacing throughout. Never mix formatting styles mid-conversation. Apply this exact formatting to EVERY message you send, regardless of content type. ABSOLUTE MAXIMUM: 2 sentences per response. Never exceed 2 sentences.',
   ].filter(Boolean).join('\n\n');
 
   const userPrompt = `${instructions}\n\nLatest user message:\n${message}\n\nCraft your reply:`;

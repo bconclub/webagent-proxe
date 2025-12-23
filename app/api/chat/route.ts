@@ -642,7 +642,7 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          // Log messages to messages table (for Dashboard Inbox)
+          // Log messages to conversations table (for Dashboard Inbox)
           if (leadId) {
             const outputSentAt = Date.now();
             
