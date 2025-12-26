@@ -1271,15 +1271,33 @@ export async function logMessage(
     message_type: insertData.message_type
   });
   
+  // Verify table name and lead_id before insert
+  console.log('[logMessage] About to insert to table:', tableName);
+  console.log('[logMessage] Lead ID exists?', !!insertData.lead_id, 'Value:', insertData.lead_id);
+  console.log('[logMessage] Insert data summary:', {
+    lead_id: insertData.lead_id,
+    channel: insertData.channel,
+    sender: insertData.sender,
+    message_type: insertData.message_type,
+    contentLength: insertData.content?.length,
+    contentPreview: insertData.content?.substring(0, 100),
+    metadataKeys: Object.keys(insertData.metadata || {})
+  });
+  
   try {
+    console.log('[logMessage] Executing Supabase insert to "conversations" table...');
+    console.log('[logMessage] Table name verified:', tableName === 'conversations' ? '✓ "conversations"' : `✗ "${tableName}"`);
+    
     const { data, error } = await supabase
       .from(tableName)
       .insert(insertData)
       .select()
       .single();
 
+    console.log('[logMessage] Insert query executed. Checking result...');
+
     if (error) {
-      console.error('[logMessage] Error logging message:', {
+      console.error('[logMessage] ✗ Error logging message to "conversations" table:', {
         error,
         errorCode: error.code,
         errorMessage: error.message,
@@ -1287,16 +1305,19 @@ export async function logMessage(
         errorHint: error.hint,
         leadId,
         channel,
-        sender
+        sender,
+        tableName
       });
       return null;
     }
 
-    console.log('[logMessage] Message logged successfully:', {
+    console.log('[logMessage] ✓ Message logged successfully to "conversations" table:', {
       messageId: data?.id,
       leadId,
       channel,
-      sender
+      sender,
+      tableName,
+      insertedAt: data?.created_at
     });
 
     return data;

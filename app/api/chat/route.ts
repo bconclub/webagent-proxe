@@ -241,8 +241,16 @@ function isSimilarToAny(newButton: string, existingButtons: string[]): boolean {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('=== /api/chat POST REQUEST RECEIVED ===');
   try {
     const body = await request.json();
+    console.log('[Chat API] Request body received:', {
+      hasMessage: !!body.message,
+      messageLength: body.message?.length || 0,
+      messageCount: body.messageCount || 0,
+      hasMetadata: !!body.metadata,
+      hasSessionId: !!(body.metadata?.session?.externalId || body.metadata?.session?.externalSessionId)
+    });
     let { message, messageCount = 0, brand = 'proxe', usedButtons = [], metadata = {} } = body;
 
     const sessionMetadata = metadata.session || {};
@@ -376,6 +384,7 @@ export async function POST(request: NextRequest) {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
+        console.log('=== STREAM START FUNCTION EXECUTING ===');
         try {
           let rawResponse = '';
           let cleanedResponse = '';
@@ -642,44 +651,93 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          // Log messages to conversations table (for Dashboard Inbox)
+          // Log customer message to conversations table (immediately after lead_id is available)
+          console.log('[Chat API] Checking if lead_id exists for customer message logging...', {
+            hasLeadId: !!leadId,
+            leadId: leadId || 'NULL',
+            messageLength: message?.length || 0
+          });
+          
           if (leadId) {
+            console.log('[Chat API] ✓ Lead ID exists:', leadId);
+            console.log('[Chat API] Customer message:', message);
+            console.log('[Chat API] About to call logMessage() for customer message to "conversations" table...');
+            
+            try {
+              console.log('=== BEFORE CUSTOMER LOG ===');
+              const customerLogResult = await logMessage(leadId, 'web', 'customer', message, 'text', {
+                input_received_at: inputReceivedAt
+              });
+              console.log('=== AFTER CUSTOMER LOG ===');
+              
+              console.log('[Chat API] Insert result (customer):', customerLogResult ? '✓ Success' : '✗ Failed', {
+                messageId: customerLogResult?.id || null,
+                leadId,
+                hasResult: !!customerLogResult,
+                result: customerLogResult
+              });
+            } catch (err: any) {
+              console.error('[Chat API] ✗ Exception while logging customer message:', {
+                error: err,
+                errorMessage: err?.message,
+                errorStack: err?.stack,
+                leadId,
+                messagePreview: message?.substring(0, 100)
+              });
+            }
+          } else {
+            console.log('[Chat API] ✗ No lead_id available, skipping customer message logging', {
+              externalSessionId,
+              hasSupabaseClient: !!getSupabaseClient('proxe'),
+              message: message?.substring(0, 50)
+            });
+          }
+
+          // Log AI response to conversations table (after response is generated)
+          console.log('[Chat API] Checking if lead_id and response exist for AI response logging...', {
+            hasLeadId: !!leadId,
+            leadId: leadId || 'NULL',
+            hasResponse: !!cleanedResponse,
+            responseLength: cleanedResponse?.length || 0
+          });
+          
+          if (leadId && cleanedResponse) {
             const outputSentAt = Date.now();
             
-            console.log('[Chat API] Attempting to log messages for lead:', leadId, {
-              messageLength: message?.length,
-              responseLength: cleanedResponse?.length
-            });
+            console.log('[Chat API] ✓ Lead ID exists:', leadId);
+            console.log('[Chat API] AI response (preview):', cleanedResponse.substring(0, 100) + '...');
+            console.log('[Chat API] About to call logMessage() for agent response to "conversations" table...');
             
-            // Log customer message
-            const customerLogResult = await logMessage(leadId, 'web', 'customer', message, 'text', {
-              input_received_at: inputReceivedAt
-            }).catch(err => {
-              console.error('[Chat API] Failed to log customer message:', err);
-              return null;
-            });
-            
-            console.log('[Chat API] Customer message log result:', customerLogResult ? 'Success' : 'Failed');
-            
-            // Log agent response
-            const agentLogResult = await logMessage(leadId, 'web', 'agent', cleanedResponse, 'text', {
-              output_sent_at: outputSentAt,
-              input_received_at: inputReceivedAt,
-              input_to_output_gap_ms: outputSentAt - inputReceivedAt
-            }).catch(err => {
-              console.error('[Chat API] Failed to log agent message:', err);
-              return null;
-            });
-            
-            console.log('[Chat API] Agent message log result:', agentLogResult ? 'Success' : 'Failed');
-            console.log('[Chat API] Messages logged for lead:', leadId, {
-              customerLogged: !!customerLogResult,
-              agentLogged: !!agentLogResult
-            });
+            try {
+              console.log('=== BEFORE AGENT LOG ===');
+              const agentLogResult = await logMessage(leadId, 'web', 'agent', cleanedResponse, 'text', {
+                output_sent_at: outputSentAt,
+                input_received_at: inputReceivedAt,
+                input_to_output_gap_ms: outputSentAt - inputReceivedAt
+              });
+              console.log('=== AFTER AGENT LOG ===');
+              
+              console.log('[Chat API] Insert result (agent):', agentLogResult ? '✓ Success' : '✗ Failed', {
+                messageId: agentLogResult?.id || null,
+                leadId,
+                hasResult: !!agentLogResult,
+                result: agentLogResult
+              });
+            } catch (err: any) {
+              console.error('[Chat API] ✗ Exception while logging agent message:', {
+                error: err,
+                errorMessage: err?.message,
+                errorStack: err?.stack,
+                leadId,
+                responsePreview: cleanedResponse?.substring(0, 100)
+              });
+            }
           } else {
-            console.log('[Chat API] No lead_id available, skipping message logging', {
-              externalSessionId,
-              hasSupabaseClient: !!getSupabaseClient('proxe')
+            console.log('[Chat API] ✗ No lead_id or response available, skipping AI response logging', {
+              hasLeadId: !!leadId,
+              hasResponse: !!cleanedResponse,
+              responseLength: cleanedResponse?.length || 0,
+              leadId: leadId || 'NULL'
             });
           }
 
