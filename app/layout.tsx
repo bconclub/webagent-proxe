@@ -17,9 +17,9 @@ export const metadata: Metadata = {
   title: 'PROXe',
   description: 'AI Operations System For Business',
   icons: {
-    icon: '/assets/proxe/PROXe Favicon.png',
-    shortcut: '/assets/proxe/PROXe Favicon.png',
-    apple: '/assets/proxe/PROXe Favicon.png',
+    icon: '/assets/favicon.ico',
+    shortcut: '/assets/favicon.ico',
+    apple: '/assets/favicon.ico',
   },
 }
 

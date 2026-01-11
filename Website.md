@@ -18,6 +18,7 @@
 10. [Environment Configuration](#environment-configuration)
 11. [Build & Deployment](#build--deployment)
 12. [Key Features](#key-features)
+13. [PROXe System - Complete Feature Checklist](#proxe-system---complete-feature-checklist)
 
 ---
 
@@ -1249,6 +1250,99 @@ npm run start
 - Anonymous user support
 - Service role for webhooks
 - Environment variable protection
+
+---
+
+## PROXe System - Complete Feature Checklist
+
+**PROXe is a unified AI system with 5 channels:**
+- Website (Web PROXe) - Chat widget on goproxe.com
+- WhatsApp (WhatsApp PROXe) - WhatsApp Business API integration
+- Dashboard (Command Center) - Unified inbox & lead management
+- Voice (Voice PROXe) - Phone call integration (future)
+- Social (Social PROXe) - Instagram/FB DMs (future)
+
+**All channels feed into:**
+- `all_leads` table - Unified customer records
+- `unified_context` - Cross-channel conversation history
+- Dashboard - Unified inbox displaying all channels
+
+---
+
+### 🎯 LEAD INTELLIGENCE (Cross-Channel)
+- [ ] Auto Lead Score (0-100) - engagement, intent, channel mix, recency
+- [ ] Smart Stage Progression - auto-detect: Discovery → Interest → Evaluation → Decision
+- [ ] Buying Signals Detection - pricing, timeline, budget, decision-maker, competitors
+- [ ] Lead Health Score - engagement trend, response rate, days since contact
+- [ ] Quick Stats - days in pipeline, response rate, avg response time, channels used
+- [ ] Activity Timeline - all messages, stage changes, assignments, bookings
+
+### 💬 CONVERSATION INTELLIGENCE (Cross-Channel)
+- [x] Unified Summary - Web + WhatsApp + Voice + Social
+- [ ] Intent Detection - pricing interest, demo request, support, objection, competitor research
+- [ ] Sentiment Tracking - positive/neutral/negative, frustration, urgency
+- [ ] Smart Highlights - budget mentions, timeline signals, pain points, decision process
+- [ ] Key Info Extraction - auto-extract from ALL channels
+
+### ⚡ AUTOMATION MAGIC (Cross-Channel)
+- [x] Context-aware AI - knows Web history when customer contacts via WhatsApp
+- [ ] Smart Auto-Replies - after-hours, FAQ detection, pricing auto-send
+- [ ] Auto-Assignment Rules - route by score/channel/timezone/load balancing
+- [ ] Smart Follow-ups - auto-nudge after 24h silence, escalate after 48h
+- [ ] Event Triggers - lead goes cold, high score lead, competitor mentioned
+
+### 👥 TEAM COLLABORATION (Dashboard Only)
+- [ ] Assignment System - assign to user, transfer with context, unassigned queue
+- [ ] Internal Notes - @mentions, note history, attachments
+- [ ] Complete Timeline - all channels, stage changes, score changes, system events
+
+### 📊 ANALYTICS POWER (Dashboard Only)
+- [ ] Overview KPIs - total leads, conversion rate, response time, booking rate
+- [ ] Channel Performance - leads by source, quality, conversion, response time
+- [ ] Conversion Funnel - stage breakdown, drop-off points, bottlenecks
+- [ ] Revenue Attribution - pipeline value by source, closed-won by channel
+
+### 🤖 AI SUPERPOWERS (All Channels)
+- [x] Unified Context (Web + WhatsApp + Voice + Social in single conversation)
+- [x] Conversation Summarization (intelligent extraction, not raw messages)
+- [x] Cross-Channel Recognition (same customer, different channels = one lead)
+- [ ] Next Best Action - suggest pricing send, schedule call, flag for urgent response
+- [ ] Deal Predictions - likelihood to close %, predicted close date, risk of churn
+- [ ] Smart Reply Suggestions - objection handling, competitive positioning
+- [ ] Meeting Prep Briefs - auto-generate before calls with talking points
+
+### 🔥 ADDICTIVE UX (Dashboard Only)
+- [ ] Lead Card on Hover - mini preview, quick actions
+- [ ] Smart Search - by name/phone/message content, saved searches
+- [ ] Keyboard Shortcuts - j/k navigation, quick assign, add note
+- [ ] Color-Coded - hot/warm/cold leads, channel badges, stage colors
+- [ ] Real-time Updates - new message badge, typing indicator, push notifications
+
+---
+
+**Current Status:**
+- ✅ Website: Lead capture, conversation history, session persistence
+- ✅ WhatsApp: Direct Meta integration, context-aware responses, unified_context sync
+- ✅ Dashboard: Unified inbox, lead details, real-time updates, multi-channel display
+- ⚠️ Summary Tab: API fixed, needs UI testing
+- ❌ Lead Scoring: Not implemented
+- ❌ Stage Detection: Not implemented
+- ❌ Automation: Not implemented
+- ❌ Analytics: Not implemented
+
+**Integration Points:**
+- Website → all_leads (via /api/integrations/web-agent)
+- WhatsApp → all_leads (via /api/integrations/whatsapp)
+- Dashboard → unified_leads view (displays all channels)
+- Voice/Social → all_leads (future integration)
+
+**Database:**
+- `all_leads` - One record per customer (deduplication by phone)
+- `unified_context` - Cross-channel conversation data
+- `web_sessions`, `whatsapp_sessions`, etc - Channel-specific details
+- `conversations` - Universal message log (all channels)
+
+Refer to this checklist when building features. Each component should consider cross-channel integration.
 
 ---
 

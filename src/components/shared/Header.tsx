@@ -16,7 +16,7 @@ export default function Header() {
   return (
     <header className={styles.header}>
       <div className={styles.navContainer}>
-        <img src="/assets/proxe/PROXe-Logo.png" alt="PROXe Logo" className={styles.logo} />
+        <img src="/assets/proxe/Proxe-Logo.png" alt="PROXe Logo" className={styles.logo} />
         <nav className={styles.nav}>
           <a href="#" className={styles.navLink}>Features</a>
           <a href="#" className={styles.navLink}>Pricing</a>
