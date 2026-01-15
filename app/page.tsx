@@ -4,7 +4,8 @@ import { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 
-import { BrandChatWidget } from '@/src/components/brand/BrandChatWidget';
+import { ChatWidget } from '@/proxe/components/ChatWidget';
+import '@/proxe/styles/theme.css';
 import DarkVeil from '@/src/components/shared/DarkVeil';
 import Header from '@/src/components/shared/Header';
 import BlurText from '@/src/components/shared/BlurText';
@@ -347,7 +348,7 @@ export default function HomePage() {
             <article className={styles.bentoCard}>
             <div className={styles.bentoCardImage}>
               <Image
-                src="/assets/proxe/Self learning.webp"
+                src="/proxe/assets/Self learning.webp"
                 alt="Self-Learning Core"
                 width={400}
                 height={200}
@@ -364,7 +365,7 @@ export default function HomePage() {
             <article className={styles.bentoCard}>
             <div className={styles.bentoCardImage}>
               <Image
-                src="/assets/proxe/Models.webp"
+                src="/proxe/assets/Models.webp"
                 alt="Latest Model, Instantly"
                 width={400}
                 height={200}
@@ -381,7 +382,7 @@ export default function HomePage() {
             <article className={styles.bentoCard}>
             <div className={styles.bentoCardImage}>
               <Image
-                src="/assets/proxe/one memmory one vioce.webp"
+                src="/proxe/assets/one memmory one vioce.webp"
                 alt="One Memory, One Voice"
                 width={400}
                 height={200}
@@ -398,7 +399,7 @@ export default function HomePage() {
             <article className={styles.bentoCard}>
             <div className={styles.bentoCardImage}>
               <Image
-                src="/assets/proxe/Command Center.webp"
+                src="/proxe/assets/Command Center.webp"
                 alt="Command Center Dashboard"
                 width={400}
                 height={200}
@@ -421,7 +422,7 @@ export default function HomePage() {
         className={`${styles.chatWidgetContainer} ${styles.chatWidgetScrolled} ${showWidget ? styles.widgetVisible : ''}`}
         style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 2147483647, pointerEvents: 'auto' }}
       >
-        <BrandChatWidget brand="proxe" apiUrl={apiUrl} />
+        <ChatWidget apiUrl={apiUrl} />
       </div>,
       document.body
     )}

@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useChat } from '@/src/hooks/useChat';
 import type { Message } from '@/src/hooks/useChatStream';
-import { InfinityLoader } from './InfinityLoader';
-import { BookingCalendarWidget, type BookingCalendarWidgetProps } from './BookingCalendarWidget';
-import { DeployFormInline } from './DeployFormInline';
+import { InfinityLoader } from '@/src/components/shared/InfinityLoader';
+import { BookingCalendarWidget, type BookingCalendarWidgetProps } from '@/src/components/shared/BookingCalendarWidget';
+import { DeployFormInline } from '@/src/components/shared/DeployFormInline';
 import type { BrandConfig } from '@/src/configs';
 import { useDeployModal } from '@/src/contexts/DeployModalContext';
 import styles from './ChatWidget.module.css';
@@ -26,11 +26,10 @@ import {
   storeUserProfile,
   type LocalUserProfile,
 } from '@/src/lib/chatLocalStorage';
-import { getSupabaseClient } from '@/src/lib/supabaseClient';
+import { getSupabaseClient } from '@/src/lib/supabase-proxe';
+import { proxeConfig } from './config';
 
 interface ChatWidgetProps {
-  brand: string;
-  config: BrandConfig;
   apiUrl?: string;
   widgetStyle?: 'searchbar' | 'bubble';
 }
@@ -117,7 +116,9 @@ const cleanSummary = (summary: string | null | undefined): string => {
     .trim();
 };
 
-export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }: ChatWidgetProps) {
+export function ChatWidget({ apiUrl, widgetStyle = 'searchbar' }: ChatWidgetProps) {
+  const brand = 'proxe';
+  const config = proxeConfig;
   const { openModal: openDeployModal, setOnFormSubmit } = useDeployModal();
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -192,6 +193,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
   const hasRestoredMessagesRef = useRef<boolean>(false);
   const hasShownWelcomeRef = useRef<boolean>(false);
   const brandKey: 'proxe' = 'proxe';
+  const finalApiUrl = apiUrl || config.apiUrl || '/api/chat/proxe';
 
   const handleOpenChat = useCallback(() => {
     setShowCloseConfirm(false);
@@ -215,7 +217,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     const initializeSession = async () => {
       try {
         if (process.env.NODE_ENV !== 'production') {
-          console.log('[ChatWidget] Initialising session', { brandProp: brand, brandKey });
+          console.log('[ChatWidget PROXe] Initialising session', { brandKey });
         }
 
         let storedId = getStoredSessionId(brandKey);
@@ -383,7 +385,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
           
           // Fetch and restore conversation messages if we have a lead_id
           // Get lead_id from web_sessions
-          const supabase = getSupabaseClient('proxe');
+          const supabase = getSupabaseClient();
           if (supabase && storedId) {
             try {
               const { data: sessionData, error: sessionError } = await supabase
@@ -1487,8 +1489,8 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
 
 
   const { messages, isLoading, sendMessage, clearMessages, addUserMessage, addAIMessage } = useChat({
-    brand,
-    apiUrl,
+    brand: 'proxe',
+    apiUrl: finalApiUrl,
     onMessageComplete: handleAssistantMessageComplete,
   });
 
@@ -1647,7 +1649,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
       // Re-fetch conversations when chat reopens
       const fetchConversationsOnReopen = async () => {
         try {
-          const supabase = getSupabaseClient('proxe');
+          const supabase = getSupabaseClient();
           if (supabase && externalSessionId) {
             const { data: sessionData, error: sessionError } = await supabase
               .from('web_sessions')
@@ -1704,7 +1706,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
       // Re-fetch conversations when chat reopens and there are no messages
       const fetchConversationsOnReopen = async () => {
         try {
-          const supabase = getSupabaseClient('proxe');
+          const supabase = getSupabaseClient();
           if (supabase && externalSessionId) {
             const { data: sessionData, error: sessionError } = await supabase
               .from('web_sessions')

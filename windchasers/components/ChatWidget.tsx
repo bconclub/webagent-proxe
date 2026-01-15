@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useChat } from '@/src/hooks/useChat';
 import type { Message } from '@/src/hooks/useChatStream';
-import { InfinityLoader } from './InfinityLoader';
-import { BookingCalendarWidget, type BookingCalendarWidgetProps } from './BookingCalendarWidget';
-import { DeployFormInline } from './DeployFormInline';
+import { InfinityLoader } from '@/src/components/shared/InfinityLoader';
+import { BookingCalendarWidget, type BookingCalendarWidgetProps } from '@/src/components/shared/BookingCalendarWidget';
+import { DeployFormInline } from '@/src/components/shared/DeployFormInline';
 import type { BrandConfig } from '@/src/configs';
 import { useDeployModal } from '@/src/contexts/DeployModalContext';
 import styles from './ChatWidget.module.css';
@@ -26,11 +26,10 @@ import {
   storeUserProfile,
   type LocalUserProfile,
 } from '@/src/lib/chatLocalStorage';
-import { getSupabaseClient } from '@/src/lib/supabaseClient';
+import { getSupabaseClient } from '@/src/lib/supabase-windchasers';
+import { windchasersConfig } from './config';
 
 interface ChatWidgetProps {
-  brand: string;
-  config: BrandConfig;
   apiUrl?: string;
   widgetStyle?: 'searchbar' | 'bubble';
 }
@@ -98,9 +97,9 @@ const ICONS = {
         return <img src={config.chatStructure.avatar.source} alt={config.name} style={{ width: '100%', height: '100%' }} />;
       }
     }
-    // Fallback: Use PROXE logo for PROXe brand, infinity symbol for others
-    if (brand === 'proxe') {
-      return <PROXELogo />;
+    // Fallback: Use image logo for Windchasers, infinity symbol for others
+    if (brand === 'windchasers' && config.chatStructure?.avatar?.source) {
+      return <img src={config.chatStructure.avatar.source} alt={config.name} style={{ width: '100%', height: '100%' }} />;
     }
     return <InfinitySymbol />;
   },
@@ -117,7 +116,9 @@ const cleanSummary = (summary: string | null | undefined): string => {
     .trim();
 };
 
-export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }: ChatWidgetProps) {
+export function ChatWidget({ apiUrl, widgetStyle = 'searchbar' }: ChatWidgetProps) {
+  const brand = 'windchasers';
+  const config = windchasersConfig;
   const { openModal: openDeployModal, setOnFormSubmit } = useDeployModal();
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -191,7 +192,8 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
   const conversationsToRestoreRef = useRef<Array<{ id: string; type: 'user' | 'ai'; text: string; created_at: string }>>([]);
   const hasRestoredMessagesRef = useRef<boolean>(false);
   const hasShownWelcomeRef = useRef<boolean>(false);
-  const brandKey: 'proxe' = 'proxe';
+  const brandKey: 'windchasers' = 'windchasers';
+  const finalApiUrl = apiUrl || config.apiUrl || '/api/windchasers/chat';
 
   const handleOpenChat = useCallback(() => {
     setShowCloseConfirm(false);
@@ -215,7 +217,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
     const initializeSession = async () => {
       try {
         if (process.env.NODE_ENV !== 'production') {
-          console.log('[ChatWidget] Initialising session', { brandProp: brand, brandKey });
+          console.log('[ChatWidget Windchasers] Initialising session', { brandKey });
         }
 
         let storedId = getStoredSessionId(brandKey);
@@ -383,7 +385,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
           
           // Fetch and restore conversation messages if we have a lead_id
           // Get lead_id from web_sessions
-          const supabase = getSupabaseClient('proxe');
+          const supabase = getSupabaseClient();
           if (supabase && storedId) {
             try {
               const { data: sessionData, error: sessionError } = await supabase
@@ -1487,8 +1489,8 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
 
 
   const { messages, isLoading, sendMessage, clearMessages, addUserMessage, addAIMessage } = useChat({
-    brand,
-    apiUrl,
+    brand: 'windchasers',
+    apiUrl: finalApiUrl,
     onMessageComplete: handleAssistantMessageComplete,
   });
 
@@ -1647,7 +1649,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
       // Re-fetch conversations when chat reopens
       const fetchConversationsOnReopen = async () => {
         try {
-          const supabase = getSupabaseClient('proxe');
+          const supabase = getSupabaseClient();
           if (supabase && externalSessionId) {
             const { data: sessionData, error: sessionError } = await supabase
               .from('web_sessions')
@@ -1704,7 +1706,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
       // Re-fetch conversations when chat reopens and there are no messages
       const fetchConversationsOnReopen = async () => {
         try {
-          const supabase = getSupabaseClient('proxe');
+          const supabase = getSupabaseClient();
           if (supabase && externalSessionId) {
             const { data: sessionData, error: sessionError } = await supabase
               .from('web_sessions')
@@ -2609,7 +2611,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
           aria-label="Open chat"
         >
           <div className={styles.bubbleIcon}>
-            {brand === 'proxe' ? <PROXELogo /> : ICONS.ai(brand, config)}
+            {ICONS.ai(brand, config)}
           </div>
         </button>
       );
@@ -2661,7 +2663,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
         <div className={styles.chatHeader}>
         <div className={styles.brandName}>
           <div className={styles.avatar}>
-            {brand === 'proxe' ? <PROXELogo /> : ICONS.ai(brand, config)}
+            {ICONS.ai(brand, config)}
           </div>
           <span>{config.name}</span>
         </div>
@@ -3265,7 +3267,7 @@ export function ChatWidget({ brand, config, apiUrl, widgetStyle = 'searchbar' }:
         style={{ zIndex: 10001 }}
       >
         <div className={styles.bubbleIcon}>
-          {isOpen ? ICONS.chevronDown : (brand === 'proxe' ? <PROXELogo /> : ICONS.ai(brand, config))}
+          {isOpen ? ICONS.chevronDown : ICONS.ai(brand, config)}
         </div>
       </button>
     )}

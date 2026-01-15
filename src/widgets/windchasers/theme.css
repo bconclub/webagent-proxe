@@ -1,0 +1,70 @@
+/* Windchasers Theme CSS Variables - Aviation Blue */
+[data-brand="windchasers"],
+[data-theme="aviation-blue"] {
+  /* Main Colors - Aviation Blue Theme */
+  --chatbox-bg: #0F172A;
+  --accent-1: #1E40AF;
+  --accent-2: #1E3A8A;
+  --accent-3: #3B82F6;
+  --accent-4: #06B6D4;
+  --accent-5: #1E40AF;
+  --accent-6: #3B82F6;
+  --accent-7: #06B6D4;
+  
+  /* Theme Colors */
+  --primary-color: #1E40AF;
+  --primary-light: #FFFFFF;
+  --primary-dark: #1E3A8A;
+  --primary-vibrant: #3B82F6;
+  
+  /* Backgrounds */
+  --dark-bg: #0F172A;
+  --dark-card: rgba(30, 64, 175, 0.3);
+  --dark-surface: rgba(30, 58, 138, 0.4);
+  --glass-bg: rgba(30, 64, 175, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: rgba(30, 64, 175, 0.2);
+  
+  /* Text */
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-tertiary: rgba(255, 255, 255, 0.5);
+  --text-muted: rgba(255, 255, 255, 0.4);
+  --white: #FFFFFF;
+  
+  /* Borders */
+  --border-light: rgba(255, 255, 255, 0.08);
+  --border-medium: rgba(255, 255, 255, 0.12);
+  --border-accent: rgba(30, 64, 175, 0.3);
+  --border-glow: rgba(30, 64, 175, 0.4);
+  --border-color: rgba(30, 64, 175, 0.2);
+  
+  /* Other */
+  --green-success: #10B981;
+  --cyan-accent: #06B6D4;
+  --bg-header: rgba(30, 58, 138, 0.85);
+  --bg-message-area: rgba(30, 64, 175, 0.03);
+  --bg-primary: rgba(30, 58, 138, 0.05);
+  --bg-hover: rgba(30, 64, 175, 0.12);
+  --bg-active: rgba(30, 64, 175, 0.15);
+  
+  /* Bubble backgrounds */
+  --bubble-user-bg: rgba(30, 64, 175, 0.25);
+  --bubble-user-border: rgba(30, 64, 175, 0.7);
+  --bubble-user-shadow: 0 8px 32px rgba(30, 64, 175, 0.25);
+  
+  --bubble-ai-bg: rgba(30, 58, 138, 0.3);
+  --bubble-ai-border: rgba(30, 58, 138, 0.7);
+  --bubble-ai-shadow: 0 8px 32px rgba(30, 58, 138, 0.25);
+  
+  /* Buttons */
+  --button-bg: rgba(30, 64, 175, 0.12);
+  --button-hover: rgba(30, 64, 175, 0.2);
+  --button-active: rgba(30, 64, 175, 0.3);
+  
+  /* Blur */
+  --blur-sm: blur(8px);
+  --blur-md: blur(12px);
+  --blur-lg: blur(16px);
+  --blur-xl: blur(24px);
+}
