@@ -1,168 +1,115 @@
-# PROXe Chat Widget - Next.js React Application
+# Multi-Brand Next.js Applications
 
-A modern, AI-powered chat widget built with Next.js, React, and TypeScript for PROXe with dynamic theming and real-time chat functionality.
-
-## Features
-
-- **PROXe Brand Support**: Custom PROXe theme and branding
-- **Real-time Chat**: Streaming responses from Claude AI
-- **Responsive Design**: Works on desktop and mobile
-- **Dynamic Theming**: CSS variables for easy brand customization
-- **TypeScript**: Fully typed for better development experience
+This repository contains standalone Next.js applications for multiple brands, organized in a brand-based folder structure.
 
 ## Project Structure
 
 ```
-/
-├── src/                    # React components, hooks, styles
-│   ├── components/         # React components
-│   ├── hooks/             # Custom React hooks
-│   ├── configs/           # Brand configurations
-│   └── styles/            # CSS and themes
-├── app/                    # Next.js App Router pages
-│   ├── api/               # Next.js API routes
-│   ├── page.tsx           # PROXe brand homepage
-├── public/                 # Static assets
-├── package.json            # Frontend dependencies
-├── next.config.js          # Next.js configuration
-└── tsconfig.json           # TypeScript configuration
+brand/
+├── proxe/
+│   ├── build/                          # Complete PROXe Next.js app
+│   │   ├── .next/                     # Build output
+│   │   ├── public/                    # Public assets
+│   │   ├── src/                       # Source code
+│   │   ├── node_modules/              # Dependencies
+│   │   ├── package.json
+│   │   ├── package-lock.json
+│   │   ├── next.config.js
+│   │   ├── tsconfig.json
+│   │   ├── .env.local
+│   │   ├── .gitignore
+│   │   └── README.md
+│   │
+│   ├── supabase/                       # Database files
+│   │   ├── migrations/
+│   │   │   ├── 001_core_schema.sql
+│   │   │   └── 002_rls_policies.sql
+│   │   └── proxe-complete-schema.sql
+│   │
+│   └── docs/                           # Documentation
+│       ├── BUILD.md
+│       ├── API.md
+│       ├── DEPLOYMENT.md
+│       └── README.md
+│
+└── windchasers/
+    ├── build/                          # Complete Windchasers Next.js app
+    │   ├── .next/
+    │   ├── public/
+    │   ├── src/
+    │   ├── package.json
+    │   └── ...
+    │
+    ├── supabase/                       # Database files
+    │   ├── migrations/
+    │   └── windchasers-schema.sql
+    │
+    └── docs/                           # Documentation
+        └── README.md
 ```
 
-## Prerequisites
+## Quick Start
 
-- Node.js 18+ 
-- npm or yarn
+Each brand application is completely standalone. To work with a specific brand:
 
-## Local Development
-
-### 1. Install Dependencies
+### PROXe
 
 ```bash
+cd brand/proxe/build
 npm install
-```
-
-### 2. Set Environment Variables
-
-Create `.env.local`:
-
-```env
-# Required: Claude API Key for chat functionality
-CLAUDE_API_KEY=sk-ant-api03-your-key-here
-
-# Required: Supabase projects (frontend widgets use NEXT_PUBLIC_* keys)
-NEXT_PUBLIC_PROXE_SUPABASE_URL=https://zboanatspldypfrtrkfp.supabase.co
-NEXT_PUBLIC_PROXE_SUPABASE_ANON_KEY=your-proxe-anon-key
-# Optional (server-only keys if you prefer to keep anon keys off the client)
-PROXE_SUPABASE_URL=https://zboanatspldypfrtrkfp.supabase.co
-PROXE_SUPABASE_ANON_KEY=your-proxe-service-or-anon-key
-
-# Required: Google Calendar API credentials
-GOOGLE_CALENDAR_ID=your-calendar-id
-GOOGLE_SERVICE_ACCOUNT_EMAIL=your-service-account@project.iam.gserviceaccount.com
-GOOGLE_PRIVATE_KEY=your-private-key
-```
-
-**Get your Claude API Key:**
-- Visit [Anthropic Console](https://console.anthropic.com/)
-- Create an API key
-- Add it to `.env.local` as `CLAUDE_API_KEY`
-
-### 3. Start Development Server
-
-```bash
 npm run dev
 ```
 
-Application will be available at `http://localhost:3002`
+### Windchasers
 
-### 4. Access the Application
+```bash
+cd brand/windchasers/build
+npm install
+npm run dev
+```
 
-- **PROXe Brand**: http://localhost:3002/
+## Brand Applications
 
-## Chat Session Storage
+### PROXe
+- **Location**: `brand/proxe/build/`
+- **Port**: Check `package.json` or `.env.local`
+- **Documentation**: `brand/proxe/docs/`
+- **Database**: `brand/proxe/supabase/`
 
-The chat widget persists conversations and compressed memory in Supabase. Apply the SQL in [`supabase/chat_schema.sql`](./supabase/chat_schema.sql) to your Supabase project (via the SQL editor or migrations) before running locally.
+### Windchasers
+- **Location**: `brand/windchasers/build/`
+- **Port**: Check `package.json` or `.env.local`
+- **Documentation**: `brand/windchasers/docs/`
+- **Database**: `brand/windchasers/supabase/`
 
-During a live session the browser also caches lightweight data in `localStorage`:
+## Features
 
-- `proxe.chat.sessionId` – UUID used to reference the Supabase session row.
-- `proxe.chat.user` – JSON blob with `{ name, phone }` captured from the user.
-- `proxe.chat.draftMessages` – Last few unsent messages (cleared on successful send).
+- **Standalone Applications**: Each brand has its own complete Next.js app
+- **Independent Dependencies**: Each app manages its own `node_modules` and `package.json`
+- **Brand-Specific Assets**: Public assets and branding are isolated per brand
+- **Separate Databases**: Each brand has its own Supabase schema and migrations
+- **Clean Separation**: No shared code between brands
 
-These keys allow instant resume while Supabase writes complete or if the network is offline.
+## Development
 
-## Deployment to Vercel
+1. Navigate to the brand's `build/` directory
+2. Install dependencies: `npm install`
+3. Set up environment variables (see brand-specific docs)
+4. Run development server: `npm run dev`
 
-Vercel automatically detects Next.js and provides zero-configuration deployment when connected to your Git repository. No Root Directory configuration needed!
+## Deployment
 
-### Steps
+Each brand application can be deployed independently:
+- Deploy `brand/proxe/build/` as a separate Next.js application
+- Deploy `brand/windchasers/build/` as a separate Next.js application
 
-1. **Push to GitHub**
-   ```bash
-   git add .
-   git commit -m "Ready for deployment"
-   git push origin main
-   ```
+For Vercel deployment, point to the respective `build/` directory as the root.
 
-2. **Connect to Vercel**
-   - Go to [vercel.com](https://vercel.com)
-   - Import your Git repository
-   - Vercel will auto-detect Next.js (package.json is at root)
+## Documentation
 
-3. **Configure Environment Variables**
-   
-   In Vercel Dashboard → Project Settings → Environment Variables:
-   
-   **Required:**
-   - `CLAUDE_API_KEY`: Your Anthropic Claude API key (get from [console.anthropic.com](https://console.anthropic.com/))
-   - `NEXT_PUBLIC_PROXE_SUPABASE_URL` / `NEXT_PUBLIC_PROXE_SUPABASE_ANON_KEY`
-   - Optionally: server-only `PROXE_SUPABASE_*` if you proxy Supabase calls
-   - `GOOGLE_CALENDAR_ID`: Google Calendar ID for bookings
-   - `GOOGLE_SERVICE_ACCOUNT_EMAIL`: Google service account email
-   - `GOOGLE_PRIVATE_KEY`: Google service account private key
-
-4. **Deploy**
-   - Vercel will automatically deploy on every push to main
-   - Or manually trigger deployment from the dashboard
-
-### Vercel Configuration
-
-The project uses standard Next.js structure:
-- `package.json` at root (Vercel auto-detects)
-- `next.config.js` for configuration
-- Built-in Next.js API routes for chat and calendar
-- Automatic routing via Next.js App Router
-
-## Environment Variables
-
-### Required Environment Variables
-
-- `CLAUDE_API_KEY` - Anthropic Claude API key (get from [console.anthropic.com](https://console.anthropic.com/))
-- `NEXT_PUBLIC_PROXE_SUPABASE_URL` / `NEXT_PUBLIC_PROXE_SUPABASE_ANON_KEY`
-- Optionally `PROXE_SUPABASE_URL` / `PROXE_SUPABASE_ANON_KEY` if you prefer to keep anon keys server-side
-- `GOOGLE_CALENDAR_ID` - Google Calendar ID for bookings
-- `GOOGLE_SERVICE_ACCOUNT_EMAIL` - Google service account email
-- `GOOGLE_PRIVATE_KEY` - Google service account private key
-
-## Available Scripts
-
-- `npm run dev` - Start development server (port 3002)
-- `npm run build` - Build for production
-- `npm run build:proxe` - Build PROXe brand only
-- `npm run build:all` - Build all brands
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
-
-## Tech Stack
-
-- **Framework**: Next.js 14 with App Router
-- **Frontend**: React 18, TypeScript
-- **Styling**: CSS Modules, CSS Variables
-- **AI**: Anthropic Claude API (Sonnet 4)
-- **Database**: Supabase (for knowledge base)
-- **Calendar**: Google Calendar API
-- **Animations**: Motion, Lottie React
-- **3D Graphics**: OGL (for background effects)
+- General project documentation: `docs/`
+- Brand-specific documentation: `brand/[brand]/docs/`
+- Database schemas: `brand/[brand]/supabase/`
 
 ## License
 
